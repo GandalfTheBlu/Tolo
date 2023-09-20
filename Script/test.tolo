@@ -1,0 +1,25 @@
+int myAdd(int lhs int rhs)
+{
+	int sum = add(lhs rhs) 
+	return sum
+}
+
+void main()
+{
+	int i = 0
+	while(less(i 100))
+	{
+		print(myAdd(i 1))
+		print('\n')
+		i = add(i 1)
+	}
+	
+	if(less(i 101))
+	{
+		print('y')
+	}
+	if(less(100 i))
+	{
+		print('n')
+	}
+}
