@@ -3,7 +3,8 @@
 
 namespace Tolo
 {
-	Lexer::Lexer()
+	Lexer::Lexer() :
+		isInsideWhile(false)
 	{
 		coreFunctions.insert("less");
 		coreFunctions.insert("greater");
@@ -33,7 +34,7 @@ namespace Tolo
 	LexNode* Lexer::GetIfNode(const std::vector<Token>& tokens, size_t& i)
 	{
 		const Token& token = tokens[i];
-		LexNode* p_if = new LexNode(LexNode::Type::If, token);
+		LexNode* p_if = new LexNode(LexNode::Type::IfSingle, token);
 
 		Affirm(
 			++i < tokens.size() && tokens[i].type == Token::Type::StartPar,
@@ -92,7 +93,68 @@ namespace Tolo
 			token.line
 		);
 
+		if (i < tokens.size() && tokens[i].type == Token::Type::Name && tokens[i].text == "else")
+		{
+			p_if->type = LexNode::Type::IfChain;
+
+			if (i + 1 < tokens.size() && tokens[i + 1].type == Token::Type::Name && tokens[i + 1].text == "if")
+			{
+				LexNode* p_elseIf = GetIfNode(tokens, ++i);
+				// convert if node to else if node of the correct type (single or chained)
+				if (p_elseIf->type == LexNode::Type::IfSingle)
+					p_elseIf->type = LexNode::Type::ElseIfSingle;
+				else
+					p_elseIf->type = LexNode::Type::ElseIfChain;
+
+				p_if->children.push_back(p_elseIf);
+			}
+			else
+				p_if->children.push_back(GetElseNode(tokens, i));
+		}
+
 		return p_if;
+	}
+
+	LexNode* Lexer::GetElseNode(const std::vector<Token>& tokens, size_t& i)
+	{
+		const Token& token = tokens[i];
+		LexNode* p_else = new LexNode(LexNode::Type::Else, token);
+
+		Affirm(
+			++i < tokens.size() && tokens[i].type == Token::Type::StartCurly,
+			"missing '{' at line %i",
+			token.line
+		);
+		i++;
+
+		bool foundEndCurly = false;
+		while (i < tokens.size())
+		{
+			LexNode* p_node = GetNextNode(tokens, i);
+
+			if (p_node->type == LexNode::Type::EndCurly)
+			{
+				delete p_node;
+				foundEndCurly = true;
+				break;
+			}
+
+			Affirm(
+				p_node->IsValidExpressionInScope(),
+				"invalid expression '%s' at line %i",
+				p_node->token.text.c_str(), p_node->token.line
+			);
+
+			p_else->children.push_back(p_node);
+		}
+
+		Affirm(
+			foundEndCurly,
+			"missing '}' after line %i",
+			token.line
+		);
+
+		return p_else;
 	}
 
 	LexNode* Lexer::GetWhileNode(const std::vector<Token>& tokens, size_t& i)
@@ -131,6 +193,8 @@ namespace Tolo
 		i++;
 
 		bool foundEndCurly = false;
+		bool wasInsideWhile = isInsideWhile;
+		isInsideWhile = true;
 		while (i < tokens.size())
 		{
 			LexNode* p_node = GetNextNode(tokens, i);
@@ -150,6 +214,7 @@ namespace Tolo
 
 			p_while->children.push_back(p_node);
 		}
+		isInsideWhile = wasInsideWhile;
 
 		Affirm(
 			foundEndCurly,
@@ -360,6 +425,16 @@ namespace Tolo
 		}
 		if (token.type == Token::Type::Name)
 		{
+			if (token.text == "break")
+			{
+				Affirm(isInsideWhile, "cannot use keyword 'break' when not inside a 'while' body");
+				return new LexNode(LexNode::Type::Break, tokens[i++]);
+			}
+			if (token.text == "continue")
+			{
+				Affirm(isInsideWhile, "cannot use keyword 'break' when not inside a 'while' body");
+				return new LexNode(LexNode::Type::Continue, tokens[i++]);
+			}
 			if (token.text == "return")
 				return GetReturnNode(tokens, i);
 			if (token.text == "if")

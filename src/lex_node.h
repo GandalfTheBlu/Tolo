@@ -9,8 +9,14 @@ namespace Tolo
 		enum class Type
 		{
 			Return,
-			If,
+			IfSingle,// ifSingle{cond, body[...]}
+			IfChain,// ifChain{cond, body[...], elseIfSingle | elseIfChain | else}
+			ElseIfSingle,// elseIfSignle{cond, body[...]}
+			ElseIfChain,// elseIfChain{cond, body[...], elseIfSingle | elseIfChain | else}
+			Else,// else{body[...]}
 			While,
+			Break,
+			Continue,
 			CoreFunctionCall,
 			UserFunctionCall,
 			VariableWrite,

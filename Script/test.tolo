@@ -1,25 +1,27 @@
-int myAdd(int lhs int rhs)
-{
-	int sum = add(lhs rhs) 
-	return sum
-}
+
 
 void main()
 {
 	int i = 0
-	while(less(i 100))
+	while(less(i 10))
 	{
-		print(myAdd(i 1))
+		if(equal(i 2))
+		{
+			int i2 = add(i 1)
+			i = i2
+			continue
+		}
+	
+		print(i)
 		print('\n')
+		
+		if(equal(i 5))
+		{
+			break
+		}
+		
 		i = add(i 1)
 	}
 	
-	if(less(i 101))
-	{
-		print('y')
-	}
-	if(less(100 i))
-	{
-		print('n')
-	}
+	print('\1')# prints smiley :)
 }

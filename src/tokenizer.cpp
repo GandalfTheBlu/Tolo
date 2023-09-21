@@ -79,6 +79,8 @@ namespace Tolo
 						charStr += '\n';
 					else if (ec == 't')
 						charStr += '\t';
+					else if (ec >= '0' && ec <= '9')
+						charStr += ('\0' + ec - '0');
 					else
 						Affirm(false, "invalid escape character [%c] at line %i", ec, line);
 

@@ -41,6 +41,10 @@ namespace Tolo
 
 		Parser();
 
+		bool HasBody(LexNode* p_lexNode, Int& outBodyStartIndex, Int& outBodyEndIndex);
+
+		void FlattenNode(LexNode* p_lexNode, std::vector<LexNode*>& outNodes);
+
 		Expression* ParseLiteralConstant(LexNode* p_lexNode);
 
 		Expression* ParseVariableLoad(LexNode* p_lexNode);
@@ -49,7 +53,15 @@ namespace Tolo
 
 		Expression* ParseReturn(LexNode* p_lexNode);
 
-		Expression* ParseIf(LexNode* p_lexNode);
+		Expression* ParseIfSingle(LexNode* p_lexNode);
+
+		Expression* ParseIfChain(LexNode* p_lexNode);
+
+		Expression* ParseElseIfSingle(LexNode* p_lexNode);
+
+		Expression* ParseElseIfChain(LexNode* p_lexNode);
+
+		Expression* ParseElse(LexNode* p_lexNode);
 
 		Expression* ParseWhile(LexNode* p_lexNode);
 

@@ -4,7 +4,9 @@ namespace Tolo
 {
 	CodeBuilder::CodeBuilder(Char* _p_data) :
 		p_data(_p_data),
-		codeLength(0)
+		codeLength(0),
+		currentBranchDepth(0),
+		currentWhileDepth(0)
 	{}
 
 	void CodeBuilder::Op(OpCode val)

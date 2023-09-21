@@ -168,14 +168,72 @@ namespace Tolo
 		virtual std::string GetDataType() override;
 	};
 
-	struct EIf : public Expression
+	struct EIfSingle : public Expression
 	{
 		Expression* conditionLoad;
 		std::vector<Expression*> body;
 
-		EIf();
+		EIfSingle();
 
-		~EIf();
+		~EIfSingle();
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+
+		virtual std::string GetDataType() override;
+	};
+
+
+	struct EIfChain : public Expression
+	{
+		Expression* conditionLoad;
+		std::vector<Expression*> body;
+		Expression* chain;
+
+		EIfChain();
+
+		~EIfChain();
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+
+		virtual std::string GetDataType() override;
+	};
+
+	struct EElseIfSingle : public Expression
+	{
+		Expression* conditionLoad;
+		std::vector<Expression*> body;
+
+		EElseIfSingle();
+
+		~EElseIfSingle();
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+
+		virtual std::string GetDataType() override;
+	};
+
+	struct EElseIfChain : public Expression
+	{
+		Expression* conditionLoad;
+		std::vector<Expression*> body;
+		Expression* chain;
+
+		EElseIfChain();
+
+		~EElseIfChain();
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+
+		virtual std::string GetDataType() override;
+	};
+
+	struct EElse : public Expression
+	{
+		std::vector<Expression*> body;
+
+		EElse();
+
+		~EElse();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -190,6 +248,24 @@ namespace Tolo
 		EWhile();
 
 		~EWhile();
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+
+		virtual std::string GetDataType() override;
+	};
+
+	struct EBreak : public Expression
+	{
+		EBreak();
+		
+		virtual void Evaluate(CodeBuilder& cb) override;
+
+		virtual std::string GetDataType() override;
+	};
+
+	struct EContinue : public Expression
+	{
+		EContinue();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 

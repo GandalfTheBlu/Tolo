@@ -7,12 +7,15 @@ namespace Tolo
 	struct Lexer
 	{
 		std::set<std::string> coreFunctions;
+		bool isInsideWhile;
 
 		Lexer();
 
 		LexNode* GetReturnNode(const std::vector<Token>& tokens, size_t& i);
 
 		LexNode* GetIfNode(const std::vector<Token>& tokens, size_t& i);
+		
+		LexNode* GetElseNode(const std::vector<Token>& tokens, size_t& i);
 
 		LexNode* GetWhileNode(const std::vector<Token>& tokens, size_t& i);
 

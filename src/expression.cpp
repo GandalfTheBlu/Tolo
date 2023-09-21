@@ -273,20 +273,27 @@ namespace Tolo
 
 	void EWhile::Evaluate(CodeBuilder& cb)
 	{
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel("__while_condition__");
+		cb.currentWhileDepth++;
+		std::string depthId = std::to_string(cb.currentWhileDepth);
+
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__while_condition__");
 		cb.Op(OpCode::Write_IP);
 
-		cb.DefineLabel("__while_body__");
+		cb.DefineLabel(depthId + "__while_body__");
 		for (auto e : body)
 			e->Evaluate(cb);
 
-		cb.DefineLabel("__while_condition__");
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel("__while_body__");
+		cb.DefineLabel(depthId + "__while_condition__");
+		cb.RemoveLabel(depthId + "__while_condition__");
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__while_body__");
+		cb.RemoveLabel(depthId + "__while_body__");
 		conditionLoad->Evaluate(cb);
 		cb.Op(OpCode::Write_IP_If);
 
-		cb.RemoveLabel("__while_condition__");
-		cb.RemoveLabel("__while_body__");
+		cb.DefineLabel(depthId + "__while_end__");
+		cb.RemoveLabel(depthId + "__while_end__");
+
+		cb.currentWhileDepth--;
 	}
 
 	std::string EWhile::GetDataType()
@@ -295,11 +302,11 @@ namespace Tolo
 	}
 
 
-	EIf::EIf() :
+	EIfSingle::EIfSingle() :
 		conditionLoad(nullptr)
 	{}
 
-	EIf::~EIf()
+	EIfSingle::~EIfSingle()
 	{
 		delete conditionLoad;
 
@@ -307,26 +314,223 @@ namespace Tolo
 			delete e;
 	}
 
-	void EIf::Evaluate(CodeBuilder& cb)
+	void EIfSingle::Evaluate(CodeBuilder& cb)
 	{
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel("__if_body__");
+		cb.currentBranchDepth++;
+		std::string depthId = std::to_string(cb.currentBranchDepth);
+
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_body__");
 		conditionLoad->Evaluate(cb);
 		cb.Op(OpCode::Write_IP_If);
 
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel("__if_end__");
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_end__");
 		cb.Op(OpCode::Write_IP);
 
-		cb.DefineLabel("__if_body__");
+		cb.DefineLabel(depthId + "__if_body__");
+		cb.RemoveLabel(depthId + "__if_body__");
+
 		for (auto e : body)
 			e->Evaluate(cb);
 
-		cb.DefineLabel("__if_end__");
+		cb.DefineLabel(depthId + "__if_end__");
+		cb.RemoveLabel(depthId + "__if_end__");
 
-		cb.RemoveLabel("__if_body__");
-		cb.RemoveLabel("__if_end__");
+		cb.currentBranchDepth--;
 	}
 
-	std::string EIf::GetDataType()
+	std::string EIfSingle::GetDataType()
+	{
+		return "void";
+	}
+
+
+	EIfChain::EIfChain() :
+		conditionLoad(nullptr),
+		chain(nullptr)
+	{}
+
+	EIfChain::~EIfChain()
+	{
+		delete conditionLoad;
+
+		for (auto e : body)
+			delete e;
+
+		delete chain;
+	}
+
+	void EIfChain::Evaluate(CodeBuilder& cb)
+	{
+		cb.currentBranchDepth++;
+		std::string depthId = std::to_string(cb.currentBranchDepth);
+
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_body__");
+		conditionLoad->Evaluate(cb);
+		cb.Op(OpCode::Write_IP_If);
+
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_end__");
+		cb.Op(OpCode::Write_IP);
+
+		cb.DefineLabel(depthId + "__if_body__");
+		cb.RemoveLabel(depthId + "__if_body__");
+
+		for (auto e : body)
+			e->Evaluate(cb);
+
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__chain_end__");
+		cb.Op(OpCode::Write_IP);
+
+		cb.DefineLabel(depthId + "__if_end__");
+		cb.RemoveLabel(depthId + "__if_end__");
+
+		chain->Evaluate(cb);
+
+		cb.DefineLabel(depthId + "__chain_end__");
+		cb.RemoveLabel(depthId + "__chain_end__");
+
+		cb.currentBranchDepth--;
+	}
+
+	std::string EIfChain::GetDataType()
+	{
+		return "void";
+	}
+
+
+	EElseIfSingle::EElseIfSingle() :
+		conditionLoad(nullptr)
+	{}
+
+	EElseIfSingle::~EElseIfSingle()
+	{
+		delete conditionLoad;
+
+		for (auto e : body)
+			delete e;
+	}
+
+	void EElseIfSingle::Evaluate(CodeBuilder& cb)
+	{
+		std::string depthId = std::to_string(cb.currentBranchDepth);
+
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_body__");
+		conditionLoad->Evaluate(cb);
+		cb.Op(OpCode::Write_IP_If);
+
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_end__");
+		cb.Op(OpCode::Write_IP);
+
+		cb.DefineLabel(depthId + "__if_body__");
+		cb.RemoveLabel(depthId + "__if_body__");
+
+		for (auto e : body)
+			e->Evaluate(cb);
+
+		cb.DefineLabel(depthId + "__if_end__");
+		cb.RemoveLabel(depthId + "__if_end__");
+	}
+
+	std::string EElseIfSingle::GetDataType()
+	{
+		return "void";
+	}
+
+
+	EElseIfChain::EElseIfChain() :
+		conditionLoad(nullptr),
+		chain(nullptr)
+	{}
+
+	EElseIfChain::~EElseIfChain()
+	{
+		delete conditionLoad;
+
+		for (auto e : body)
+			delete e;
+
+		delete chain;
+	}
+
+	void EElseIfChain::Evaluate(CodeBuilder& cb)
+	{
+		std::string depthId = std::to_string(cb.currentBranchDepth);
+
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_body__");
+		conditionLoad->Evaluate(cb);
+		cb.Op(OpCode::Write_IP_If);
+
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_end__");
+		cb.Op(OpCode::Write_IP);
+
+		cb.DefineLabel(depthId + "__if_body__");
+		cb.RemoveLabel(depthId + "__if_body__");
+
+		for (auto e : body)
+			e->Evaluate(cb);
+
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__chain_end__");
+		cb.Op(OpCode::Write_IP);
+
+		cb.DefineLabel(depthId + "__if_end__");
+		cb.RemoveLabel(depthId + "__if_end__");
+
+		chain->Evaluate(cb);
+	}
+
+	std::string EElseIfChain::GetDataType()
+	{
+		return "void";
+	}
+
+
+	EElse::EElse()
+	{}
+
+	EElse::~EElse()
+	{
+		for (auto e : body)
+			delete e;
+	}
+
+	void EElse::Evaluate(CodeBuilder& cb)
+	{
+		for (auto e : body)
+			e->Evaluate(cb);
+	}
+
+	std::string EElse::GetDataType()
+	{
+		return "void";
+	}
+
+	
+	EBreak::EBreak()
+	{}
+
+	void EBreak::Evaluate(CodeBuilder& cb)
+	{
+		std::string depthId = std::to_string(cb.currentWhileDepth);
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__while_end__");
+		cb.Op(OpCode::Write_IP);
+	}
+
+	std::string EBreak::GetDataType()
+	{
+		return "void";
+	}
+
+
+	EContinue::EContinue()
+	{}
+
+	void EContinue::Evaluate(CodeBuilder& cb)
+	{
+		std::string depthId = std::to_string(cb.currentWhileDepth);
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__while_condition__");
+		cb.Op(OpCode::Write_IP);
+	}
+
+	std::string EContinue::GetDataType()
 	{
 		return "void";
 	}

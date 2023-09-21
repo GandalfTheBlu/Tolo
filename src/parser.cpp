@@ -79,6 +79,50 @@ namespace Tolo
 		currentExpectedReturnType = "void";
 	}
 
+	bool Parser::HasBody(LexNode* p_lexNode, Int& outBodyStartIndex, Int& outBodyEndIndex)
+	{
+		switch (p_lexNode->type)
+		{
+		case LexNode::Type::While:
+		case LexNode::Type::IfSingle:
+		case LexNode::Type::ElseIfSingle:
+			outBodyStartIndex = 1;
+			outBodyEndIndex = (Int)p_lexNode->children.size() - 1;
+			break;
+		case LexNode::Type::IfChain:
+		case LexNode::Type::ElseIfChain:
+			outBodyStartIndex = 1;
+			outBodyEndIndex = (Int)p_lexNode->children.size() - 2;
+			break;
+		case LexNode::Type::Else:
+			outBodyStartIndex = 0;
+			outBodyStartIndex = 0;
+			break;
+		default:
+			return false;
+		}
+
+		return true;
+	}
+
+
+	void Parser::FlattenNode(LexNode* p_lexNode, std::vector<LexNode*>& outNodes)
+	{
+		Int bodyStartIndex = 0;
+		Int bodyEndIndex = 0;
+		if (!HasBody(p_lexNode, bodyStartIndex, bodyEndIndex))
+		{
+			outNodes.push_back(p_lexNode);
+			return;
+		}
+
+		for (Int i = bodyStartIndex; i <= bodyEndIndex; i++)
+		{
+			LexNode* p_bodyNode = p_lexNode->children[i];
+			FlattenNode(p_bodyNode, outNodes);
+		}
+	}
+
 	Expression* Parser::ParseLiteralConstant(LexNode* p_lexNode)
 	{
 		if (p_lexNode->token.type == Token::Type::ConstChar)
@@ -177,9 +221,9 @@ namespace Tolo
 	}
 
 
-	Expression* Parser::ParseIf(LexNode* p_lexNode)
+	Expression* Parser::ParseIfSingle(LexNode* p_lexNode)
 	{
-		EIf* p_if = new EIf();
+		EIfSingle* p_if = new EIfSingle();
 
 		currentExpectedReturnType = "char";
 		p_if->conditionLoad = ParseNextExpression(p_lexNode->children[0]);
@@ -191,6 +235,70 @@ namespace Tolo
 		}
 
 		return p_if;
+	}
+
+	Expression* Parser::ParseIfChain(LexNode* p_lexNode)
+	{
+		EIfChain* p_if = new EIfChain();
+
+		currentExpectedReturnType = "char";
+		p_if->conditionLoad = ParseNextExpression(p_lexNode->children[0]);
+		currentExpectedReturnType = "void";
+
+		for (size_t i = 1; i+1 < p_lexNode->children.size(); i++)
+		{
+			p_if->body.push_back(ParseNextExpression(p_lexNode->children[i]));
+		}
+
+		p_if->chain = ParseNextExpression(p_lexNode->children.back());
+
+		return p_if;
+	}
+
+	Expression* Parser::ParseElseIfSingle(LexNode* p_lexNode)
+	{
+		EElseIfSingle* p_elif = new EElseIfSingle();
+
+		currentExpectedReturnType = "char";
+		p_elif->conditionLoad = ParseNextExpression(p_lexNode->children[0]);
+		currentExpectedReturnType = "void";
+
+		for (size_t i = 1; i < p_lexNode->children.size(); i++)
+		{
+			p_elif->body.push_back(ParseNextExpression(p_lexNode->children[i]));
+		}
+
+		return p_elif;
+	}
+
+	Expression* Parser::ParseElseIfChain(LexNode* p_lexNode)
+	{
+		EElseIfChain* p_elif = new EElseIfChain();
+
+		currentExpectedReturnType = "char";
+		p_elif->conditionLoad = ParseNextExpression(p_lexNode->children[0]);
+		currentExpectedReturnType = "void";
+
+		for (size_t i = 1; i + 1 < p_lexNode->children.size(); i++)
+		{
+			p_elif->body.push_back(ParseNextExpression(p_lexNode->children[i]));
+		}
+
+		p_elif->chain = ParseNextExpression(p_lexNode->children.back());
+
+		return p_elif;
+	}
+
+	Expression* Parser::ParseElse(LexNode* p_lexNode)
+	{
+		EElse* p_else = new EElse();
+
+		for (size_t i = 0; i < p_lexNode->children.size(); i++)
+		{
+			p_else->body.push_back(ParseNextExpression(p_lexNode->children[i]));
+		}
+
+		return p_else;
 	}
 
 	Expression* Parser::ParseWhile(LexNode* p_lexNode)
@@ -433,26 +541,32 @@ namespace Tolo
 				break;
 		}
 
-		// find all local variables
+		// flatten content nodes into a single array to find all variable definitions
+		std::vector<LexNode*> bodyContent;
 		for (size_t i = bodyStartIndex; i < p_lexNode->children.size(); i++)
 		{
-			if (p_lexNode->children[i]->type != LexNode::Type::VariableDefinition)
+			FlattenNode(p_lexNode->children[i], bodyContent);
+		}
+
+		// find all local variable definitions
+		for (auto p_bodyNode : bodyContent)
+		{
+			if (p_bodyNode->type != LexNode::Type::VariableDefinition)
 				continue;
 
-			LexNode* varDefNode = p_lexNode->children[i];
-			const std::string& varTypeName = varDefNode->token.text;
-			const std::string& varName = varDefNode->children[0]->token.text;
+			const std::string& varTypeName = p_bodyNode->token.text;
+			const std::string& varName = p_bodyNode->children[0]->token.text;
 
 			Affirm(
 				typeNameToSize.count(varTypeName) != 0,
 				"undefined type '%s' at line %i",
-				varTypeName.c_str(), varDefNode->token.line
+				varTypeName.c_str(), p_bodyNode->token.line
 			);
 
 			Affirm(
 				funcInfo.varNameToVarInfo.count(varName) == 0,
 				"variable '%s' at line %i is already defined",
-				varName.c_str(), varDefNode->children[0]->token.line
+				varName.c_str(), p_bodyNode->children[0]->token.line
 			);
 
 			Int varSize = typeNameToSize[varTypeName];
@@ -517,10 +631,22 @@ namespace Tolo
 			return ParseUserFunctionCall(p_lexNode);
 		case LexNode::Type::Return:
 			return ParseReturn(p_lexNode);
-		case LexNode::Type::If:
-			return ParseIf(p_lexNode);
+		case LexNode::Type::IfSingle:
+			return ParseIfSingle(p_lexNode);
+		case LexNode::Type::IfChain:
+			return ParseIfChain(p_lexNode);
+		case LexNode::Type::ElseIfSingle:
+			return ParseElseIfSingle(p_lexNode);
+		case LexNode::Type::ElseIfChain:
+			return ParseElseIfChain(p_lexNode);
+		case LexNode::Type::Else:
+			return ParseElse(p_lexNode);
 		case LexNode::Type::While:
 			return ParseWhile(p_lexNode);
+		case LexNode::Type::Break:
+			return new EBreak();
+		case LexNode::Type::Continue:
+			return new EContinue();
 		default:
 			Affirm(false, "unexpected expression '%s' at line %i", p_lexNode->token.text.c_str(), p_lexNode->token.line);
 			break;

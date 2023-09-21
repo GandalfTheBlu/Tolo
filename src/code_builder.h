@@ -12,6 +12,8 @@ namespace Tolo
 		Ptr codeLength;
 		std::map<std::string, Ptr> labelNameToLabelIp;
 		std::map<std::string, std::vector<Ptr>> labelNameToRefIps;
+		Int currentBranchDepth;
+		Int currentWhileDepth;
 
 		CodeBuilder(Char* _p_data);
 
