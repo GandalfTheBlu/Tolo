@@ -60,7 +60,7 @@ namespace Tolo
 			e->Evaluate(cb);
 
 		cb.DefineLabel("__program_end__");
-		cb.RemoveLabel("__program__end__");
+		cb.RemoveLabel("__program_end__");
 
 		for (auto e : lexNodes)
 			delete e;
