@@ -248,14 +248,19 @@ namespace Tolo
 
 	void EReturn::Evaluate(CodeBuilder& cb) 
 	{
-		retValLoad->Evaluate(cb);
+		if(retValLoad != nullptr)
+			retValLoad->Evaluate(cb);
+
 		cb.Op(OpCode::Return);
 		cb.ConstInt(retValSize);
 	}
 
 	std::string EReturn::GetDataType()
 	{
-		return retValLoad->GetDataType();
+		if (retValLoad == nullptr)
+			return "void";
+		else
+			return retValLoad->GetDataType();
 	}
 
 

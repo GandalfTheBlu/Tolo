@@ -53,9 +53,14 @@ namespace Tolo
 		ECallFunction mainCall(0, mainInfo.localsSize, mainInfo.returnTypeName);
 		mainCall.functionIpLoad = new ELoadConstPtrToLabel("main");
 		mainCall.Evaluate(cb);
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel("__program_end__");
+		cb.Op(OpCode::Write_IP);
 
 		for (auto e : expressions)
 			e->Evaluate(cb);
+
+		cb.DefineLabel("__program_end__");
+		cb.RemoveLabel("__program__end__");
 
 		for (auto e : lexNodes)
 			delete e;

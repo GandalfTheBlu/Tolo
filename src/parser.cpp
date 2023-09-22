@@ -213,9 +213,20 @@ namespace Tolo
 	{
 		EReturn* p_ret = new EReturn(typeNameToSize[currentFunction->returnTypeName]);
 
-		currentExpectedReturnType = currentFunction->returnTypeName;
-		p_ret->retValLoad = ParseNextExpression(p_lexNode->children[0]);
-		currentExpectedReturnType = "void";
+		if (p_lexNode->children.size() == 0)
+		{
+			Affirm(
+				currentFunction->returnTypeName == "void",
+				"missing value expression after 'return' keyword at line %i", 
+				p_lexNode->token.line
+			);
+		}
+		else
+		{
+			currentExpectedReturnType = currentFunction->returnTypeName;
+			p_ret->retValLoad = ParseNextExpression(p_lexNode->children[0]);
+			currentExpectedReturnType = "void";
+		}
 
 		return p_ret;
 	}
@@ -607,6 +618,26 @@ namespace Tolo
 			p_defFunc->body.push_back(ParseNextExpression(p_lexNode->children[i]));
 
 		currentFunction = nullptr;
+
+		// check for final return expression
+		if (p_defFunc->body.size() == 0)
+		{
+			Affirm(funcInfo.returnTypeName == "void",
+				"missing 'return'-statement in function '%s' at line %i",
+				funcName.c_str(), p_lexNode->token.line
+			);
+
+			p_defFunc->body.push_back(new EReturn(0));
+		}
+		else if(p_lexNode->children.back()->type != LexNode::Type::Return)
+		{
+			Affirm(p_defFunc->body.back()->GetDataType() == "void",
+				"missing 'return'-statement in function '%s' at line %i",
+				funcName.c_str(), p_lexNode->token.line
+			);
+
+			p_defFunc->body.push_back(new EReturn(0));
+		}
 
 		return p_defFunc;
 	}

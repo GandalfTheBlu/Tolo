@@ -19,15 +19,17 @@ namespace Tolo
 	LexNode* Lexer::GetReturnNode(const std::vector<Token>& tokens, size_t& i)
 	{
 		LexNode* p_ret = new LexNode(LexNode::Type::Return, tokens[i]);
-		LexNode* p_exp = GetNextNode(tokens, ++i);
 
-		Affirm(
-			p_exp->IsValueExpression(),
-			"expected value expression at line %i",
-			p_exp->token.line
-		);
+		size_t nextIndex = i + 1;
+		LexNode* p_exp = GetNextNode(tokens, nextIndex);
+		if (p_exp->IsValueExpression())
+		{
+			p_ret->children.push_back(p_exp);
+			i = nextIndex;
+		}
+		else
+			i++;
 
-		p_ret->children.push_back(p_exp);
 		return p_ret;
 	}
 

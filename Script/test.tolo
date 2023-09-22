@@ -1,4 +1,9 @@
 
+void LogFloat(float f)
+{
+	print(f)
+	print('\n')
+}
 
 void main()
 {
@@ -24,4 +29,7 @@ void main()
 	}
 	
 	print('\1')# prints smiley :)
+	print('\n')
+	
+	LogFloat(1337.0)
 }
