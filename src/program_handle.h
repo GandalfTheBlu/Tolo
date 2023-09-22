@@ -1,49 +1,86 @@
 #pragma once
-#include "compiler.h"
 #include "virtual_machine.h"
-#include "expression.h"
+#include <string>
 #include <vector>
 
 namespace Tolo
 {
-	template<typename RETURN_TYPE>
+	template<typename T>
+	bool WriteValue(Char* p_data, Ptr& inoutIndex, const T& value)
+	{
+		if (inoutIndex < sizeof(T))
+			return false;
+
+		inoutIndex -= sizeof(T);
+		*(T*)(p_data + inoutIndex) = value;
+
+		return true;
+	}
+
 	class ProgramHandle
 	{
 	private:
 		std::string codePath;
 		Char* p_stack;
-		Ptr codeLength;
-		Ptr stackSize;
+		Ptr codeStart;
+		Ptr codeEnd;
+		Int mainReturnValueSize;
 
 		ProgramHandle() = delete;
 		ProgramHandle(const ProgramHandle&) = delete;
 		ProgramHandle& operator=(const ProgramHandle&) = delete;
 
 	public:
-		ProgramHandle(const std::string& _codePath, Ptr _stackSize) :
-			codePath(_codePath),
-			stackSize(_stackSize),
-			codeLength(0)
+		ProgramHandle(const std::string& _codePath, Ptr stackSize);
+
+		~ProgramHandle();
+
+		void Compile();
+
+		template<typename RETURN_TYPE, typename... ARGUMENTS>
+		std::enable_if_t<std::is_same<RETURN_TYPE, void>::value>
+		Execute(const ARGUMENTS&... arguments)
 		{
-			p_stack = (Char*)std::malloc(stackSize);
+			// this version is for when RETURN_TYPE is void, so nothing should be returned
+
+			Affirm(
+				mainReturnValueSize == 0,
+				"requested return type does not match size of 'main'-function's return type"
+			);
+
+			Ptr argByteOffset = codeStart;
+			bool writeSuccess = (WriteValue(p_stack, argByteOffset, arguments) && ...);
+
+			Affirm(
+				writeSuccess && argByteOffset == 0,
+				"argument list provided to 'main'-function does not match the size of parameter list"
+			);
+
+			RunProgram(p_stack, codeStart, codeEnd);
 		}
 
-		~ProgramHandle()
+		template<typename RETURN_TYPE, typename... ARGUMENTS>
+		std::enable_if_t<!std::is_same<RETURN_TYPE, void>::value, RETURN_TYPE>
+		Execute(const ARGUMENTS&... arguments)
 		{
-			std::free(p_stack);
-		}
+			// this version is for when RETURN_TYPE is not void, so the return value of the main function should be returned
 
-		void Compile()
-		{
-			std::vector<Expression*> argLoaders;
-			argLoaders.push_back(new ELoadConstInt(1));
-			CompileProgram(codePath, p_stack, codeLength, "int", argLoaders);
-		}
+			Affirm(
+				mainReturnValueSize == sizeof(RETURN_TYPE),
+				"requested return type does not match size of 'main'-function's return type"
+			);
 
-		RETURN_TYPE Execute()
-		{
-			RunProgram(p_stack, codeLength);
-			return *(RETURN_TYPE*)(p_stack + codeLength);
+			Ptr argByteOffset = codeStart;
+			bool writeSuccess = (WriteValue(p_stack, argByteOffset, arguments) && ...);
+
+			Affirm(
+				writeSuccess && argByteOffset == 0,
+				"argument list provided to 'main'-function does not match the size of parameter list"
+			);
+
+			RunProgram(p_stack, codeStart, codeEnd);
+
+			return *(RETURN_TYPE*)(p_stack + codeEnd);
 		}
 	};
 }

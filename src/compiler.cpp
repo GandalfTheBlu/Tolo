@@ -20,7 +20,7 @@ namespace Tolo
 		file.close();
 	}
 
-	void CompileProgram(const std::string& codePath, Char* p_stack, Ptr& outCodeLength, const std::string& expectedMainReturnType, const std::vector<Expression*>& mainArgumentLoaders)
+	void CompileProgram(const std::string& codePath, Char* p_stack, Ptr& outCodeStart, Ptr& outCodeEnd, Int& outMainRetValByteSize)
 	{
 		std::string code;
 		ReadTextFile(codePath, code);
@@ -44,33 +44,22 @@ namespace Tolo
 		);
 
 		FunctionInfo& mainInfo = parser.definedFunctions["main"];
-		Affirm(
-			expectedMainReturnType == mainInfo.returnTypeName,
-			"expected 'main'-function with return type of '%s' but got '%s'",
-			mainInfo.returnTypeName.c_str(), expectedMainReturnType.c_str()
-		);
-		Affirm(
-			mainInfo.parameterNames.size() == mainArgumentLoaders.size(),
-			"'main'-function parameters do not match arguments"
-		);
-
 		Int mainParamsSize = 0;
+
 		for (size_t i=0; i<mainInfo.parameterNames.size(); i++)
 		{
-			std::string argTypeName = mainArgumentLoaders[i]->GetDataType();
 			const std::string& paramTypeName = mainInfo.varNameToVarInfo[mainInfo.parameterNames[i]].typeName;
-
-			Affirm(
-				argTypeName == paramTypeName, 
-				"'main'-function parameter '%s' of type '%s' does not match argument of type '%s'",
-				mainInfo.parameterNames[i].c_str(), paramTypeName.c_str(), argTypeName.c_str()
-			);
-
 			mainParamsSize += parser.typeNameToSize[paramTypeName];
 		}
 
+		cb.codeLength += mainParamsSize;// allocate space for main arguments in bottom of stack
+
+		outCodeStart = cb.codeLength;
+		outMainRetValByteSize = parser.typeNameToSize[mainInfo.returnTypeName];
+
 		ECallFunction mainCall(mainParamsSize, mainInfo.localsSize, mainInfo.returnTypeName);
-		mainCall.argumentLoads = mainArgumentLoaders;
+		// tell the main function to load arguments from the beginning of the stack, where the user will write them
+		mainCall.argumentLoads = {new ELoadConstBytes(mainParamsSize, 0)};
 		mainCall.functionIpLoad = new ELoadConstPtrToLabel("main");
 		mainCall.Evaluate(cb);
 		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel("__program_end__");
@@ -88,6 +77,6 @@ namespace Tolo
 		for (auto e : expressions)
 			delete e;
 
-		outCodeLength = cb.codeLength;
+		outCodeEnd = cb.codeLength;
 	}
 }

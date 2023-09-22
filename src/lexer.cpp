@@ -252,6 +252,19 @@ namespace Tolo
 				break;
 			}
 
+			Affirm(i < tokens.size(), "unexpected end of tokens at line %i", p_node->token.line);
+
+			if (tokens[i].type == Token::Type::Comma)
+				i++;
+			else
+			{
+				Affirm(
+					tokens[i].type == Token::Type::EndPar, 
+					"unexpected token '%s' at line %i", 
+					tokens[i].text.c_str(), tokens[i].line
+				);
+			}
+
 			Affirm(
 				p_node->IsValueExpression(),
 				"expected value expression at line %i",
@@ -354,13 +367,27 @@ namespace Tolo
 			}
 
 			Affirm(
-				tokens[i].type == Token::Type::Name,
+				i+1 < tokens.size() && tokens[i].type == Token::Type::Name && tokens[i+1].type == Token::Type::Name,
 				"expected identifier at line %i",
 				tokens[i].line
 			);
 
+			p_funcDef->children.push_back(new LexNode(LexNode::Type::Identifier, tokens[i++]));
 			p_funcDef->children.push_back(new LexNode(LexNode::Type::Identifier, tokens[i]));
+
+			Affirm(i + 1 < tokens.size(), "unexpected end of tokens at line %i", tokens[i].line);
 			i++;
+
+			if (tokens[i].type == Token::Type::Comma)
+				i++;
+			else
+			{
+				Affirm(
+					tokens[i].type == Token::Type::EndPar, 
+					"unexpected token '%s' at line %i", 
+					tokens[i].text.c_str(), tokens[i].line
+				);
+			}
 		}
 
 		Affirm(

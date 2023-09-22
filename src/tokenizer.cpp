@@ -46,14 +46,9 @@ namespace Tolo
 				tokens.push_back({ Token::Type::EndCurly, "}", line });
 				i++;
 			}
-			else if (c == '[')
+			else if (c == ',')
 			{
-				tokens.push_back({ Token::Type::StartBracket, "[", line });
-				i++;
-			}
-			else if (c == ']')
-			{
-				tokens.push_back({ Token::Type::EndBracket, "]", line });
+				tokens.push_back({ Token::Type::Comma, ",", line });
 				i++;
 			}
 			else if (c == '=')

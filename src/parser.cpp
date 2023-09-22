@@ -334,8 +334,8 @@ namespace Tolo
 		{
 			{"add", 0},
 			{"sub", 1},
-			{"div", 2},
-			{"mul", 3}
+			{"mul", 2},
+			{"div", 3}
 		};
 
 		// determine op code based on function and operand type

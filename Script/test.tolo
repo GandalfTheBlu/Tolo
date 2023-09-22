@@ -1,6 +1,19 @@
 
 
-int main(int arg)
+float main(float ax, float ay, float az, float bx, float by, float bz)
 {
-	return add(arg 1)
+	print(ax)
+	print('\n')
+	print(ay)
+	print('\n')
+	print(az)
+	print('\n')
+	
+	print(bx)
+	print('\n')
+	print(by)
+	print('\n')
+	print(bz)
+	
+	return add(add(mul(ax, bx), mul(ay, by)), mul(az, bz))
 }

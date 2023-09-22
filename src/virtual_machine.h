@@ -230,5 +230,5 @@ namespace Tolo
 		vm.instructionPtr += sizeof(Char);
 	}
 
-	void RunProgram(Char* p_stack, Ptr codeLength);
+	void RunProgram(Char* p_stack, Ptr codeStart, Ptr codeEnd);
 }

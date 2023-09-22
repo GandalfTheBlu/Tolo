@@ -4,9 +4,9 @@
 
 namespace Tolo
 {
-	void RunProgram(Char* p_stack, Ptr codeLength)
+	void RunProgram(Char* p_stack, Ptr codeStart, Ptr codeEnd)
 	{
-		VirtualMachine vm{ codeLength, 0, 0, p_stack };
+		VirtualMachine vm{ codeEnd, codeStart, 0, p_stack };
 		void(*ops[])(VirtualMachine&)
 		{
 			Op_Load_FP,
@@ -109,7 +109,7 @@ namespace Tolo
 		};
 #endif
 
-		while (vm.instructionPtr < codeLength)
+		while (vm.instructionPtr < codeEnd)
 		{
 			Char opCode = p_stack[vm.instructionPtr];
 #ifdef DEBUG_VM

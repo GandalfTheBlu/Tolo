@@ -89,6 +89,24 @@ namespace Tolo
 	}
 
 
+	ELoadConstBytes::ELoadConstBytes(Int _bytesSize, Ptr _bytesPtr) : 
+		bytesSize(_bytesSize),
+		bytesPtr(_bytesPtr)
+	{}
+
+	void ELoadConstBytes::Evaluate(CodeBuilder& cb)
+	{
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtr(bytesPtr);
+		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(bytesSize);
+		cb.Op(OpCode::Load_Bytes_From);
+	}
+
+	std::string ELoadConstBytes::GetDataType()
+	{
+		return "_";// this expression is never used in the parser
+	}
+
+
 	EDefineFunction::EDefineFunction(const std::string& _functionName) :
 		functionName(_functionName)
 	{}
