@@ -29,19 +29,19 @@ namespace Tolo
 		Ptr instructionPtr;
 		Ptr framePtr;
 
-		Char* p_data;
+		Char* p_stack;
 	};
 
 	template<typename T>
 	void Set(VirtualMachine& vm, Ptr pos, T val)
 	{
-		*(T*)(vm.p_data + pos) = val;
+		*(T*)(vm.p_stack + pos) = val;
 	}
 
 	template<typename T>
 	T Get(VirtualMachine& vm, Ptr pos)
 	{
-		return *(T*)(vm.p_data + pos);
+		return *(T*)(vm.p_stack + pos);
 	}
 
 	template<typename T>
@@ -230,5 +230,5 @@ namespace Tolo
 		vm.instructionPtr += sizeof(Char);
 	}
 
-	void RunProgram(Char* p_data, Ptr codeLength);
+	void RunProgram(Char* p_stack, Ptr codeLength);
 }

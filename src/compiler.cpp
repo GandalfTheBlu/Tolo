@@ -20,7 +20,7 @@ namespace Tolo
 		file.close();
 	}
 
-	void Compile(const std::string& codePath, Char* p_programMemory, Ptr& outCodeLength)
+	void CompileProgram(const std::string& codePath, Char* p_stack, Ptr& outCodeLength, const std::string& expectedMainReturnType, const std::vector<Expression*>& mainArgumentLoaders)
 	{
 		std::string code;
 		ReadTextFile(codePath, code);
@@ -36,7 +36,7 @@ namespace Tolo
 		std::vector<Expression*> expressions;
 		parser.Parse(lexNodes, expressions);
 
-		CodeBuilder cb(p_programMemory);
+		CodeBuilder cb(p_stack);
 
 		Affirm(
 			parser.definedFunctions.count("main") != 0,
@@ -44,13 +44,33 @@ namespace Tolo
 		);
 
 		FunctionInfo& mainInfo = parser.definedFunctions["main"];
-
 		Affirm(
-			mainInfo.parametersSize == 0,
-			"'main' function cannot take any parameters"
+			expectedMainReturnType == mainInfo.returnTypeName,
+			"expected 'main'-function with return type of '%s' but got '%s'",
+			mainInfo.returnTypeName.c_str(), expectedMainReturnType.c_str()
+		);
+		Affirm(
+			mainInfo.parameterNames.size() == mainArgumentLoaders.size(),
+			"'main'-function parameters do not match arguments"
 		);
 
-		ECallFunction mainCall(0, mainInfo.localsSize, mainInfo.returnTypeName);
+		Int mainParamsSize = 0;
+		for (size_t i=0; i<mainInfo.parameterNames.size(); i++)
+		{
+			std::string argTypeName = mainArgumentLoaders[i]->GetDataType();
+			const std::string& paramTypeName = mainInfo.varNameToVarInfo[mainInfo.parameterNames[i]].typeName;
+
+			Affirm(
+				argTypeName == paramTypeName, 
+				"'main'-function parameter '%s' of type '%s' does not match argument of type '%s'",
+				mainInfo.parameterNames[i].c_str(), paramTypeName.c_str(), argTypeName.c_str()
+			);
+
+			mainParamsSize += parser.typeNameToSize[paramTypeName];
+		}
+
+		ECallFunction mainCall(mainParamsSize, mainInfo.localsSize, mainInfo.returnTypeName);
+		mainCall.argumentLoads = mainArgumentLoaders;
 		mainCall.functionIpLoad = new ELoadConstPtrToLabel("main");
 		mainCall.Evaluate(cb);
 		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel("__program_end__");

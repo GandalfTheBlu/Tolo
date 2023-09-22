@@ -157,6 +157,7 @@
     <ClInclude Include="src\lexer.h" />
     <ClInclude Include="src\lex_node.h" />
     <ClInclude Include="src\parser.h" />
+    <ClInclude Include="src\program_handle.h" />
     <ClInclude Include="src\token.h" />
     <ClInclude Include="src\tokenizer.h" />
     <ClInclude Include="src\virtual_machine.h" />

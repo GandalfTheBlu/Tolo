@@ -1,23 +1,14 @@
-
-
-
-
-
-
-#include "src/compiler.h"
-#include "src/virtual_machine.h"
+#include "src/program_handle.h"
 
 using namespace Tolo;
 
 int main()
 {
-	Char p_programMemory[1024];
-	Ptr codeLength = 0;
+	ProgramHandle<int> program("Script/test.tolo", 1024);
+	program.Compile();
+	int retVal = program.Execute();
 
-	Compile("Script/test.tolo", p_programMemory, codeLength);
-	RunProgram(p_programMemory, codeLength);
-
-	std::printf("\n");
+	std::printf("\nprogram returned with state %i\n", retVal);
 
 	return 0;
 }

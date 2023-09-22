@@ -335,7 +335,7 @@ namespace Tolo
 		LexNode* p_funcDef = new LexNode(LexNode::Type::FunctionDefinition, token);
 
 		Affirm(
-			i + 6 < tokens.size() && tokens[i + 1].type == Token::Type::Name && tokens[i + 2].type == Token::Type::StartPar,
+			i + 5 < tokens.size() && tokens[i + 1].type == Token::Type::Name && tokens[i + 2].type == Token::Type::StartPar,
 			"expected variable definition at line %i",
 			token.line
 		);

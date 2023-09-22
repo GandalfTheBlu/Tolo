@@ -8,14 +8,14 @@ namespace Tolo
 {
 	struct CodeBuilder
 	{
-		Char* p_data;
+		Char* p_stack;
 		Ptr codeLength;
 		std::map<std::string, Ptr> labelNameToLabelIp;
 		std::map<std::string, std::vector<Ptr>> labelNameToRefIps;
 		Int currentBranchDepth;
 		Int currentWhileDepth;
 
-		CodeBuilder(Char* _p_data);
+		CodeBuilder(Char* _p_stack);
 
 		void Op(OpCode val);
 
