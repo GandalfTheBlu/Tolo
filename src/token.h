@@ -12,6 +12,7 @@ namespace Tolo
 			StartCurly,
 			EndCurly,
 			Comma,
+			Dot,
 			EqualSign,
 			Name,
 			ConstChar,

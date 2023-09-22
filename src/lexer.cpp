@@ -283,6 +283,43 @@ namespace Tolo
 		return p_funcCall;
 	}
 
+	LexNode* Lexer::GetPropertyLoadNode(const std::vector<Token>& tokens, size_t& i)
+	{
+		Affirm(
+			i + 2 < tokens.size() && tokens[i + 2].type == Token::Type::Name,
+			"expected identifier at line %i", 
+			tokens[i].line
+		);
+
+		LexNode* p_propLoad = new LexNode(LexNode::Type::PropertyLoad, tokens[i]);
+		p_propLoad->children.push_back(new LexNode(LexNode::Type::Identifier, tokens[i + 2]));
+
+		i += 3;
+
+		return p_propLoad;
+	}
+
+	LexNode* Lexer::GetPropertyWriteNode(const std::vector<Token>& tokens, size_t& i)
+	{
+		const Token& token = tokens[i];
+		LexNode* p_propWrite = new LexNode(LexNode::Type::PropertyWrite, token);
+
+		p_propWrite->children.push_back(new LexNode(LexNode::Type::Identifier, tokens[i + 2]));
+
+		i += 4;
+
+		LexNode* p_exp = GetNextNode(tokens, i);
+
+		Affirm(
+			p_exp->IsValueExpression(),
+			"expected value expression at line %i",
+			token.line
+		);
+
+		p_propWrite->children.push_back(p_exp);
+		return p_propWrite;
+	}
+
 	LexNode* Lexer::GetVariableWriteNode(const std::vector<Token>& tokens, size_t& i)
 	{
 		const Token& token = tokens[i];
@@ -433,6 +470,53 @@ namespace Tolo
 		return p_funcDef;
 	}
 
+	LexNode* Lexer::GetStructDefinitionNode(const std::vector<Token>& tokens, size_t& i)
+	{
+		const Token& token = tokens[i];
+		LexNode* p_structDef = new LexNode(LexNode::Type::StructDefinition, token);
+
+		Affirm(
+			i + 3 < tokens.size() && tokens[i + 1].type == Token::Type::Name && tokens[i + 2].type == Token::Type::StartCurly,
+			"expected struct definition at line %i", 
+			token.line
+		);
+
+		p_structDef->children.push_back(new LexNode(LexNode::Type::Identifier, tokens[i + 1]));
+
+		i += 3;
+
+		bool foundEndCurly = false;
+		while (i < tokens.size())
+		{
+			if (tokens[i].type == Token::Type::EndCurly)
+			{
+				Affirm(
+					p_structDef->children.size() > 1, 
+					"invalid struct definition at line %i, struct is empty", 
+					token.line
+				);
+				foundEndCurly = true;
+				i++;
+				break;
+			}
+
+			Affirm(
+				i + 1 < tokens.size() && tokens[i].type == Token::Type::Name && tokens[i + 1].type == Token::Type::Name,
+				"expected identifier at line %i", 
+				tokens[i].line
+			);
+
+			p_structDef->children.push_back(new LexNode(LexNode::Type::Identifier, tokens[i]));
+			p_structDef->children.push_back(new LexNode(LexNode::Type::Identifier, tokens[i+1]));
+
+			i += 2;
+		}
+
+		Affirm(foundEndCurly, "missing '}' after line %i", token.line);
+
+		return p_structDef;
+	}
+
 	LexNode* Lexer::GetNextNode(const std::vector<Token>& tokens, size_t& i)
 	{
 		const Token& token = tokens[i];
@@ -470,10 +554,16 @@ namespace Tolo
 				return GetIfNode(tokens, i);
 			if (token.text == "while")
 				return GetWhileNode(tokens, i);
+			if (token.text == "struct")
+				return GetStructDefinitionNode(tokens, i);
 			if (i + 1 < tokens.size() && tokens[i + 1].type == Token::Type::StartPar)
 				return GetFunctionCallNode(tokens, i);
 			if (i + 1 < tokens.size() && tokens[i + 1].type == Token::Type::EqualSign)
 				return GetVariableWriteNode(tokens, i);
+			if (i + 3 < tokens.size() && tokens[i + 1].type == Token::Type::Dot && tokens[i+2].type == Token::Type::Name && tokens[i + 3].type == Token::Type::EqualSign)
+				return GetPropertyWriteNode(tokens, i);
+			if (i + 1 < tokens.size() && tokens[i + 1].type == Token::Type::Dot)
+				return GetPropertyLoadNode(tokens, i);
 			if (i + 2 < tokens.size() && tokens[i + 1].type == Token::Type::Name && tokens[i + 2].type == Token::Type::EqualSign)
 				return GetVariableDefinitionNode(tokens, i);
 			else if (i + 2 < tokens.size() && tokens[i + 1].type == Token::Type::Name && tokens[i + 2].type == Token::Type::StartPar)

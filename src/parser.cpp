@@ -19,6 +19,9 @@ namespace Tolo
 		parametersSize(0)
 	{}
 
+	StructInfo::StructInfo()
+	{}
+
 	Parser::Parser() :
 		currentFunction(nullptr)
 	{
@@ -203,6 +206,86 @@ namespace Tolo
 		currentExpectedReturnType = info.typeName;
 
 		p_write->dataLoad = ParseNextExpression(p_lexNode->children[0]);
+
+		currentExpectedReturnType = "void";
+
+		return p_write;
+	}
+
+	Expression* Parser::ParsePropertyLoad(LexNode* p_lexNode)
+	{
+		const std::string& varName = p_lexNode->token.text;
+		const std::string& propName = p_lexNode->children[0]->token.text;
+
+		Affirm(
+			currentFunction->varNameToVarInfo.count(varName) != 0,
+			"undefined name '%s' at line %i", 
+			varName.c_str(), p_lexNode->token.line
+		);
+
+		VariableInfo& varInfo = currentFunction->varNameToVarInfo[varName];
+		
+		Affirm(
+			typeNameToStructInfo.count(varInfo.typeName) != 0,
+			"cannot access property '%s' at line %i because variable '%s' is not a struct",
+			propName.c_str(), p_lexNode->children[0]->token.line, varName.c_str()
+		);
+
+		StructInfo& structInfo = typeNameToStructInfo[varInfo.typeName];
+
+		Affirm(structInfo.propNameToVarInfo.count(propName) != 0,
+			"cannot access property '%s' at line %i because the struct '%s' does not contain it",
+			propName.c_str(), p_lexNode->children[0]->token.line, varInfo.typeName.c_str()
+		);
+
+		VariableInfo& propInfo = structInfo.propNameToVarInfo[propName];
+
+		Affirm(
+			propInfo.typeName == currentExpectedReturnType || currentExpectedReturnType == ANY_VALUE_TYPE,
+			"expected '%s' to be of type '%s' at line %i",
+			(varName + "." + propName).c_str(), currentExpectedReturnType.c_str(), p_lexNode->children[0]->token.line
+		);
+
+		Int propOffset = varInfo.offset - propInfo.offset;
+		return new ELoadVariable(propOffset, typeNameToSize[propInfo.typeName], propInfo.typeName);
+	}
+
+	Expression* Parser::ParsePropertyWrite(LexNode* p_lexNode)
+	{
+		const std::string& varName = p_lexNode->token.text;
+		const std::string& propName = p_lexNode->children[0]->token.text;
+
+		Affirm(
+			currentFunction->varNameToVarInfo.count(varName) != 0,
+			"undefined name '%s' at line %i",
+			varName.c_str(), p_lexNode->token.line
+		);
+
+		VariableInfo& varInfo = currentFunction->varNameToVarInfo[varName];
+
+		Affirm(
+			typeNameToStructInfo.count(varInfo.typeName) != 0,
+			"cannot access property '%s' at line %i because variable '%s' is not a struct",
+			propName.c_str(), p_lexNode->children[0]->token.line, varName.c_str()
+		);
+
+		StructInfo& structInfo = typeNameToStructInfo[varInfo.typeName];
+
+		Affirm(structInfo.propNameToVarInfo.count(propName) != 0,
+			"cannot access property '%s' at line %i because the struct '%s' does not contain it",
+			propName.c_str(), p_lexNode->children[0]->token.line, varInfo.typeName.c_str()
+		);
+
+		VariableInfo& propInfo = structInfo.propNameToVarInfo[propName];
+
+		EWriteBytesTo* p_write = new EWriteBytesTo();
+		p_write->bytesSizeLoad = new ELoadConstInt(typeNameToSize[propInfo.typeName]);
+		Int propOffset = varInfo.offset - propInfo.offset;
+		p_write->writePtrLoad = new ELoadVariablePtr(propOffset);
+
+		currentExpectedReturnType = propInfo.typeName;
+
+		p_write->dataLoad = ParseNextExpression(p_lexNode->children[1]);
 
 		currentExpectedReturnType = "void";
 
@@ -460,6 +543,40 @@ namespace Tolo
 	Expression* Parser::ParseUserFunctionCall(LexNode* p_lexNode)
 	{
 		const std::string& funcName = p_lexNode->token.text;
+
+		// handle struct initialization
+		if (typeNameToStructInfo.count(funcName) != 0)
+		{
+			std::string oldRetType = currentExpectedReturnType;
+			Affirm(
+				oldRetType == funcName || oldRetType == ANY_VALUE_TYPE,
+				"expected expression of type '%s' at line %i but got '%s'",
+				oldRetType.c_str(), p_lexNode->token.line, funcName.c_str()
+			);
+
+			StructInfo& structInfo = typeNameToStructInfo[funcName];
+				
+			Affirm(
+				structInfo.propNameToVarInfo.size() == p_lexNode->children.size(),
+				"number of arguments provided to struct initializer '%s' at line %i does not match number of properties",
+				funcName.c_str(), p_lexNode->token.line
+			);
+
+			ELoadMulti* p_loadMulti = new ELoadMulti(funcName);
+
+			size_t argIndex = 0;
+			for (auto& e : structInfo.propNameToVarInfo)
+			{
+				currentExpectedReturnType = e.second.typeName;
+				p_loadMulti->loaders.push_back(ParseNextExpression(p_lexNode->children[argIndex]));
+				argIndex++;
+			}
+
+			currentExpectedReturnType = oldRetType;
+
+			return p_loadMulti;
+		}
+
 		Affirm(
 			definedFunctions.count(funcName) != 0,
 			"name '%s' at line %i is not a function",
@@ -642,6 +759,45 @@ namespace Tolo
 		return p_defFunc;
 	}
 
+	Expression* Parser::ParseStructDefinition(LexNode* p_lexNode)
+	{
+		const std::string& structName = p_lexNode->children[0]->token.text;
+
+		Affirm(
+			typeNameToSize.contains(structName) == 0,
+			"type name '%s' at line %i is already defined", 
+			structName.c_str(), p_lexNode->children[0]->token.line
+		);
+
+		StructInfo& structInfo = typeNameToStructInfo[structName];
+
+		Int propertyOffset = 0;
+		for (size_t i = 1; i + 1 < p_lexNode->children.size(); i += 2)
+		{
+			const std::string& propTypeName = p_lexNode->children[i]->token.text;
+			const std::string& propName = p_lexNode->children[i + 1]->token.text;
+
+			Affirm(
+				typeNameToSize.contains(propTypeName) != 0,
+				"type name '%s' at line %i is not defined",
+				propTypeName.c_str(), p_lexNode->children[i]->token.line
+			);
+
+			Affirm(
+				structInfo.propNameToVarInfo.count(propName) == 0,
+				"property '%s' at line %i is already defined in struct '%s'",
+				propName.c_str(), p_lexNode->children[i + 1]->token.line, structName.c_str()
+			);
+
+			structInfo.propNameToVarInfo[propName] = VariableInfo(propTypeName, propertyOffset);
+			propertyOffset += typeNameToSize[propTypeName];
+		}
+
+		typeNameToSize[structName] = propertyOffset;
+
+		return new EEmpty();
+	}
+
 	Expression* Parser::ParseNextExpression(LexNode* p_lexNode)
 	{
 		switch (p_lexNode->type)
@@ -652,10 +808,16 @@ namespace Tolo
 			return ParseVariableLoad(p_lexNode);
 		case LexNode::Type::VariableWrite:
 			return ParseVariableWrite(p_lexNode);
+		case LexNode::Type::PropertyLoad:
+			return ParsePropertyLoad(p_lexNode);
+		case LexNode::Type::PropertyWrite:
+			return ParsePropertyWrite(p_lexNode);
 		case LexNode::Type::VariableDefinition:
 			return ParseVariableDefinition(p_lexNode);
 		case LexNode::Type::FunctionDefinition:
 			return ParseFunctionDefinition(p_lexNode);
+		case LexNode::Type::StructDefinition:
+			return ParseStructDefinition(p_lexNode);
 		case LexNode::Type::CoreFunctionCall:
 			return ParseCoreFunctionCall(p_lexNode);
 		case LexNode::Type::UserFunctionCall:

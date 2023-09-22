@@ -284,6 +284,29 @@ namespace Tolo
 		virtual std::string GetDataType() override;
 	};
 
+	struct EEmpty : public Expression
+	{
+		EEmpty();
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+
+		virtual std::string GetDataType() override;
+	};
+
+	struct ELoadMulti : public Expression
+	{
+		std::vector<Expression*> loaders;
+		std::string dataTypeName;
+
+		ELoadMulti(const std::string& _dataTypeName);
+
+		~ELoadMulti();
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+
+		virtual std::string GetDataType() override;
+	};
+
 	struct EDebugPrint : public Expression
 	{
 		OpCode printOp;

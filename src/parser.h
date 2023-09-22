@@ -28,6 +28,13 @@ namespace Tolo
 		FunctionInfo();
 	};
 
+	struct StructInfo
+	{
+		std::map<std::string, VariableInfo> propNameToVarInfo;
+
+		StructInfo();
+	};
+
 	struct Parser
 	{
 		typedef std::vector<OpCode> DataTypeOperators;
@@ -36,8 +43,8 @@ namespace Tolo
 		std::map<std::string, FunctionInfo> definedFunctions;
 		FunctionInfo* currentFunction;
 		std::string currentExpectedReturnType;
-
 		std::map<std::string, DataTypeOperators> typeNameOperators;
+		std::map<std::string, StructInfo> typeNameToStructInfo;
 
 		Parser();
 
@@ -50,6 +57,10 @@ namespace Tolo
 		Expression* ParseVariableLoad(LexNode* p_lexNode);
 
 		Expression* ParseVariableWrite(LexNode* p_lexNode);
+
+		Expression* ParsePropertyLoad(LexNode* p_lexNode);
+
+		Expression* ParsePropertyWrite(LexNode* p_lexNode);
 
 		Expression* ParseReturn(LexNode* p_lexNode);
 
@@ -78,6 +89,8 @@ namespace Tolo
 		Expression* ParseVariableDefinition(LexNode* p_lexNode);
 
 		Expression* ParseFunctionDefinition(LexNode* p_lexNode);
+
+		Expression* ParseStructDefinition(LexNode* p_lexNode);
 
 		Expression* ParseNextExpression(LexNode* p_lexNode);
 

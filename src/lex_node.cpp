@@ -17,12 +17,13 @@ namespace Tolo
 	{
 		return type == Type::LiteralConstant ||
 			type == Type::VariableLoad ||
+			type == Type::PropertyLoad ||
 			type == Type::CoreFunctionCall ||
 			type == Type::UserFunctionCall;
 	}
 
 	bool LexNode::IsValidExpressionInScope()
 	{
-		return type != Type::FunctionDefinition && type != Type::Identifier;
+		return type != Type::FunctionDefinition && type != Type::Identifier && type != Type::StructDefinition;
 	}
 }

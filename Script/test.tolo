@@ -1,19 +1,28 @@
 
-
-float main(float ax, float ay, float az, float bx, float by, float bz)
+struct vec3
 {
-	print(ax)
+	float x
+	float y
+	float z
+}
+
+vec3 v_add(vec3 a, vec3 b)
+{
+	return vec3(add(a.x, b.x), add(a.y, b.y), add(a.z, b.z))
+}
+
+float main(vec3 a, vec3 b)
+{
+	vec3 c = v_add(a, b)
+	print(c.x)
 	print('\n')
-	print(ay)
+	print(c.y)
 	print('\n')
-	print(az)
+	print(c.z)
 	print('\n')
 	
-	print(bx)
-	print('\n')
-	print(by)
-	print('\n')
-	print(bz)
+	c.x = 1337.0
+	print(c.x)
 	
-	return add(add(mul(ax, bx), mul(ay, by)), mul(az, bz))
+	return 1.0
 }

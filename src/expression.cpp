@@ -140,7 +140,7 @@ namespace Tolo
 	void ELoadVariable::Evaluate(CodeBuilder& cb) 
 	{
 		cb.Op(OpCode::Load_FP);
-		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(-12 - varOffset);
+		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(-(Int)(sizeof(Ptr) + sizeof(Ptr) + sizeof(Int)) - varOffset);
 		cb.Op(OpCode::Ptr_Add);
 		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(varSize);
 		cb.Op(OpCode::Load_Bytes_From);
@@ -556,6 +556,40 @@ namespace Tolo
 	std::string EContinue::GetDataType()
 	{
 		return "void";
+	}
+
+
+	EEmpty::EEmpty()
+	{}
+
+	void EEmpty::Evaluate(CodeBuilder& cb)
+	{}
+
+	std::string EEmpty::GetDataType()
+	{
+		return "void";
+	}
+
+
+	ELoadMulti::ELoadMulti(const std::string& _dataTypeName) :
+		dataTypeName(_dataTypeName)
+	{}
+
+	ELoadMulti::~ELoadMulti()
+	{
+		for (auto e : loaders)
+			delete e;
+	}
+
+	void ELoadMulti::Evaluate(CodeBuilder& cb)
+	{
+		for (auto e : loaders)
+			e->Evaluate(cb);
+	}
+
+	std::string ELoadMulti::GetDataType()
+	{
+		return dataTypeName;
 	}
 
 

@@ -51,6 +51,11 @@ namespace Tolo
 				tokens.push_back({ Token::Type::Comma, ",", line });
 				i++;
 			}
+			else if (c == '.')
+			{
+				tokens.push_back({ Token::Type::Dot, ".", line });
+				i++;
+			}
 			else if (c == '=')
 			{
 				tokens.push_back({ Token::Type::EqualSign, "=", line });
