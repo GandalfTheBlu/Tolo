@@ -47,6 +47,8 @@ namespace Tolo
 			Op_T_Mul<Float>,
 			Op_T_Div<Float>,
 
+			Op_Pow,
+
 			Op_T_Equal<Ptr>,
 			Op_TU_Add<Ptr, Ptr>,
 			Op_TU_Sub<Ptr, Ptr>,
@@ -97,6 +99,8 @@ namespace Tolo
 			"Float_Sub",
 			"Float_Mul",
 			"Float_Div",
+
+			"Pow",
 
 			"Ptr_Equal",
 			"Ptr_Add",

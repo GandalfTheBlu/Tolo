@@ -166,6 +166,20 @@ namespace Tolo
 		virtual std::string GetDataType() override;
 	};
 
+	struct EPow : public Expression
+	{
+		Expression* baseLoad;
+		Expression* expLoad;
+
+		EPow();
+
+		~EPow();
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+
+		virtual std::string GetDataType() override;
+	};
+
 	struct EReturn : public Expression
 	{
 		Int retValSize;

@@ -1,5 +1,6 @@
 #pragma once
 #include "common.h"
+#include <cmath>
 
 namespace Tolo
 {
@@ -199,6 +200,14 @@ namespace Tolo
 		T lhs = Pop<T>(vm);
 		T rhs = Pop<T>(vm);
 		Push<T>(vm, lhs / rhs);
+		vm.instructionPtr += sizeof(Char);
+	}
+
+	inline void Op_Pow(VirtualMachine& vm)
+	{
+		Float base = Pop<Float>(vm);
+		Float exp = Pop<Float>(vm);
+		Push<Float>(vm, std::powf(base, exp));
 		vm.instructionPtr += sizeof(Char);
 	}
 

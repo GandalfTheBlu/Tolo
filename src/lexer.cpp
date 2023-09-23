@@ -14,6 +14,7 @@ namespace Tolo
 		coreFunctions.insert("sub");
 		coreFunctions.insert("mul");
 		coreFunctions.insert("div");
+		coreFunctions.insert("pow");
 	}
 
 	LexNode* Lexer::GetReturnNode(const std::vector<Token>& tokens, size_t& i)

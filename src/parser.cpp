@@ -552,6 +552,21 @@ namespace Tolo
 		return p_dbgPrint;
 	}
 
+	Expression* Parser::ParsePow(LexNode* p_lexNode)
+	{
+		Affirm(
+			currentExpectedReturnType == "float" || currentExpectedReturnType == ANY_VALUE_TYPE,
+			"expected expression of type '%s' at line %i",
+			currentExpectedReturnType.c_str(), p_lexNode->token.line
+		);
+
+		EPow* p_pow = new EPow();
+		p_pow->baseLoad = ParseNextExpression(p_lexNode->children[0]);
+		p_pow->expLoad = ParseNextExpression(p_lexNode->children[1]);
+
+		return p_pow;
+	}
+
 	Expression* Parser::ParseCoreFunctionCall(LexNode* p_lexNode)
 	{
 		const std::string& funcName = p_lexNode->token.text;
@@ -562,6 +577,8 @@ namespace Tolo
 			return ParseBinaryCompareOp(p_lexNode, funcName);
 		if (funcName == "print")
 			return ParseDebugPrint(p_lexNode);
+		if (funcName == "pow")
+			return ParsePow(p_lexNode);
 
 		return nullptr;
 	}

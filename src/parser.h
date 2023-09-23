@@ -87,6 +87,8 @@ namespace Tolo
 
 		Expression* ParseDebugPrint(LexNode* p_lexNode);
 
+		Expression* ParsePow(LexNode* p_lexNode);
+
 		Expression* ParseCoreFunctionCall(LexNode* p_lexNode);
 
 		Expression* ParseUserFunctionCall(LexNode* p_lexNode);

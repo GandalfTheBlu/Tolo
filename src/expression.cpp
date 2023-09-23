@@ -254,6 +254,30 @@ namespace Tolo
 	}
 
 
+	EPow::EPow() : 
+		baseLoad(nullptr),
+		expLoad(nullptr)
+	{}
+
+	EPow::~EPow()
+	{
+		delete baseLoad;
+		delete expLoad;
+	}
+
+	void EPow::Evaluate(CodeBuilder& cb)
+	{
+		expLoad->Evaluate(cb);
+		baseLoad->Evaluate(cb);
+		cb.Op(OpCode::Pow);
+	}
+
+	std::string EPow::GetDataType()
+	{
+		return "float";
+	}
+
+
 	EReturn::EReturn(Int _retValSize) :
 		retValSize(_retValSize),
 		retValLoad(nullptr)

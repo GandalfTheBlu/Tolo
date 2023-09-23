@@ -6,27 +6,12 @@ struct vec3
 	float z
 }
 
-struct Transform
+float length(vec3 p)
 {
-	vec3 pos
-	vec3 forward
-	char id
+	return pow(add(mul(p.x, p.x), add(mul(p.y, p.y), mul(p.z, p.z))), 0.5)
 }
 
-float main(vec3 pos, vec3 forward)
+float main(vec3 p)
 {
-	char id = 'x'
-	Transform t = Transform(pos, forward, id)
-	
-	print(t.pos.x)
-	print('\n')
-	print(t.forward.z)
-	print('\n')
-	print(t.id)
-	
-	print('\n')
-	t.pos.x = 1337.0
-	print(t.pos.x)
-	
-	return 1.0
+	return sub(length(p), 1.0)
 }
