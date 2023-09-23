@@ -21,16 +21,11 @@ namespace Tolo
 
 		LexNode* GetFunctionCallNode(const std::vector<Token>& tokens, size_t& i);
 
-
-		/*these:*/
-		LexNode* GetPropertyLoadNode(const std::vector<Token>& tokens, size_t& i);
-
-		LexNode* GetPropertyWriteNode(const std::vector<Token>& tokens, size_t& i);
+		LexNode* GetPropertyLoadOrWriteNode(const std::vector<Token>& tokens, size_t& i);
 
 		LexNode* GetVariableWriteNode(const std::vector<Token>& tokens, size_t& i);
 
 		LexNode* GetVariableLoadNode(const std::vector<Token>& tokens, size_t& i);
-		/*must be changed to a more general case of [expression] = [expression] and [name].[name]*/
 
 		LexNode* GetVariableDefinitionNode(const std::vector<Token>& tokens, size_t& i);
 		

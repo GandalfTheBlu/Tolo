@@ -6,23 +6,27 @@ struct vec3
 	float z
 }
 
-vec3 v_add(vec3 a, vec3 b)
+struct Transform
 {
-	return vec3(add(a.x, b.x), add(a.y, b.y), add(a.z, b.z))
+	vec3 pos
+	vec3 forward
+	char id
 }
 
-float main(vec3 a, vec3 b)
+float main(vec3 pos, vec3 forward)
 {
-	vec3 c = v_add(a, b)
-	print(c.x)
-	print('\n')
-	print(c.y)
-	print('\n')
-	print(c.z)
-	print('\n')
+	char id = 'x'
+	Transform t = Transform(pos, forward, id)
 	
-	c.x = 1337.0
-	print(c.x)
+	print(t.pos.x)
+	print('\n')
+	print(t.forward.z)
+	print('\n')
+	print(t.id)
+	
+	print('\n')
+	t.pos.x = 1337.0
+	print(t.pos.x)
 	
 	return 1.0
 }

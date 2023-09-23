@@ -14,6 +14,18 @@ namespace Tolo
 		offset(_offset)
 	{}
 
+	VariableInfo::VariableInfo(const VariableInfo& rhs) :
+		typeName(rhs.typeName),
+		offset(rhs.offset)
+	{}
+
+	VariableInfo& VariableInfo::operator=(const VariableInfo& rhs)
+	{
+		typeName = rhs.typeName;
+		offset = rhs.offset;
+		return *this;
+	}
+
 	FunctionInfo::FunctionInfo() :
 		localsSize(0),
 		parametersSize(0)
@@ -215,45 +227,6 @@ namespace Tolo
 	Expression* Parser::ParsePropertyLoad(LexNode* p_lexNode)
 	{
 		const std::string& varName = p_lexNode->token.text;
-		const std::string& propName = p_lexNode->children[0]->token.text;
-
-		Affirm(
-			currentFunction->varNameToVarInfo.count(varName) != 0,
-			"undefined name '%s' at line %i", 
-			varName.c_str(), p_lexNode->token.line
-		);
-
-		VariableInfo& varInfo = currentFunction->varNameToVarInfo[varName];
-		
-		Affirm(
-			typeNameToStructInfo.count(varInfo.typeName) != 0,
-			"cannot access property '%s' at line %i because variable '%s' is not a struct",
-			propName.c_str(), p_lexNode->children[0]->token.line, varName.c_str()
-		);
-
-		StructInfo& structInfo = typeNameToStructInfo[varInfo.typeName];
-
-		Affirm(structInfo.propNameToVarInfo.count(propName) != 0,
-			"cannot access property '%s' at line %i because the struct '%s' does not contain it",
-			propName.c_str(), p_lexNode->children[0]->token.line, varInfo.typeName.c_str()
-		);
-
-		VariableInfo& propInfo = structInfo.propNameToVarInfo[propName];
-
-		Affirm(
-			propInfo.typeName == currentExpectedReturnType || currentExpectedReturnType == ANY_VALUE_TYPE,
-			"expected '%s' to be of type '%s' at line %i",
-			(varName + "." + propName).c_str(), currentExpectedReturnType.c_str(), p_lexNode->children[0]->token.line
-		);
-
-		Int propOffset = varInfo.offset - propInfo.offset;
-		return new ELoadVariable(propOffset, typeNameToSize[propInfo.typeName], propInfo.typeName);
-	}
-
-	Expression* Parser::ParsePropertyWrite(LexNode* p_lexNode)
-	{
-		const std::string& varName = p_lexNode->token.text;
-		const std::string& propName = p_lexNode->children[0]->token.text;
 
 		Affirm(
 			currentFunction->varNameToVarInfo.count(varName) != 0,
@@ -261,31 +234,84 @@ namespace Tolo
 			varName.c_str(), p_lexNode->token.line
 		);
 
-		VariableInfo& varInfo = currentFunction->varNameToVarInfo[varName];
+		VariableInfo currentVarInfo = currentFunction->varNameToVarInfo[varName];
+		Int propOffset = currentVarInfo.offset;
+
+		for (size_t i = 0; i < p_lexNode->children.size(); i++)
+		{
+			const std::string& propName = p_lexNode->children[i]->token.text;
+
+			Affirm(
+				typeNameToStructInfo.count(currentVarInfo.typeName) != 0,
+				"cannot get property '%s' at line %i because preceeding expression is not a struct",
+				propName.c_str(), p_lexNode->children[i]->token.line
+			);
+
+			StructInfo& structInfo = typeNameToStructInfo[currentVarInfo.typeName];
+
+			Affirm(structInfo.propNameToVarInfo.count(propName) != 0,
+				"cannot access property '%s' at line %i because the struct '%s' does not contain it",
+				propName.c_str(), p_lexNode->children[0]->token.line, currentVarInfo.typeName.c_str()
+			);
+
+			VariableInfo& propInfo = structInfo.propNameToVarInfo[propName];
+			propOffset -= propInfo.offset;
+
+			currentVarInfo = propInfo;
+		}
 
 		Affirm(
-			typeNameToStructInfo.count(varInfo.typeName) != 0,
-			"cannot access property '%s' at line %i because variable '%s' is not a struct",
-			propName.c_str(), p_lexNode->children[0]->token.line, varName.c_str()
+			currentVarInfo.typeName == currentExpectedReturnType || currentExpectedReturnType == ANY_VALUE_TYPE,
+			"expected expression of type '%s' at line %i",
+			currentExpectedReturnType.c_str(), p_lexNode->token.line
+		);
+		
+		return new ELoadVariable(propOffset, typeNameToSize[currentVarInfo.typeName], currentVarInfo.typeName);
+	}
+
+	Expression* Parser::ParsePropertyWrite(LexNode* p_lexNode)
+	{
+		const std::string& varName = p_lexNode->token.text;
+
+		Affirm(
+			currentFunction->varNameToVarInfo.count(varName) != 0,
+			"undefined name '%s' at line %i",
+			varName.c_str(), p_lexNode->token.line
 		);
 
-		StructInfo& structInfo = typeNameToStructInfo[varInfo.typeName];
+		VariableInfo currentVarInfo = currentFunction->varNameToVarInfo[varName];
+		Int propOffset = currentVarInfo.offset;
 
-		Affirm(structInfo.propNameToVarInfo.count(propName) != 0,
-			"cannot access property '%s' at line %i because the struct '%s' does not contain it",
-			propName.c_str(), p_lexNode->children[0]->token.line, varInfo.typeName.c_str()
-		);
+		for (size_t i = 0; i+1 < p_lexNode->children.size(); i++)
+		{
+			const std::string& propName = p_lexNode->children[i]->token.text;
 
-		VariableInfo& propInfo = structInfo.propNameToVarInfo[propName];
+			Affirm(
+				typeNameToStructInfo.count(currentVarInfo.typeName) != 0,
+				"cannot get property '%s' at line %i because preceeding expression is not a struct",
+				propName.c_str(), p_lexNode->children[i]->token.line
+			);
+
+			StructInfo& structInfo = typeNameToStructInfo[currentVarInfo.typeName];
+
+			Affirm(structInfo.propNameToVarInfo.count(propName) != 0,
+				"cannot access property '%s' at line %i because the struct '%s' does not contain it",
+				propName.c_str(), p_lexNode->children[0]->token.line, currentVarInfo.typeName.c_str()
+			);
+
+			VariableInfo& propInfo = structInfo.propNameToVarInfo[propName];
+			propOffset -= propInfo.offset;
+
+			currentVarInfo = propInfo;
+		}
 
 		EWriteBytesTo* p_write = new EWriteBytesTo();
-		p_write->bytesSizeLoad = new ELoadConstInt(typeNameToSize[propInfo.typeName]);
-		Int propOffset = varInfo.offset - propInfo.offset;
+		p_write->bytesSizeLoad = new ELoadConstInt(typeNameToSize[currentVarInfo.typeName]);
 		p_write->writePtrLoad = new ELoadVariablePtr(propOffset);
 
-		currentExpectedReturnType = propInfo.typeName;
+		currentExpectedReturnType = currentVarInfo.typeName;
 
-		p_write->dataLoad = ParseNextExpression(p_lexNode->children[1]);
+		p_write->dataLoad = ParseNextExpression(p_lexNode->children.back());
 
 		currentExpectedReturnType = "void";
 
@@ -565,9 +591,9 @@ namespace Tolo
 			ELoadMulti* p_loadMulti = new ELoadMulti(funcName);
 
 			size_t argIndex = 0;
-			for (auto& e : structInfo.propNameToVarInfo)
+			for (const std::string& propName : structInfo.propNames)
 			{
-				currentExpectedReturnType = e.second.typeName;
+				currentExpectedReturnType = structInfo.propNameToVarInfo[propName].typeName;
 				p_loadMulti->loaders.push_back(ParseNextExpression(p_lexNode->children[argIndex]));
 				argIndex++;
 			}
@@ -778,6 +804,12 @@ namespace Tolo
 			const std::string& propName = p_lexNode->children[i + 1]->token.text;
 
 			Affirm(
+				propTypeName != structName,
+				"struct cannot contain itself, line %i",
+				p_lexNode->children[i]->token.line
+			);
+
+			Affirm(
 				typeNameToSize.contains(propTypeName) != 0,
 				"type name '%s' at line %i is not defined",
 				propTypeName.c_str(), p_lexNode->children[i]->token.line
@@ -790,6 +822,7 @@ namespace Tolo
 			);
 
 			structInfo.propNameToVarInfo[propName] = VariableInfo(propTypeName, propertyOffset);
+			structInfo.propNames.push_back(propName);
 			propertyOffset += typeNameToSize[propTypeName];
 		}
 

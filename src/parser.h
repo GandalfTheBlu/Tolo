@@ -14,6 +14,10 @@ namespace Tolo
 		VariableInfo();
 
 		VariableInfo(const std::string& _typeName, Int _offset);
+
+		VariableInfo(const VariableInfo& rhs);
+
+		VariableInfo& operator=(const VariableInfo& rhs);
 	};
 
 	struct FunctionInfo
@@ -31,6 +35,7 @@ namespace Tolo
 	struct StructInfo
 	{
 		std::map<std::string, VariableInfo> propNameToVarInfo;
+		std::vector<std::string> propNames;
 
 		StructInfo();
 	};

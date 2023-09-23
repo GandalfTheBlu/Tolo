@@ -283,7 +283,7 @@ namespace Tolo
 		return p_funcCall;
 	}
 
-	LexNode* Lexer::GetPropertyLoadNode(const std::vector<Token>& tokens, size_t& i)
+	LexNode* Lexer::GetPropertyLoadOrWriteNode(const std::vector<Token>& tokens, size_t& i)
 	{
 		Affirm(
 			i + 2 < tokens.size() && tokens[i + 2].type == Token::Type::Name,
@@ -291,33 +291,36 @@ namespace Tolo
 			tokens[i].line
 		);
 
-		LexNode* p_propLoad = new LexNode(LexNode::Type::PropertyLoad, tokens[i]);
-		p_propLoad->children.push_back(new LexNode(LexNode::Type::Identifier, tokens[i + 2]));
+		LexNode* p_prop = new LexNode(LexNode::Type::PropertyLoad, tokens[i]);
+		p_prop->children.push_back(new LexNode(LexNode::Type::Identifier, tokens[i + 2]));
 
 		i += 3;
 
-		return p_propLoad;
-	}
+		for (; i+1 < tokens.size(); i+=2)
+		{
+			if (tokens[i].type == Token::Type::Dot && tokens[i + 1].type == Token::Type::Name)
+				p_prop->children.push_back(new LexNode(LexNode::Type::Identifier, tokens[i + 1]));
+			else
+				break;
+		}
 
-	LexNode* Lexer::GetPropertyWriteNode(const std::vector<Token>& tokens, size_t& i)
-	{
-		const Token& token = tokens[i];
-		LexNode* p_propWrite = new LexNode(LexNode::Type::PropertyWrite, token);
+		if (i < tokens.size() && tokens[i].type == Token::Type::EqualSign)
+		{
+			p_prop->type = LexNode::Type::PropertyWrite;
+			
+			i++;
+			LexNode* p_exp = GetNextNode(tokens, i);
 
-		p_propWrite->children.push_back(new LexNode(LexNode::Type::Identifier, tokens[i + 2]));
+			Affirm(
+				p_exp->IsValueExpression(),
+				"expected value expression at line %i",
+				p_exp->token.line
+			);
 
-		i += 4;
+			p_prop->children.push_back(p_exp);
+		}
 
-		LexNode* p_exp = GetNextNode(tokens, i);
-
-		Affirm(
-			p_exp->IsValueExpression(),
-			"expected value expression at line %i",
-			token.line
-		);
-
-		p_propWrite->children.push_back(p_exp);
-		return p_propWrite;
+		return p_prop;
 	}
 
 	LexNode* Lexer::GetVariableWriteNode(const std::vector<Token>& tokens, size_t& i)
@@ -560,10 +563,8 @@ namespace Tolo
 				return GetFunctionCallNode(tokens, i);
 			if (i + 1 < tokens.size() && tokens[i + 1].type == Token::Type::EqualSign)
 				return GetVariableWriteNode(tokens, i);
-			if (i + 3 < tokens.size() && tokens[i + 1].type == Token::Type::Dot && tokens[i+2].type == Token::Type::Name && tokens[i + 3].type == Token::Type::EqualSign)
-				return GetPropertyWriteNode(tokens, i);
 			if (i + 1 < tokens.size() && tokens[i + 1].type == Token::Type::Dot)
-				return GetPropertyLoadNode(tokens, i);
+				return GetPropertyLoadOrWriteNode(tokens, i);
 			if (i + 2 < tokens.size() && tokens[i + 1].type == Token::Type::Name && tokens[i + 2].type == Token::Type::EqualSign)
 				return GetVariableDefinitionNode(tokens, i);
 			else if (i + 2 < tokens.size() && tokens[i + 1].type == Token::Type::Name && tokens[i + 2].type == Token::Type::StartPar)
