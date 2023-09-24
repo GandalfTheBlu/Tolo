@@ -32,6 +32,15 @@ namespace Tolo
 		FunctionInfo();
 	};
 
+	struct NativeFunctionInfo
+	{
+		std::string returnTypeName;
+		Ptr functionPtr;
+		std::vector<std::string> parameterTypeNames;
+
+		NativeFunctionInfo();
+	};
+
 	struct StructInfo
 	{
 		std::map<std::string, VariableInfo> propNameToVarInfo;
@@ -45,7 +54,8 @@ namespace Tolo
 		typedef std::vector<OpCode> DataTypeOperators;
 
 		std::map<std::string, Int> typeNameToSize;
-		std::map<std::string, FunctionInfo> definedFunctions;
+		std::map<std::string, FunctionInfo> userFunctions;
+		std::map<std::string, NativeFunctionInfo> nativeFunctions;
 		FunctionInfo* currentFunction;
 		std::string currentExpectedReturnType;
 		std::map<std::string, DataTypeOperators> typeNameOperators;
@@ -85,13 +95,11 @@ namespace Tolo
 
 		Expression* ParseBinaryCompareOp(LexNode* p_lexNode, const std::string& funcName);
 
-		Expression* ParseDebugPrint(LexNode* p_lexNode);
-
-		Expression* ParsePow(LexNode* p_lexNode);
-
 		Expression* ParseCoreFunctionCall(LexNode* p_lexNode);
 
 		Expression* ParseUserFunctionCall(LexNode* p_lexNode);
+
+		Expression* ParseNativeFunctionCall(LexNode* p_lexNode);
 
 		Expression* ParseVariableDefinition(LexNode* p_lexNode);
 

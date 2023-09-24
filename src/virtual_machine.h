@@ -24,6 +24,7 @@ namespace Tolo
 
 	*/
 
+
 	struct VirtualMachine
 	{
 		Ptr stackPtr;
@@ -32,6 +33,8 @@ namespace Tolo
 
 		Char* p_stack;
 	};
+
+	typedef void(*native_func_t)(VirtualMachine&);
 
 	template<typename T>
 	void Set(VirtualMachine& vm, Ptr pos, T val)
@@ -70,8 +73,11 @@ namespace Tolo
 		Int size = Pop<Int>(vm);
 		Ptr addr = Pop<Ptr>(vm);
 
-		for (Int i = 0; i < size; i++)
-			Push<Char>(vm, Get<Char>(vm, addr + i));
+		/*for (Int i = 0; i < size; i++)
+			Push<Char>(vm, Get<Char>(vm, addr + i));*/
+
+		std::memcpy(vm.p_stack + vm.stackPtr, vm.p_stack + addr, size);
+		vm.stackPtr += size;
 
 		vm.instructionPtr += sizeof(Char);
 	}
@@ -80,7 +86,11 @@ namespace Tolo
 	void Op_Load_Const_T(VirtualMachine& vm)
 	{
 		vm.instructionPtr += sizeof(Char);
-		Push<T>(vm, Get<T>(vm, vm.instructionPtr));
+		
+		//Push<T>(vm, Get<T>(vm, vm.instructionPtr));
+		std::memcpy(vm.p_stack + vm.stackPtr, vm.p_stack + vm.instructionPtr, sizeof(T));
+		vm.stackPtr += sizeof(T);
+		
 		vm.instructionPtr += sizeof(T);
 	}
 
@@ -102,8 +112,11 @@ namespace Tolo
 		Int size = Pop<Int>(vm);
 		Ptr addr = Pop<Ptr>(vm);
 
-		for (Int i = size - 1; i >= 0; i--)
-			Set<Char>(vm, addr + i, Pop<Char>(vm));
+		/*for (Int i = size - 1; i >= 0; i--)
+			Set<Char>(vm, addr + i, Pop<Char>(vm));*/
+
+		std::memcpy(vm.p_stack + addr, vm.p_stack + vm.stackPtr - size, size);
+		vm.stackPtr -= size;
 
 		vm.instructionPtr += sizeof(Char);
 	}
@@ -136,8 +149,18 @@ namespace Tolo
 		vm.instructionPtr = Pop<Ptr>(vm);
 		vm.stackPtr -= Pop<Int>(vm);
 
-		for (Int i = 0; i < retValSize; i++)
-			Push<Char>(vm, Get<Char>(vm, retValAddr + i));
+		/*for (Int i = 0; i < retValSize; i++)
+			Push<Char>(vm, Get<Char>(vm, retValAddr + i));*/
+
+		std::memcpy(vm.p_stack + vm.stackPtr, vm.p_stack + retValAddr, retValSize);
+		vm.stackPtr += retValSize;
+	}
+
+	inline void Op_Call_Native(VirtualMachine& vm)
+	{
+		Ptr funcAddr = Pop<Ptr>(vm);
+		reinterpret_cast<native_func_t>(funcAddr)(vm);
+		vm.instructionPtr += sizeof(Char);
 	}
 
 	template<typename T>
@@ -200,42 +223,6 @@ namespace Tolo
 		T lhs = Pop<T>(vm);
 		T rhs = Pop<T>(vm);
 		Push<T>(vm, lhs / rhs);
-		vm.instructionPtr += sizeof(Char);
-	}
-
-	inline void Op_Pow(VirtualMachine& vm)
-	{
-		Float base = Pop<Float>(vm);
-		Float exp = Pop<Float>(vm);
-		Push<Float>(vm, std::powf(base, exp));
-		vm.instructionPtr += sizeof(Char);
-	}
-
-	inline void Op_Debug_Print_Char(VirtualMachine& vm)
-	{
-		Char val = Pop<Char>(vm);
-		std::printf("%c", val);
-		vm.instructionPtr += sizeof(Char);
-	}
-
-	inline void Op_Debug_Print_Int(VirtualMachine& vm)
-	{
-		Int val = Pop<Int>(vm);
-		std::printf("%i", val);
-		vm.instructionPtr += sizeof(Char);
-	}
-
-	inline void Op_Debug_Print_Float(VirtualMachine& vm)
-	{
-		Float val = Pop<Float>(vm);
-		std::printf("%f", val);
-		vm.instructionPtr += sizeof(Char);
-	}
-
-	inline void Op_Debug_Print_Ptr(VirtualMachine& vm)
-	{
-		Ptr val = Pop<Ptr>(vm);
-		std::printf("%ul", val);
 		vm.instructionPtr += sizeof(Char);
 	}
 

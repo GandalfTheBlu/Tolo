@@ -22,6 +22,7 @@ namespace Tolo
 
 			Op_Call,
 			Op_Return,
+			Op_Call_Native,
 
 			Op_T_Equal<Char>,
 			Op_T_Less<Char>,
@@ -47,16 +48,9 @@ namespace Tolo
 			Op_T_Mul<Float>,
 			Op_T_Div<Float>,
 
-			Op_Pow,
-
 			Op_T_Equal<Ptr>,
 			Op_TU_Add<Ptr, Ptr>,
-			Op_TU_Sub<Ptr, Ptr>,
-
-			Op_Debug_Print_Char,
-			Op_Debug_Print_Int,
-			Op_Debug_Print_Float,
-			Op_Debug_Print_Ptr
+			Op_TU_Sub<Ptr, Ptr>
 		};
 
 #ifdef DEBUG_VM
@@ -75,6 +69,7 @@ namespace Tolo
 
 			"Call",
 			"Return",
+			"Call_Native",
 
 			"Char_Equal",
 			"Char_Less",
@@ -100,16 +95,9 @@ namespace Tolo
 			"Float_Mul",
 			"Float_Div",
 
-			"Pow",
-
 			"Ptr_Equal",
 			"Ptr_Add",
-			"Ptr_Sub",
-
-			"Debug_Print_Char",
-			"Debug_Print_Int",
-			"Debug_Print_Float",
-			"Debug_Print_Ptr"
+			"Ptr_Sub"
 		};
 #endif
 

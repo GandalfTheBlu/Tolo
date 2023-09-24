@@ -9,12 +9,10 @@ namespace Tolo
 		coreFunctions.insert("less");
 		coreFunctions.insert("greater");
 		coreFunctions.insert("equal");
-		coreFunctions.insert("print");
 		coreFunctions.insert("add");
 		coreFunctions.insert("sub");
 		coreFunctions.insert("mul");
 		coreFunctions.insert("div");
-		coreFunctions.insert("pow");
 	}
 
 	LexNode* Lexer::GetReturnNode(const std::vector<Token>& tokens, size_t& i)
@@ -231,8 +229,14 @@ namespace Tolo
 	LexNode* Lexer::GetFunctionCallNode(const std::vector<Token>& tokens, size_t& i)
 	{
 		const Token& token = tokens[i];
-		bool isCoreFunction = coreFunctions.count(token.text) != 0;
-		LexNode* p_funcCall = new LexNode(isCoreFunction ? LexNode::Type::CoreFunctionCall : LexNode::Type::UserFunctionCall, token);
+
+		LexNode::Type callType = LexNode::Type::UserFunctionCall;
+		if (coreFunctions.count(token.text) != 0)
+			callType = LexNode::Type::CoreFunctionCall;
+		else if (nativeFunctions.count(token.text) != 0)
+			callType = LexNode::Type::NativeFunctionCall;
+
+		LexNode* p_funcCall = new LexNode(callType, token);
 
 		Affirm(
 			++i < tokens.size() && tokens[i].type == Token::Type::StartPar,

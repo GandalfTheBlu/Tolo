@@ -25,6 +25,7 @@ namespace Tolo
 
 		Call,//				Int Int				[bytes] Ptr			[bytes] [bytes] Int Ptr Ptr	= (*1)
 		Return,//			Int					(*1) [bytes]		[bytes]
+		Call_Native,//		-					[bytes] Ptr			[bytes]
 
 		Char_Equal,//		-					Char Char			Char
 		Char_Less,//		-					Char Char			Char
@@ -50,16 +51,9 @@ namespace Tolo
 		Float_Mul,//		-					Float Float			Float
 		Float_Div,//		-					Float Float			Float
 
-		Pow,//				-					Float Float			Float
-
 		Ptr_Equal,//		-					Ptr Ptr				Char
 		Ptr_Add,//			-					Ptr Int				Ptr
 		Ptr_Sub,//			-					Ptr Int				Ptr
-
-		Debug_Print_Char,//	-					Char				-
-		Debug_Print_Int,//	-					Int					-
-		Debug_Print_Float,//-					Float				-
-		Debug_Print_Ptr,//	-					Ptr					-
 
 		INVALID
 	};

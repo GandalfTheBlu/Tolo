@@ -18,6 +18,7 @@ namespace Tolo
 			Break,
 			Continue,
 			CoreFunctionCall,
+			NativeFunctionCall,
 			UserFunctionCall,
 			VariableWrite,
 			VariableLoad,

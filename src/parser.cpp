@@ -31,6 +31,10 @@ namespace Tolo
 		parametersSize(0)
 	{}
 
+	NativeFunctionInfo::NativeFunctionInfo() :
+		functionPtr(0)
+	{}
+
 	StructInfo::StructInfo()
 	{}
 
@@ -51,8 +55,7 @@ namespace Tolo
 			OpCode::Char_Div,
 			OpCode::Char_Less,
 			OpCode::Char_Greater,
-			OpCode::Char_Equal,
-			OpCode::Debug_Print_Char
+			OpCode::Char_Equal
 		};
 
 		typeNameOperators["int"] =
@@ -63,8 +66,7 @@ namespace Tolo
 			OpCode::Int_Div,
 			OpCode::Int_Less,
 			OpCode::Int_Greater,
-			OpCode::Int_Equal,
-			OpCode::Debug_Print_Int
+			OpCode::Int_Equal
 		};
 
 		typeNameOperators["float"] =
@@ -75,8 +77,7 @@ namespace Tolo
 			OpCode::Float_Div,
 			OpCode::Float_Less,
 			OpCode::Float_Greater,
-			OpCode::Float_Equal,
-			OpCode::Debug_Print_Float
+			OpCode::Float_Equal
 		};
 
 		typeNameOperators["ptr"] =
@@ -87,8 +88,7 @@ namespace Tolo
 			OpCode::INVALID,
 			OpCode::INVALID,
 			OpCode::INVALID,
-			OpCode::Char_Equal,
-			OpCode::Debug_Print_Ptr
+			OpCode::Char_Equal
 		};
 
 		currentExpectedReturnType = "void";
@@ -119,7 +119,6 @@ namespace Tolo
 
 		return true;
 	}
-
 
 	void Parser::FlattenNode(LexNode* p_lexNode, std::vector<LexNode*>& outNodes)
 	{
@@ -532,41 +531,6 @@ namespace Tolo
 		return p_binCompOp;
 	}
 
-	Expression* Parser::ParseDebugPrint(LexNode* p_lexNode)
-	{
-		currentExpectedReturnType = ANY_VALUE_TYPE;
-		Expression* p_valLoad = ParseNextExpression(p_lexNode->children[0]);
-
-		currentExpectedReturnType = p_valLoad->GetDataType();
-		Affirm(
-			typeNameOperators.count(currentExpectedReturnType) != 0,
-			"cannot perform 'print' on argument of type '%s' at line %i",
-			currentExpectedReturnType.c_str(), p_lexNode->token.line
-		);
-
-		EDebugPrint* p_dbgPrint = new EDebugPrint(typeNameOperators[currentExpectedReturnType][7]);
-		p_dbgPrint->valLoad = p_valLoad;
-
-		currentExpectedReturnType = "void";
-
-		return p_dbgPrint;
-	}
-
-	Expression* Parser::ParsePow(LexNode* p_lexNode)
-	{
-		Affirm(
-			currentExpectedReturnType == "float" || currentExpectedReturnType == ANY_VALUE_TYPE,
-			"expected expression of type '%s' at line %i",
-			currentExpectedReturnType.c_str(), p_lexNode->token.line
-		);
-
-		EPow* p_pow = new EPow();
-		p_pow->baseLoad = ParseNextExpression(p_lexNode->children[0]);
-		p_pow->expLoad = ParseNextExpression(p_lexNode->children[1]);
-
-		return p_pow;
-	}
-
 	Expression* Parser::ParseCoreFunctionCall(LexNode* p_lexNode)
 	{
 		const std::string& funcName = p_lexNode->token.text;
@@ -575,10 +539,6 @@ namespace Tolo
 			return ParseBinaryMathOp(p_lexNode, funcName);
 		if (funcName == "less" || funcName == "greater" || funcName == "equal")
 			return ParseBinaryCompareOp(p_lexNode, funcName);
-		if (funcName == "print")
-			return ParseDebugPrint(p_lexNode);
-		if (funcName == "pow")
-			return ParsePow(p_lexNode);
 
 		return nullptr;
 	}
@@ -621,12 +581,12 @@ namespace Tolo
 		}
 
 		Affirm(
-			definedFunctions.count(funcName) != 0,
+			userFunctions.count(funcName) != 0,
 			"name '%s' at line %i is not a function",
 			funcName.c_str(), p_lexNode->token.line
 		);
 
-		FunctionInfo& info = definedFunctions[funcName];
+		FunctionInfo& info = userFunctions[funcName];
 
 		ECallFunction* p_call = new ECallFunction(info.parametersSize, info.localsSize, info.returnTypeName);
 		p_call->functionIpLoad = new ELoadConstPtrToLabel(funcName);
@@ -649,6 +609,45 @@ namespace Tolo
 			const VariableInfo& varInfo = info.varNameToVarInfo[info.parameterNames[i]];
 			currentExpectedReturnType = varInfo.typeName;
 
+			p_call->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[i]));
+		}
+
+		currentExpectedReturnType = oldRetType;
+
+		return p_call;
+	}
+
+	Expression* Parser::ParseNativeFunctionCall(LexNode* p_lexNode)
+	{
+		const std::string& funcName = p_lexNode->token.text;
+
+		Affirm(
+			nativeFunctions.count(funcName) != 0, 
+			"native function '%s' at line %i is not defined", 
+			funcName.c_str(), p_lexNode->token.line
+		);
+
+		NativeFunctionInfo& info = nativeFunctions[funcName];
+
+		ECallNativeFunction* p_call = new ECallNativeFunction(info.returnTypeName);
+		p_call->functionPtrLoad = new ELoadConstPtr(info.functionPtr);
+
+		std::string oldRetType = currentExpectedReturnType;
+		Affirm(
+			oldRetType == info.returnTypeName || oldRetType == ANY_VALUE_TYPE,
+			"expected expression of type '%s' at line %i but got '%s'",
+			oldRetType.c_str(), p_lexNode->token.line, info.returnTypeName.c_str()
+		);
+
+		Affirm(
+			info.parameterTypeNames.size() == p_lexNode->children.size(),
+			"argument count in function call att line %i does not match parameter count",
+			p_lexNode->token.line
+		);
+
+		for (size_t i = 0; i < info.parameterTypeNames.size(); i++)
+		{
+			currentExpectedReturnType = info.parameterTypeNames[i];
 			p_call->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[i]));
 		}
 
@@ -694,13 +693,13 @@ namespace Tolo
 
 		const std::string& funcName = p_lexNode->children[0]->token.text;
 		Affirm(
-			definedFunctions.count(funcName) == 0,
+			userFunctions.count(funcName) == 0 && nativeFunctions.count(funcName) == 0,
 			"name '%s' at line %i is already a defined function",
 			funcName.c_str(), p_lexNode->children[0]->token.line
 		);
 
 		EDefineFunction* p_defFunc = new EDefineFunction(funcName);
-		FunctionInfo& funcInfo = definedFunctions[funcName];
+		FunctionInfo& funcInfo = userFunctions[funcName];
 		funcInfo.returnTypeName = returnTypeName;
 		Int nextVarOffset = 0;
 
@@ -872,6 +871,8 @@ namespace Tolo
 			return ParseCoreFunctionCall(p_lexNode);
 		case LexNode::Type::UserFunctionCall:
 			return ParseUserFunctionCall(p_lexNode);
+		case LexNode::Type::NativeFunctionCall:
+			return ParseNativeFunctionCall(p_lexNode);
 		case LexNode::Type::Return:
 			return ParseReturn(p_lexNode);
 		case LexNode::Type::IfSingle:

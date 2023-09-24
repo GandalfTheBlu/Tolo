@@ -7,6 +7,7 @@ namespace Tolo
 	struct Lexer
 	{
 		std::set<std::string> coreFunctions;
+		std::set<std::string> nativeFunctions;
 		bool isInsideWhile;
 
 		Lexer();

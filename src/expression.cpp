@@ -229,6 +229,34 @@ namespace Tolo
 	}
 
 
+	ECallNativeFunction::ECallNativeFunction(const std::string& _returnTypeName) :
+		returnTypeName(_returnTypeName)
+	{}
+
+	ECallNativeFunction::~ECallNativeFunction()
+	{
+		for (auto e : argumentLoads)
+			delete e;
+
+		delete functionPtrLoad;
+	}
+
+	void ECallNativeFunction::Evaluate(CodeBuilder& cb)
+	{
+		for (int i = (int)argumentLoads.size() - 1; i >= 0; i--)
+			argumentLoads[i]->Evaluate(cb);
+
+		functionPtrLoad->Evaluate(cb);
+
+		cb.Op(OpCode::Call_Native);
+	}
+
+	std::string ECallNativeFunction::GetDataType()
+	{
+		return returnTypeName;
+	}
+
+
 	EBinaryOp::EBinaryOp(OpCode _op) :
 		op(_op),
 		lhsLoad(nullptr),
@@ -251,30 +279,6 @@ namespace Tolo
 	std::string EBinaryOp::GetDataType()
 	{
 		return lhsLoad->GetDataType();
-	}
-
-
-	EPow::EPow() : 
-		baseLoad(nullptr),
-		expLoad(nullptr)
-	{}
-
-	EPow::~EPow()
-	{
-		delete baseLoad;
-		delete expLoad;
-	}
-
-	void EPow::Evaluate(CodeBuilder& cb)
-	{
-		expLoad->Evaluate(cb);
-		baseLoad->Evaluate(cb);
-		cb.Op(OpCode::Pow);
-	}
-
-	std::string EPow::GetDataType()
-	{
-		return "float";
 	}
 
 
@@ -614,27 +618,5 @@ namespace Tolo
 	std::string ELoadMulti::GetDataType()
 	{
 		return dataTypeName;
-	}
-
-
-	EDebugPrint::EDebugPrint(OpCode _printOp) :
-		printOp(_printOp),
-		valLoad(nullptr)
-	{}
-
-	EDebugPrint::~EDebugPrint()
-	{
-		delete valLoad;
-	}
-
-	void EDebugPrint::Evaluate(CodeBuilder& cb)
-	{
-		valLoad->Evaluate(cb);
-		cb.Op(printOp);
-	}
-
-	std::string EDebugPrint::GetDataType()
-	{
-		return "void";
 	}
 }

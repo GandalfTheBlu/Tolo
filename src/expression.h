@@ -151,6 +151,21 @@ namespace Tolo
 		virtual std::string GetDataType() override;
 	};
 
+	struct ECallNativeFunction : public Expression
+	{
+		std::vector<Expression*> argumentLoads;
+		Expression* functionPtrLoad;
+		std::string returnTypeName;
+
+		ECallNativeFunction(const std::string& _returnTypeName);
+
+		~ECallNativeFunction();
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+
+		virtual std::string GetDataType() override;
+	};
+
 	struct EBinaryOp : public Expression
 	{
 		OpCode op;
@@ -160,20 +175,6 @@ namespace Tolo
 		EBinaryOp(OpCode _op);
 
 		~EBinaryOp();
-
-		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
-	};
-
-	struct EPow : public Expression
-	{
-		Expression* baseLoad;
-		Expression* expLoad;
-
-		EPow();
-
-		~EPow();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -315,20 +316,6 @@ namespace Tolo
 		ELoadMulti(const std::string& _dataTypeName);
 
 		~ELoadMulti();
-
-		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
-	};
-
-	struct EDebugPrint : public Expression
-	{
-		OpCode printOp;
-		Expression* valLoad;
-
-		EDebugPrint(OpCode _printOp);
-
-		~EDebugPrint();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 

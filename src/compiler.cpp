@@ -1,7 +1,6 @@
 #include "compiler.h"
 #include "tokenizer.h"
 #include "lexer.h"
-#include "parser.h"
 #include <fstream>
 #include <sstream>
 
@@ -20,7 +19,7 @@ namespace Tolo
 		file.close();
 	}
 
-	void CompileProgram(const std::string& codePath, Char* p_stack, Ptr& outCodeStart, Ptr& outCodeEnd, Int& outMainRetValByteSize)
+	void CompileProgram(const std::string& codePath, Char* p_stack, const std::map<std::string, NativeFunctionInfo>& nativeFunctions, Ptr& outCodeStart, Ptr& outCodeEnd, Int& outMainRetValByteSize)
 	{
 		std::string code;
 		ReadTextFile(codePath, code);
@@ -29,21 +28,25 @@ namespace Tolo
 		Tokenize(code, tokens);
 
 		Lexer lexer;
+		for (auto& e : nativeFunctions)
+			lexer.nativeFunctions.insert(e.first);
+
 		std::vector<LexNode*> lexNodes;
 		lexer.Lex(tokens, lexNodes);
 
 		Parser parser;
+		parser.nativeFunctions = nativeFunctions;
 		std::vector<Expression*> expressions;
 		parser.Parse(lexNodes, expressions);
 
 		CodeBuilder cb(p_stack);
 
 		Affirm(
-			parser.definedFunctions.count("main") != 0,
+			parser.userFunctions.count("main") != 0,
 			"no 'main' function found"
 		);
 
-		FunctionInfo& mainInfo = parser.definedFunctions["main"];
+		FunctionInfo& mainInfo = parser.userFunctions["main"];
 		Int mainParamsSize = 0;
 
 		for (size_t i=0; i<mainInfo.parameterNames.size(); i++)

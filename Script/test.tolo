@@ -6,11 +6,6 @@ struct vec3
 	float z
 }
 
-float length(vec3 p)
-{
-	return pow(add(mul(p.x, p.x), add(mul(p.y, p.y), mul(p.z, p.z))), 0.5)
-}
-
 float main(vec3 p)
 {
 	return sub(length(p), 1.0)

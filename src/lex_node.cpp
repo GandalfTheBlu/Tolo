@@ -19,6 +19,7 @@ namespace Tolo
 			type == Type::VariableLoad ||
 			type == Type::PropertyLoad ||
 			type == Type::CoreFunctionCall ||
+			type == Type::NativeFunctionCall ||
 			type == Type::UserFunctionCall;
 	}
 

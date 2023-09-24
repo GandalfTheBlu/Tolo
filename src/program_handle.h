@@ -1,7 +1,9 @@
 #pragma once
 #include "virtual_machine.h"
+#include "parser.h"
 #include <string>
 #include <vector>
+#include <map>
 
 namespace Tolo
 {
@@ -17,6 +19,19 @@ namespace Tolo
 		return true;
 	}
 
+	struct FunctionHandle
+	{
+		native_func_t p_function;
+		std::string returnTypeName;
+		std::string functionName;
+		std::vector<std::string> parameterTypeNames;
+
+		FunctionHandle();
+		FunctionHandle(const std::string& _returnTypeName, const std::string& _functionName, const std::vector<std::string>& _parameterTypeNames, native_func_t _p_function);
+		FunctionHandle(const FunctionHandle& rhs);
+		FunctionHandle& operator=(const FunctionHandle& rhs);
+	};
+
 	class ProgramHandle
 	{
 	private:
@@ -25,6 +40,7 @@ namespace Tolo
 		Ptr codeStart;
 		Ptr codeEnd;
 		Int mainReturnValueSize;
+		std::map<std::string, NativeFunctionInfo> nativeFunctions;
 
 		ProgramHandle() = delete;
 		ProgramHandle(const ProgramHandle&) = delete;
@@ -34,6 +50,8 @@ namespace Tolo
 		ProgramHandle(const std::string& _codePath, Ptr stackSize);
 
 		~ProgramHandle();
+
+		void AddFunction(const FunctionHandle& function);
 
 		void Compile();
 
