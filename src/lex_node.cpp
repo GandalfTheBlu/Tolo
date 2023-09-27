@@ -18,7 +18,8 @@ namespace Tolo
 		return type == Type::LiteralConstant ||
 			type == Type::VariableLoad ||
 			type == Type::PropertyLoad ||
-			type == Type::CoreFunctionCall ||
+			type == Type::BinaryOperation ||
+			type == Type::UnaryOperation ||
 			type == Type::NativeFunctionCall ||
 			type == Type::UserFunctionCall;
 	}

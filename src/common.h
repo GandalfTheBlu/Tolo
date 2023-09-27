@@ -34,6 +34,7 @@ namespace Tolo
 		Char_Sub,//			-					Char Char			Char
 		Char_Mul,//			-					Char Char			Char
 		Char_Div,//			-					Char Char			Char
+		Char_Negate,//		-					Char				Char
 
 		Int_Equal,//		-					Int Int				Char
 		Int_Less,//			-					Int Int				Char
@@ -42,6 +43,7 @@ namespace Tolo
 		Int_Sub,//			-					Int Int				Int
 		Int_Mul,//			-					Int Int				Int
 		Int_Div,//			-					Int Int				Int
+		Int_Negate,//		-					Int					Int
 
 		Float_Equal,//		-					Float Float			Char
 		Float_Less,//		-					Float Float			Char
@@ -50,6 +52,7 @@ namespace Tolo
 		Float_Sub,//		-					Float Float			Float
 		Float_Mul,//		-					Float Float			Float
 		Float_Div,//		-					Float Float			Float
+		Float_Negate,//		-					Float				Float
 
 		Ptr_Equal,//		-					Ptr Ptr				Char
 		Ptr_Add,//			-					Ptr Int				Ptr

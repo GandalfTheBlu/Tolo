@@ -5,15 +5,7 @@ namespace Tolo
 {
 	Lexer::Lexer() :
 		isInsideWhile(false)
-	{
-		coreFunctions.insert("less");
-		coreFunctions.insert("greater");
-		coreFunctions.insert("equal");
-		coreFunctions.insert("add");
-		coreFunctions.insert("sub");
-		coreFunctions.insert("mul");
-		coreFunctions.insert("div");
-	}
+	{}
 
 	LexNode* Lexer::GetReturnNode(const std::vector<Token>& tokens, size_t& i)
 	{
@@ -231,9 +223,8 @@ namespace Tolo
 		const Token& token = tokens[i];
 
 		LexNode::Type callType = LexNode::Type::UserFunctionCall;
-		if (coreFunctions.count(token.text) != 0)
-			callType = LexNode::Type::CoreFunctionCall;
-		else if (nativeFunctions.count(token.text) != 0)
+
+		if (nativeFunctions.count(token.text) != 0)
 			callType = LexNode::Type::NativeFunctionCall;
 
 		LexNode* p_funcCall = new LexNode(callType, token);
@@ -525,60 +516,133 @@ namespace Tolo
 		return p_structDef;
 	}
 
-	LexNode* Lexer::GetNextNode(const std::vector<Token>& tokens, size_t& i)
+
+	int Lexer::GetBinaryOpPrecedence(Token::Type tokenType)
+	{
+		switch (tokenType)
+		{
+		case Token::Type::LeftArrow:
+		case Token::Type::RightArrow:
+			return 1;
+		case Token::Type::Plus:
+		case Token::Type::Minus:
+			return 2;
+		case Token::Type::Asterisk:
+		case Token::Type::ForwardSlash:
+			return 4;
+		}
+
+		return 0;
+	}
+
+	int Lexer::GetUnaryOpPrecedence(Token::Type tokenType)
+	{
+		switch (tokenType)
+		{
+		case Token::Type::Minus:
+			return 3;
+		}
+
+		return 0;
+	}
+
+	LexNode* Lexer::GetPrefix(const std::vector<Token>& tokens, size_t& i)
 	{
 		const Token& token = tokens[i];
+		LexNode* p_result = nullptr;
 
 		if (token.type == Token::Type::EndCurly)
 		{
 			i++;
-			return new LexNode(LexNode::Type::EndCurly, token);
+			p_result = new LexNode(LexNode::Type::EndCurly, token);
 		}
-		if (token.type == Token::Type::EndPar)
+		else if (token.type == Token::Type::EndPar)
 		{
 			i++;
-			return new LexNode(LexNode::Type::EndPar, token);
+			p_result = new LexNode(LexNode::Type::EndPar, token);
 		}
-		if (token.type == Token::Type::ConstChar || token.type == Token::Type::ConstInt || token.type == Token::Type::ConstFloat)
+		else if (token.type == Token::Type::ConstChar || token.type == Token::Type::ConstInt || token.type == Token::Type::ConstFloat)
 		{
 			i++;
-			return new LexNode(LexNode::Type::LiteralConstant, token);
+			p_result = new LexNode(LexNode::Type::LiteralConstant, token);
 		}
-		if (token.type == Token::Type::Name)
+		else if (token.type == Token::Type::Minus)
+		{
+			i++;
+			p_result = new LexNode(LexNode::Type::UnaryOperation, token);
+			p_result->children.push_back(GetNextNode(tokens, i, GetUnaryOpPrecedence(token.type)));
+		}
+		else if (token.type == Token::Type::StartPar)
+		{
+			i++;
+			p_result = new LexNode(LexNode::Type::Parenthesis, token);
+			p_result->children.push_back(GetNextNode(tokens, i));
+			Affirm(i < tokens.size() && tokens[i].type == Token::Type::EndPar, "missing ')' after line %i", token.line);
+			i++;
+		}
+		else if (token.type == Token::Type::Name)
 		{
 			if (token.text == "break")
 			{
 				Affirm(isInsideWhile, "cannot use keyword 'break' when not inside a 'while' body");
-				return new LexNode(LexNode::Type::Break, tokens[i++]);
+				p_result = new LexNode(LexNode::Type::Break, tokens[i++]);
 			}
-			if (token.text == "continue")
+			else if (token.text == "continue")
 			{
 				Affirm(isInsideWhile, "cannot use keyword 'break' when not inside a 'while' body");
-				return new LexNode(LexNode::Type::Continue, tokens[i++]);
+				p_result = new LexNode(LexNode::Type::Continue, tokens[i++]);
 			}
-			if (token.text == "return")
-				return GetReturnNode(tokens, i);
-			if (token.text == "if")
-				return GetIfNode(tokens, i);
-			if (token.text == "while")
-				return GetWhileNode(tokens, i);
-			if (token.text == "struct")
-				return GetStructDefinitionNode(tokens, i);
-			if (i + 1 < tokens.size() && tokens[i + 1].type == Token::Type::StartPar)
-				return GetFunctionCallNode(tokens, i);
-			if (i + 1 < tokens.size() && tokens[i + 1].type == Token::Type::EqualSign)
-				return GetVariableWriteNode(tokens, i);
-			if (i + 1 < tokens.size() && tokens[i + 1].type == Token::Type::Dot)
-				return GetPropertyLoadOrWriteNode(tokens, i);
-			if (i + 2 < tokens.size() && tokens[i + 1].type == Token::Type::Name && tokens[i + 2].type == Token::Type::EqualSign)
-				return GetVariableDefinitionNode(tokens, i);
+			else if (token.text == "return")
+				p_result = GetReturnNode(tokens, i);
+			else if (token.text == "if")
+				p_result = GetIfNode(tokens, i);
+			else if (token.text == "while")
+				p_result = GetWhileNode(tokens, i);
+			else if (token.text == "struct")
+				p_result = GetStructDefinitionNode(tokens, i);
+			else if (i + 1 < tokens.size() && tokens[i + 1].type == Token::Type::StartPar)
+				p_result = GetFunctionCallNode(tokens, i);
+			else if (i + 1 < tokens.size() && tokens[i + 1].type == Token::Type::EqualSign)
+				p_result = GetVariableWriteNode(tokens, i);
+			else if (i + 1 < tokens.size() && tokens[i + 1].type == Token::Type::Dot)
+				p_result = GetPropertyLoadOrWriteNode(tokens, i);
+			else if (i + 2 < tokens.size() && tokens[i + 1].type == Token::Type::Name && tokens[i + 2].type == Token::Type::EqualSign)
+				p_result = GetVariableDefinitionNode(tokens, i);
 			else if (i + 2 < tokens.size() && tokens[i + 1].type == Token::Type::Name && tokens[i + 2].type == Token::Type::StartPar)
-				return GetFunctionDefinitionNode(tokens, i);
+				p_result = GetFunctionDefinitionNode(tokens, i);
 			else
-				return GetVariableLoadNode(tokens, i);
+				p_result = GetVariableLoadNode(tokens, i);
 		}
 		else
 			Affirm(false, "unexpected token '%s' at line %i", token.text.c_str(), token.line);
+
+		return p_result;
+	}
+
+	LexNode* Lexer::GetInfix(const std::vector<Token>& tokens, size_t& i, LexNode* p_lhs)
+	{
+		const Token& token = tokens[i];
+		int precedence = GetBinaryOpPrecedence(token.type);
+
+		LexNode* p_result = new LexNode(LexNode::Type::BinaryOperation, token);
+		p_result->children.push_back(p_lhs);
+		p_result->children.push_back(GetNextNode(tokens, ++i, precedence));
+
+		return p_result;
+	}
+
+	LexNode* Lexer::GetNextNode(const std::vector<Token>& tokens, size_t& i, int precedence)
+	{
+		Affirm(i < tokens.size(), "unexpected end of tokens");
+
+		LexNode* p_lhs = GetPrefix(tokens, i);
+
+		while (i < tokens.size() && precedence < GetBinaryOpPrecedence(tokens[i].type))
+		{
+			p_lhs = GetInfix(tokens, i, p_lhs);
+		}
+
+		return p_lhs;
 	}
 
 	void Lexer::Lex(const std::vector<Token>& tokens, std::vector<LexNode*>& lexNodes)

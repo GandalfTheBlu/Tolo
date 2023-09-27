@@ -8,6 +8,7 @@ namespace Tolo
 	{
 		enum class Type
 		{
+			INVALID,
 			Return,
 			IfSingle,// ifSingle{cond, body[...]}
 			IfChain,// ifChain{cond, body[...], elseIfSingle | elseIfChain | else}
@@ -17,7 +18,9 @@ namespace Tolo
 			While,
 			Break,
 			Continue,
-			CoreFunctionCall,
+			BinaryOperation,
+			UnaryOperation,
+			Parenthesis,
 			NativeFunctionCall,
 			UserFunctionCall,
 			VariableWrite,

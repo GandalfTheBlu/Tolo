@@ -181,6 +181,20 @@ namespace Tolo
 		virtual std::string GetDataType() override;
 	};
 
+	struct EUnaryOp : public Expression
+	{
+		OpCode op;
+		Expression* valLoad;
+
+		EUnaryOp(OpCode _op);
+
+		~EUnaryOp();
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+
+		virtual std::string GetDataType() override;
+	};
+
 	struct EReturn : public Expression
 	{
 		Int retValSize;

@@ -91,11 +91,13 @@ namespace Tolo
 
 		Expression* ParseWhile(LexNode* p_lexNode);
 
-		Expression* ParseBinaryMathOp(LexNode* p_lexNode, const std::string& funcName);
+		Expression* ParseBinaryMathOp(LexNode* p_lexNode);
 
-		Expression* ParseBinaryCompareOp(LexNode* p_lexNode, const std::string& funcName);
+		Expression* ParseBinaryCompareOp(LexNode* p_lexNode);
 
-		Expression* ParseCoreFunctionCall(LexNode* p_lexNode);
+		Expression* ParseBinaryOp(LexNode* p_lexNode);
+
+		Expression* ParseUnaryOp(LexNode* p_lexNode);
 
 		Expression* ParseUserFunctionCall(LexNode* p_lexNode);
 

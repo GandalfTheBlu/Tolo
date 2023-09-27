@@ -1,11 +1,30 @@
 #include "tokenizer.h"
 #include "common.h"
+#include <map>
 
 namespace Tolo
 {
 	void Tokenize(const std::string& code, std::vector<Token>& tokens)
 	{
+		static std::map<char, Token::Type> singleToType
+		{
+			{'(', Token::Type::StartPar},
+			{')', Token::Type::EndPar},
+			{'{', Token::Type::StartCurly},
+			{'}', Token::Type::EndCurly},
+			{',', Token::Type::Comma},
+			{'.', Token::Type::Dot},
+			{'+', Token::Type::Plus},
+			{'-', Token::Type::Minus},
+			{'*', Token::Type::Asterisk},
+			{'/', Token::Type::ForwardSlash},
+			{'<', Token::Type::LeftArrow},
+			{'>', Token::Type::RightArrow},
+			{'=', Token::Type::EqualSign}
+		};
+
 		int line = 1;
+
 
 		for (size_t i = 0; i < code.size();)
 		{
@@ -26,39 +45,11 @@ namespace Tolo
 
 				i++;
 			}
-			else if (c == '(')
+			else if (singleToType.count(c) != 0)
 			{
-				tokens.push_back({ Token::Type::StartPar, "(", line });
-				i++;
-			}
-			else if (c == ')')
-			{
-				tokens.push_back({ Token::Type::EndPar, ")", line });
-				i++;
-			}
-			else if (c == '{')
-			{
-				tokens.push_back({ Token::Type::StartCurly, "{", line });
-				i++;
-			}
-			else if (c == '}')
-			{
-				tokens.push_back({ Token::Type::EndCurly, "}", line });
-				i++;
-			}
-			else if (c == ',')
-			{
-				tokens.push_back({ Token::Type::Comma, ",", line });
-				i++;
-			}
-			else if (c == '.')
-			{
-				tokens.push_back({ Token::Type::Dot, ".", line });
-				i++;
-			}
-			else if (c == '=')
-			{
-				tokens.push_back({ Token::Type::EqualSign, "=", line });
+				std::string charStr;
+				charStr += c;
+				tokens.push_back({ singleToType[c], charStr, line });
 				i++;
 			}
 			else if (c == '\'')

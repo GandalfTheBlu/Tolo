@@ -282,6 +282,28 @@ namespace Tolo
 	}
 
 
+	EUnaryOp::EUnaryOp(OpCode _op) :
+		op(_op),
+		valLoad(nullptr)
+	{}
+
+	EUnaryOp::~EUnaryOp()
+	{
+		delete valLoad;
+	}
+
+	void EUnaryOp::Evaluate(CodeBuilder& cb)
+	{
+		valLoad->Evaluate(cb);
+		cb.Op(op);
+	}
+
+	std::string EUnaryOp::GetDataType()
+	{
+		return valLoad->GetDataType();
+	}
+
+
 	EReturn::EReturn(Int _retValSize) :
 		retValSize(_retValSize),
 		retValLoad(nullptr)

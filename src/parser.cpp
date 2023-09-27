@@ -55,7 +55,8 @@ namespace Tolo
 			OpCode::Char_Div,
 			OpCode::Char_Less,
 			OpCode::Char_Greater,
-			OpCode::Char_Equal
+			OpCode::Char_Equal,
+			OpCode::Char_Negate
 		};
 
 		typeNameOperators["int"] =
@@ -66,7 +67,8 @@ namespace Tolo
 			OpCode::Int_Div,
 			OpCode::Int_Less,
 			OpCode::Int_Greater,
-			OpCode::Int_Equal
+			OpCode::Int_Equal,
+			OpCode::Int_Negate
 		};
 
 		typeNameOperators["float"] =
@@ -77,7 +79,8 @@ namespace Tolo
 			OpCode::Float_Div,
 			OpCode::Float_Less,
 			OpCode::Float_Greater,
-			OpCode::Float_Equal
+			OpCode::Float_Equal,
+			OpCode::Float_Negate
 		};
 
 		typeNameOperators["ptr"] =
@@ -88,7 +91,8 @@ namespace Tolo
 			OpCode::INVALID,
 			OpCode::INVALID,
 			OpCode::INVALID,
-			OpCode::Char_Equal
+			OpCode::Ptr_Equal,
+			OpCode::INVALID
 		};
 
 		currentExpectedReturnType = "void";
@@ -436,14 +440,14 @@ namespace Tolo
 		return p_while;
 	}
 
-	Expression* Parser::ParseBinaryMathOp(LexNode* p_lexNode, const std::string& funcName)
+	Expression* Parser::ParseBinaryMathOp(LexNode* p_lexNode)
 	{
-		static std::map<std::string, size_t> funcNameToOpIndex
+		static std::map<Token::Type, size_t> opTypeToOpIndex
 		{
-			{"add", 0},
-			{"sub", 1},
-			{"mul", 2},
-			{"div", 3}
+			{Token::Type::Plus, 0},
+			{Token::Type::Minus, 1},
+			{Token::Type::Asterisk, 2},
+			{Token::Type::ForwardSlash, 3}
 		};
 
 		// determine op code based on function and operand type
@@ -462,16 +466,16 @@ namespace Tolo
 			Affirm(
 				typeNameOperators.count(currentExpectedReturnType) != 0,
 				"cannot perform math operation '%s' on operand of type '%s' at line %i",
-				funcName.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
+				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
 			);
 		}
 
-		opCode = typeNameOperators[currentExpectedReturnType][funcNameToOpIndex[funcName]];
+		opCode = typeNameOperators[currentExpectedReturnType][opTypeToOpIndex[p_lexNode->token.type]];
 
 		Affirm(
 			opCode != OpCode::INVALID,
 			"cannot perform math operation '%s' on operand of type '%s' at line %i",
-			funcName.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
+			p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
 		);
 
 		EBinaryOp* p_binMathOp = new EBinaryOp(opCode);
@@ -488,13 +492,13 @@ namespace Tolo
 		return p_binMathOp;
 	}
 
-	Expression* Parser::ParseBinaryCompareOp(LexNode* p_lexNode, const std::string& funcName)
+	Expression* Parser::ParseBinaryCompareOp(LexNode* p_lexNode)
 	{
-		static std::map<std::string, size_t> funcNameToOpIndex
+		static std::map<Token::Type, size_t> opTypeToOpIndex
 		{
-			{"less", 4},
-			{"greater", 5},
-			{"equal", 6}
+			{Token::Type::LeftArrow, 4},
+			{Token::Type::RightArrow, 5}
+			//{"equal", 6}
 		};
 
 		if (currentExpectedReturnType != "char" && currentExpectedReturnType != ANY_VALUE_TYPE)
@@ -510,15 +514,15 @@ namespace Tolo
 		Affirm(
 			typeNameOperators.count(currentExpectedReturnType) != 0,
 			"cannot perform binary compare operation '%s' on operand of type '%s' at line %i",
-			funcName.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
+			p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
 		);
 
-		OpCode opCode = typeNameOperators[currentExpectedReturnType][funcNameToOpIndex[funcName]];
+		OpCode opCode = typeNameOperators[currentExpectedReturnType][opTypeToOpIndex[p_lexNode->token.type]];
 
 		Affirm(
 			opCode != OpCode::INVALID,
 			"cannot perform binary operator '%s' on operand of type '%s' at line %i",
-			funcName.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
+			p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
 		);
 
 		EBinaryOp* p_binCompOp = new EBinaryOp(opCode);
@@ -531,16 +535,57 @@ namespace Tolo
 		return p_binCompOp;
 	}
 
-	Expression* Parser::ParseCoreFunctionCall(LexNode* p_lexNode)
+	Expression* Parser::ParseBinaryOp(LexNode* p_lexNode)
 	{
-		const std::string& funcName = p_lexNode->token.text;
+		switch (p_lexNode->token.type)
+		{
+		case Token::Type::LeftArrow:
+		case Token::Type::RightArrow:
+			return ParseBinaryCompareOp(p_lexNode);
+		}
+		
+		return ParseBinaryMathOp(p_lexNode);
+	}
 
-		if (funcName == "add" || funcName == "sub" || funcName == "mul" || funcName == "div")
-			return ParseBinaryMathOp(p_lexNode, funcName);
-		if (funcName == "less" || funcName == "greater" || funcName == "equal")
-			return ParseBinaryCompareOp(p_lexNode, funcName);
+	Expression* Parser::ParseUnaryOp(LexNode* p_lexNode)
+	{
+		static std::map<Token::Type, size_t> opTypeToOpIndex
+		{
+			{Token::Type::Minus, 7}
+		};
 
-		return nullptr;
+		// determine op code based on function and operand type
+		OpCode opCode = OpCode::Char_Negate;
+		bool anyValueType = false;
+
+		if (currentExpectedReturnType == ANY_VALUE_TYPE)
+			anyValueType = true;
+		else if (typeNameOperators.count(currentExpectedReturnType) == 0)
+			Affirm(false, "expected expression of type '%s' at line %i", currentExpectedReturnType.c_str(), p_lexNode->token.line);
+
+		Expression* p_val = ParseNextExpression(p_lexNode->children[0]);
+		if (anyValueType)
+		{
+			currentExpectedReturnType = p_val->GetDataType();
+			Affirm(
+				typeNameOperators.count(currentExpectedReturnType) != 0,
+				"cannot perform math operation '%s' on operand of type '%s' at line %i",
+				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
+			);
+		}
+
+		opCode = typeNameOperators[currentExpectedReturnType][opTypeToOpIndex[p_lexNode->token.type]];
+
+		Affirm(
+			opCode != OpCode::INVALID,
+			"cannot perform unary operation '%s' on operand of type '%s' at line %i",
+			p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
+		);
+
+		EUnaryOp* p_unaryOp = new EUnaryOp(opCode);
+		p_unaryOp->valLoad = p_val;
+
+		return p_unaryOp;
 	}
 
 	Expression* Parser::ParseUserFunctionCall(LexNode* p_lexNode)
@@ -867,12 +912,16 @@ namespace Tolo
 			return ParseFunctionDefinition(p_lexNode);
 		case LexNode::Type::StructDefinition:
 			return ParseStructDefinition(p_lexNode);
-		case LexNode::Type::CoreFunctionCall:
-			return ParseCoreFunctionCall(p_lexNode);
 		case LexNode::Type::UserFunctionCall:
 			return ParseUserFunctionCall(p_lexNode);
 		case LexNode::Type::NativeFunctionCall:
 			return ParseNativeFunctionCall(p_lexNode);
+		case LexNode::Type::BinaryOperation:
+			return ParseBinaryOp(p_lexNode);
+		case LexNode::Type::UnaryOperation:
+			return ParseUnaryOp(p_lexNode);
+		case LexNode::Type::Parenthesis:
+			return ParseNextExpression(p_lexNode->children[0]);
 		case LexNode::Type::Return:
 			return ParseReturn(p_lexNode);
 		case LexNode::Type::IfSingle:

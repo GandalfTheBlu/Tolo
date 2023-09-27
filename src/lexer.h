@@ -6,7 +6,6 @@ namespace Tolo
 {
 	struct Lexer
 	{
-		std::set<std::string> coreFunctions;
 		std::set<std::string> nativeFunctions;
 		bool isInsideWhile;
 
@@ -34,7 +33,15 @@ namespace Tolo
 
 		LexNode* GetStructDefinitionNode(const std::vector<Token>& tokens, size_t& i);
 
-		LexNode* GetNextNode(const std::vector<Token>& tokens, size_t& i);
+		int GetBinaryOpPrecedence(Token::Type tokenType);
+
+		int GetUnaryOpPrecedence(Token::Type tokenType);
+
+		LexNode* GetPrefix(const std::vector<Token>& tokens, size_t& i);
+
+		LexNode* GetInfix(const std::vector<Token>& tokens, size_t& i, LexNode* p_lhs);
+
+		LexNode* GetNextNode(const std::vector<Token>& tokens, size_t& i, int precedence = 0);
 		
 		void Lex(const std::vector<Token>& tokens, std::vector<LexNode*>& lexNodes);
 	};

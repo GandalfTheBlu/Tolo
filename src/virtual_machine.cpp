@@ -31,6 +31,7 @@ namespace Tolo
 			Op_TU_Sub<Char, Char>,
 			Op_T_Mul<Char>,
 			Op_T_Div<Char>,
+			Op_T_Negate<Char>,
 
 			Op_T_Equal<Int>,
 			Op_T_Less<Int>,
@@ -39,6 +40,7 @@ namespace Tolo
 			Op_TU_Sub<Int, Int>,
 			Op_T_Mul<Int>,
 			Op_T_Div<Int>,
+			Op_T_Negate<Int>,
 
 			Op_T_Equal<Float>,
 			Op_T_Less<Float>,
@@ -47,6 +49,7 @@ namespace Tolo
 			Op_TU_Sub<Float, Float>,
 			Op_T_Mul<Float>,
 			Op_T_Div<Float>,
+			Op_T_Negate<Float>,
 
 			Op_T_Equal<Ptr>,
 			Op_TU_Add<Ptr, Ptr>,
@@ -78,6 +81,7 @@ namespace Tolo
 			"Char_Sub",
 			"Char_Mul",
 			"Char_Div",
+			"Char_Negate",
 
 			"Int_Equal",
 			"Int_Less",
@@ -86,6 +90,7 @@ namespace Tolo
 			"Int_Sub",
 			"Int_Mul",
 			"Int_Div",
+			"Int_Negate",
 
 			"Float_Equal",
 			"Float_Less",
@@ -94,6 +99,7 @@ namespace Tolo
 			"Float_Sub",
 			"Float_Mul",
 			"Float_Div",
+			"Float_Negate",
 
 			"Ptr_Equal",
 			"Ptr_Add",

@@ -226,5 +226,13 @@ namespace Tolo
 		vm.instructionPtr += sizeof(Char);
 	}
 
+	template<typename T>
+	void Op_T_Negate(VirtualMachine& vm)
+	{
+		T val = Pop<T>(vm);
+		Push<T>(vm, -val);
+		vm.instructionPtr += sizeof(Char);
+	}
+
 	void RunProgram(Char* p_stack, Ptr codeStart, Ptr codeEnd);
 }
