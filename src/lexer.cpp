@@ -521,15 +521,22 @@ namespace Tolo
 	{
 		switch (tokenType)
 		{
+		case Token::Type::DoubleAmpersand:
+		case Token::Type::DoubleVerticalBar:
+			return 1;
 		case Token::Type::LeftArrow:
 		case Token::Type::RightArrow:
-			return 1;
+		case Token::Type::DoubleEqualSign:
+		case Token::Type::LeftArrowEqualSign:
+		case Token::Type::RightArrowEqualSign:
+		case Token::Type::ExclamationMarkEqualSign:
+			return 2;
 		case Token::Type::Plus:
 		case Token::Type::Minus:
-			return 2;
+			return 3;
 		case Token::Type::Asterisk:
 		case Token::Type::ForwardSlash:
-			return 4;
+			return 5;
 		}
 
 		return 0;
@@ -539,8 +546,9 @@ namespace Tolo
 	{
 		switch (tokenType)
 		{
+		case Token::Type::ExclamationMark:
 		case Token::Type::Minus:
-			return 3;
+			return 4;
 		}
 
 		return 0;
@@ -566,7 +574,7 @@ namespace Tolo
 			i++;
 			p_result = new LexNode(LexNode::Type::LiteralConstant, token);
 		}
-		else if (token.type == Token::Type::Minus)
+		else if (token.type == Token::Type::Minus || token.type == Token::Type::ExclamationMark)
 		{
 			i++;
 			p_result = new LexNode(LexNode::Type::UnaryOperation, token);

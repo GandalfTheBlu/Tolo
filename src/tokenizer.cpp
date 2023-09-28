@@ -20,7 +20,18 @@ namespace Tolo
 			{'/', Token::Type::ForwardSlash},
 			{'<', Token::Type::LeftArrow},
 			{'>', Token::Type::RightArrow},
-			{'=', Token::Type::EqualSign}
+			{'=', Token::Type::EqualSign},
+			{'!', Token::Type::ExclamationMark}
+		};
+
+		static std::map<std::string, Token::Type> doubleToType
+		{
+			{"<=", Token::Type::LeftArrowEqualSign},
+			{">=", Token::Type::RightArrowEqualSign},
+			{"==", Token::Type::DoubleEqualSign},
+			{"!=", Token::Type::ExclamationMarkEqualSign},
+			{"&&", Token::Type::DoubleAmpersand},
+			{"||", Token::Type::DoubleVerticalBar}
 		};
 
 		int line = 1;
@@ -29,6 +40,10 @@ namespace Tolo
 		for (size_t i = 0; i < code.size();)
 		{
 			char c = code[i];
+			std::string doubleStr;
+			doubleStr += c;
+			if (i + 1 < code.size())
+				doubleStr += code[i + 1];
 
 			if (c == ' ' || c == '\n' || c == '\t')
 			{
@@ -44,6 +59,11 @@ namespace Tolo
 					line++;
 
 				i++;
+			}
+			else if (doubleToType.count(doubleStr) != 0)
+			{
+				tokens.push_back({ doubleToType[doubleStr], doubleStr, line });
+				i += 2;
 			}
 			else if (singleToType.count(c) != 0)
 			{

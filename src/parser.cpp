@@ -56,7 +56,13 @@ namespace Tolo
 			OpCode::Char_Less,
 			OpCode::Char_Greater,
 			OpCode::Char_Equal,
-			OpCode::Char_Negate
+			OpCode::Char_LessOrEqual,
+			OpCode::Char_GreaterOrEqual,
+			OpCode::Char_NotEqual,
+			OpCode::And,
+			OpCode::Or,
+			OpCode::Char_Negate,
+			OpCode::Not
 		};
 
 		typeNameOperators["int"] =
@@ -68,7 +74,13 @@ namespace Tolo
 			OpCode::Int_Less,
 			OpCode::Int_Greater,
 			OpCode::Int_Equal,
-			OpCode::Int_Negate
+			OpCode::Int_LessOrEqual,
+			OpCode::Int_GreaterOrEqual,
+			OpCode::Int_NotEqual,
+			OpCode::INVALID,
+			OpCode::INVALID,
+			OpCode::Int_Negate,
+			OpCode::INVALID
 		};
 
 		typeNameOperators["float"] =
@@ -80,18 +92,12 @@ namespace Tolo
 			OpCode::Float_Less,
 			OpCode::Float_Greater,
 			OpCode::Float_Equal,
-			OpCode::Float_Negate
-		};
-
-		typeNameOperators["ptr"] =
-		{
-			OpCode::Ptr_Add,
-			OpCode::Ptr_Sub,
+			OpCode::Float_LessOrEqual,
+			OpCode::Float_GreaterOrEqual,
+			OpCode::Float_NotEqual,
 			OpCode::INVALID,
 			OpCode::INVALID,
-			OpCode::INVALID,
-			OpCode::INVALID,
-			OpCode::Ptr_Equal,
+			OpCode::Float_Negate,
 			OpCode::INVALID
 		};
 
@@ -497,8 +503,13 @@ namespace Tolo
 		static std::map<Token::Type, size_t> opTypeToOpIndex
 		{
 			{Token::Type::LeftArrow, 4},
-			{Token::Type::RightArrow, 5}
-			//{"equal", 6}
+			{Token::Type::RightArrow, 5},
+			{Token::Type::DoubleEqualSign, 6},
+			{Token::Type::LeftArrowEqualSign, 7},
+			{Token::Type::RightArrowEqualSign, 8},
+			{Token::Type::ExclamationMarkEqualSign, 9},
+			{Token::Type::DoubleAmpersand, 10},
+			{Token::Type::DoubleVerticalBar, 11}
 		};
 
 		if (currentExpectedReturnType != "char" && currentExpectedReturnType != ANY_VALUE_TYPE)
@@ -539,20 +550,19 @@ namespace Tolo
 	{
 		switch (p_lexNode->token.type)
 		{
-		case Token::Type::LeftArrow:
-		case Token::Type::RightArrow:
-			return ParseBinaryCompareOp(p_lexNode);
+		case Token::Type::Plus:
+		case Token::Type::Minus:
+		case Token::Type::Asterisk:
+		case Token::Type::ForwardSlash:
+			return ParseBinaryMathOp(p_lexNode);
 		}
 		
-		return ParseBinaryMathOp(p_lexNode);
+		return ParseBinaryCompareOp(p_lexNode);
 	}
 
-	Expression* Parser::ParseUnaryOp(LexNode* p_lexNode)
+	Expression* Parser::ParseUnaryNegate(LexNode* p_lexNode)
 	{
-		static std::map<Token::Type, size_t> opTypeToOpIndex
-		{
-			{Token::Type::Minus, 7}
-		};
+		const size_t opIndex = 12;
 
 		// determine op code based on function and operand type
 		OpCode opCode = OpCode::Char_Negate;
@@ -569,16 +579,16 @@ namespace Tolo
 			currentExpectedReturnType = p_val->GetDataType();
 			Affirm(
 				typeNameOperators.count(currentExpectedReturnType) != 0,
-				"cannot perform math operation '%s' on operand of type '%s' at line %i",
+				"cannot perform unary 'negate' on operand of type '%s' at line %i",
 				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
 			);
 		}
 
-		opCode = typeNameOperators[currentExpectedReturnType][opTypeToOpIndex[p_lexNode->token.type]];
+		opCode = typeNameOperators[currentExpectedReturnType][opIndex];
 
 		Affirm(
 			opCode != OpCode::INVALID,
-			"cannot perform unary operation '%s' on operand of type '%s' at line %i",
+			"cannot perform unary 'negate' on operand of type '%s' at line %i",
 			p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
 		);
 
@@ -586,6 +596,37 @@ namespace Tolo
 		p_unaryOp->valLoad = p_val;
 
 		return p_unaryOp;
+	}
+
+	Expression* Parser::ParseUnaryNot(LexNode* p_lexNode)
+	{
+		const size_t opIndex = 13;
+
+		if (currentExpectedReturnType != "char" && currentExpectedReturnType != ANY_VALUE_TYPE)
+			Affirm(false, "expected expression of type '%s' at line %i", currentExpectedReturnType.c_str(), p_lexNode->token.line);
+
+		currentExpectedReturnType = "char";
+		Expression* p_val = ParseNextExpression(p_lexNode->children[0]);
+		OpCode opCode = typeNameOperators[currentExpectedReturnType][opIndex];
+
+		Affirm(
+			opCode != OpCode::INVALID,
+			"cannot perform unary 'not' on operand of type '%s' at line %i",
+			p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
+		);
+
+		EUnaryOp* p_unaryNot = new EUnaryOp(opCode);
+		p_unaryNot->valLoad = p_val;
+
+		return p_unaryNot;
+	}
+
+	Expression* Parser::ParseUnaryOp(LexNode* p_lexNode)
+	{
+		if (p_lexNode->token.type == Token::Type::Minus)
+			return ParseUnaryNegate(p_lexNode);
+		
+		return ParseUnaryNot(p_lexNode);
 	}
 
 	Expression* Parser::ParseUserFunctionCall(LexNode* p_lexNode)

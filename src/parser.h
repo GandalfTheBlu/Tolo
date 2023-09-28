@@ -97,6 +97,10 @@ namespace Tolo
 
 		Expression* ParseBinaryOp(LexNode* p_lexNode);
 
+		Expression* ParseUnaryNegate(LexNode* p_lexNode);
+
+		Expression* ParseUnaryNot(LexNode* p_lexNode);
+
 		Expression* ParseUnaryOp(LexNode* p_lexNode);
 
 		Expression* ParseUserFunctionCall(LexNode* p_lexNode);

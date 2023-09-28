@@ -190,6 +190,56 @@ namespace Tolo
 		vm.instructionPtr += sizeof(Char);
 	}
 
+	template<typename T>
+	void Op_T_LessOrEqual(VirtualMachine& vm)
+	{
+		T lhs = Pop<T>(vm);
+		T rhs = Pop<T>(vm);
+		Push<Char>(vm, lhs <= rhs ? 1 : 0);
+		vm.instructionPtr += sizeof(Char);
+	}
+
+	template<typename T>
+	void Op_T_GreaterOrEqual(VirtualMachine& vm)
+	{
+		T lhs = Pop<T>(vm);
+		T rhs = Pop<T>(vm);
+		Push<Char>(vm, lhs >= rhs ? 1 : 0);
+		vm.instructionPtr += sizeof(Char);
+	}
+
+	template<typename T>
+	void Op_T_NotEqual(VirtualMachine& vm)
+	{
+		T lhs = Pop<T>(vm);
+		T rhs = Pop<T>(vm);
+		Push<Char>(vm, lhs != rhs ? 1 : 0);
+		vm.instructionPtr += sizeof(Char);
+	}
+
+	inline void Op_Not(VirtualMachine& vm)
+	{
+		Char val = Pop<Char>(vm);
+		Push<Char>(vm, val > 0 ? 0 : 1);
+		vm.instructionPtr += sizeof(Char);
+	}
+
+	inline void Op_And(VirtualMachine& vm)
+	{
+		Char lhs = Pop<Char>(vm);
+		Char rhs = Pop<Char>(vm);
+		Push<Char>(vm, (lhs > 0 && rhs > 0) ? 1 : 0);
+		vm.instructionPtr += sizeof(Char);
+	}
+
+	inline void Op_Or(VirtualMachine& vm)
+	{
+		Char lhs = Pop<Char>(vm);
+		Char rhs = Pop<Char>(vm);
+		Push<Char>(vm, (lhs > 0 || rhs > 0) ? 1 : 0);
+		vm.instructionPtr += sizeof(Char);
+	}
+
 	template<typename T, typename U>
 	void Op_TU_Add(VirtualMachine& vm)
 	{

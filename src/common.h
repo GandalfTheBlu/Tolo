@@ -30,15 +30,25 @@ namespace Tolo
 		Char_Equal,//		-					Char Char			Char
 		Char_Less,//		-					Char Char			Char
 		Char_Greater,//		-					Char Char			Char
+		Char_LessOrEqual,// -					Char Char			Char
+		Char_GreaterOrEqual,//-					Char Char			Char
+		Char_NotEqual,//	-					Char Char			Char
 		Char_Add,//			-					Char Char			Char
 		Char_Sub,//			-					Char Char			Char
 		Char_Mul,//			-					Char Char			Char
 		Char_Div,//			-					Char Char			Char
 		Char_Negate,//		-					Char				Char
 
+		Not,//				-					Char				Char
+		And,//				-					Char Char			Char
+		Or,//				-					Char Char			Char
+
 		Int_Equal,//		-					Int Int				Char
 		Int_Less,//			-					Int Int				Char
 		Int_Greater,//		-					Int Int				Char
+		Int_LessOrEqual,//	-					Int	Int				Char
+		Int_GreaterOrEqual,//-					Int Int				Char
+		Int_NotEqual,//		-					Int Int				Char
 		Int_Add,//			-					Int Int				Int
 		Int_Sub,//			-					Int Int				Int
 		Int_Mul,//			-					Int Int				Int
@@ -48,13 +58,15 @@ namespace Tolo
 		Float_Equal,//		-					Float Float			Char
 		Float_Less,//		-					Float Float			Char
 		Float_Greater,//	-					Float Float			Char
+		Float_LessOrEqual,//-					Float Flaot			Char
+		Float_GreaterOrEqual,//-				Float FLoat			Char
+		Float_NotEqual,//	-					Float Float			Char
 		Float_Add,//		-					Float Float			Float
 		Float_Sub,//		-					Float Float			Float
 		Float_Mul,//		-					Float Float			Float
 		Float_Div,//		-					Float Float			Float
 		Float_Negate,//		-					Float				Float
 
-		Ptr_Equal,//		-					Ptr Ptr				Char
 		Ptr_Add,//			-					Ptr Int				Ptr
 		Ptr_Sub,//			-					Ptr Int				Ptr
 

@@ -230,7 +230,8 @@ namespace Tolo
 
 
 	ECallNativeFunction::ECallNativeFunction(const std::string& _returnTypeName) :
-		returnTypeName(_returnTypeName)
+		returnTypeName(_returnTypeName),
+		functionPtrLoad(nullptr)
 	{}
 
 	ECallNativeFunction::~ECallNativeFunction()
@@ -278,7 +279,24 @@ namespace Tolo
 
 	std::string EBinaryOp::GetDataType()
 	{
-		return lhsLoad->GetDataType();
+		switch (op)
+		{
+		case Tolo::OpCode::Int_Add:
+		case Tolo::OpCode::Int_Sub:
+		case Tolo::OpCode::Int_Mul:
+		case Tolo::OpCode::Int_Div:
+			return "int";
+		case Tolo::OpCode::Float_Add:
+		case Tolo::OpCode::Float_Sub:
+		case Tolo::OpCode::Float_Mul:
+		case Tolo::OpCode::Float_Div:
+			return "float";
+		case Tolo::OpCode::Ptr_Add:
+		case Tolo::OpCode::Ptr_Sub:
+			return "ptr";
+		}
+
+		return "char";
 	}
 
 
