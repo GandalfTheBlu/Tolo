@@ -104,25 +104,20 @@ namespace Test
 
 int main()
 {
-	ProgramHandle program("Script/pratt.tolo", 1024);
-
-	program.Compile();
-
-	int ret = program.Execute<int>();
+	//ProgramHandle program("Script/pratt.tolo", 1024);
+	//program.Compile();
+	//int ret = program.Execute<int>();
 
 
-
-	/*program.AddFunction({"float", "length", {"vec3"}, [](VirtualMachine& vm)
+	ProgramHandle program("Script/test.tolo", 1024);
+	program.AddFunction({"float", "length", {"vec3"}, [](VirtualMachine& vm)
 		{
 			vec3 v = Pop<vec3>(vm);
 			Push<Float>(vm, length(v));
 		} 
 	});
-
 	program.Compile();
-
-	Test::RayMarch(program);*/
-
+	Test::RayMarch(program);
 
 	return 0;
 }

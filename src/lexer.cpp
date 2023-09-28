@@ -559,17 +559,7 @@ namespace Tolo
 		const Token& token = tokens[i];
 		LexNode* p_result = nullptr;
 
-		if (token.type == Token::Type::EndCurly)
-		{
-			i++;
-			p_result = new LexNode(LexNode::Type::EndCurly, token);
-		}
-		else if (token.type == Token::Type::EndPar)
-		{
-			i++;
-			p_result = new LexNode(LexNode::Type::EndPar, token);
-		}
-		else if (token.type == Token::Type::ConstChar || token.type == Token::Type::ConstInt || token.type == Token::Type::ConstFloat)
+		if (token.type == Token::Type::ConstChar || token.type == Token::Type::ConstInt || token.type == Token::Type::ConstFloat)
 		{
 			i++;
 			p_result = new LexNode(LexNode::Type::LiteralConstant, token);
@@ -642,6 +632,18 @@ namespace Tolo
 	LexNode* Lexer::GetNextNode(const std::vector<Token>& tokens, size_t& i, int precedence)
 	{
 		Affirm(i < tokens.size(), "unexpected end of tokens");
+
+		const Token& token = tokens[i];
+		if (token.type == Token::Type::EndCurly)
+		{
+			i++;
+			return new LexNode(LexNode::Type::EndCurly, token);
+		}
+		else if (token.type == Token::Type::EndPar)
+		{
+			i++;
+			return new LexNode(LexNode::Type::EndPar, token);
+		}
 
 		LexNode* p_lhs = GetPrefix(tokens, i);
 

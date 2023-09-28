@@ -8,5 +8,5 @@ struct vec3
 
 float main(vec3 p)
 {
-	return sub(length(p), 1.0)
+	return length(p) - 1.0
 }
