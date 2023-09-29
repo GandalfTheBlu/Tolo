@@ -7,6 +7,27 @@ namespace Tolo
 		isInsideWhile(false)
 	{}
 
+	bool Lexer::IsOverloadableOperator(const Token& token)
+	{
+		switch (token.type)
+		{
+		case Token::Type::Plus:
+		case Token::Type::Minus:
+		case Token::Type::Asterisk:
+		case Token::Type::ForwardSlash:
+		case Token::Type::LeftArrow:
+		case Token::Type::RightArrow:
+		case Token::Type::EqualSign:
+		case Token::Type::LeftArrowEqualSign:
+		case Token::Type::RightArrowEqualSign:
+		case Token::Type::DoubleEqualSign:
+		case Token::Type::ExclamationMarkEqualSign:
+			return true;
+		}
+
+		return false;
+	}
+
 	LexNode* Lexer::GetReturnNode(const std::vector<Token>& tokens, size_t& i)
 	{
 		LexNode* p_ret = new LexNode(LexNode::Type::Return, tokens[i]);
@@ -20,6 +41,13 @@ namespace Tolo
 		}
 		else
 			i++;
+
+		Affirm(
+			i < tokens.size() && tokens[i].type == Token::Type::Semicolon,
+			"missing ';' at line %i",
+			tokens[i - 1].line
+		);
+		i++;
 
 		return p_ret;
 	}
@@ -313,6 +341,13 @@ namespace Tolo
 				p_exp->token.line
 			);
 
+			Affirm(
+				i < tokens.size() && tokens[i].type == Token::Type::Semicolon,
+				"missing ';' at line %i",
+				tokens[i - 1].line
+			);
+			i++;
+
 			p_prop->children.push_back(p_exp);
 		}
 
@@ -339,6 +374,13 @@ namespace Tolo
 			"expected value expression at line %i",
 			token.line
 		);
+
+		Affirm(
+			i < tokens.size() && tokens[i].type == Token::Type::Semicolon,
+			"missing ';' at line %i",
+			tokens[i - 1].line
+		);
+		i++;
 
 		p_varWrite->children.push_back(p_exp);
 		return p_varWrite;
@@ -373,6 +415,13 @@ namespace Tolo
 			token.line
 		);
 
+		Affirm(
+			i < tokens.size() && tokens[i].type == Token::Type::Semicolon,
+			"missing ';' at line %i", 
+			tokens[i - 1].line
+		);
+		i++;
+
 		p_varDef->children.push_back(p_exp);
 
 		return p_varDef;
@@ -384,8 +433,8 @@ namespace Tolo
 		LexNode* p_funcDef = new LexNode(LexNode::Type::FunctionDefinition, token);
 
 		Affirm(
-			i + 5 < tokens.size() && tokens[i + 1].type == Token::Type::Name && tokens[i + 2].type == Token::Type::StartPar,
-			"expected variable definition at line %i",
+			i + 5 < tokens.size(),
+			"expected function definition at line %i",
 			token.line
 		);
 
@@ -469,6 +518,103 @@ namespace Tolo
 		return p_funcDef;
 	}
 
+	LexNode* Lexer::GetOperatorDefinitionNode(const std::vector<Token>& tokens, size_t& i)
+	{
+		const Token& token = tokens[i];
+		LexNode* p_opDef = new LexNode(LexNode::Type::OperatorDefinition, token);
+
+		Affirm(
+			i + 6 < tokens.size(),
+			"expected operator definition at line %i",
+			token.line
+		);
+
+		Affirm(
+			IsOverloadableOperator(tokens[i + 2]),
+			"cannot overload operator '%s' at line %i",
+			tokens[i + 2].text.c_str(), tokens[i + 2].line
+		);
+
+		p_opDef->children.push_back(new LexNode(LexNode::Type::Identifier, tokens[i + 2]));
+		i += 4;
+
+		bool foundEndPar = false;
+		while (i < tokens.size())
+		{
+			if (tokens[i].type == Token::Type::EndPar)
+			{
+				i++;
+				foundEndPar = true;
+				break;
+			}
+
+			Affirm(
+				i + 1 < tokens.size() && tokens[i].type == Token::Type::Name && tokens[i + 1].type == Token::Type::Name,
+				"expected identifier at line %i",
+				tokens[i].line
+			);
+
+			p_opDef->children.push_back(new LexNode(LexNode::Type::Identifier, tokens[i++]));
+			p_opDef->children.push_back(new LexNode(LexNode::Type::Identifier, tokens[i]));
+
+			Affirm(i + 1 < tokens.size(), "unexpected end of tokens at line %i", tokens[i].line);
+			i++;
+
+			if (tokens[i].type == Token::Type::Comma)
+				i++;
+			else
+			{
+				Affirm(
+					tokens[i].type == Token::Type::EndPar,
+					"unexpected token '%s' at line %i",
+					tokens[i].text.c_str(), tokens[i].line
+				);
+			}
+		}
+
+		Affirm(
+			foundEndPar,
+			"missing ')' after line %i",
+			token.line
+		);
+
+		Affirm(
+			i < tokens.size() && tokens[i].type == Token::Type::StartCurly,
+			"missing '{' at line %i",
+			token.line
+		);
+		i++;
+
+		bool foundEndCurly = false;
+		while (i < tokens.size())
+		{
+			LexNode* p_node = GetNextNode(tokens, i);
+
+			if (p_node->type == LexNode::Type::EndCurly)
+			{
+				delete p_node;
+				foundEndCurly = true;
+				break;
+			}
+
+			Affirm(
+				p_node->IsValidExpressionInScope(),
+				"invalid expression '%s' at line %i",
+				p_node->token.text.c_str(), p_node->token.line
+			);
+
+			p_opDef->children.push_back(p_node);
+		}
+
+		Affirm(
+			foundEndCurly,
+			"missing '}' after line %i",
+			token.line
+		);
+
+		return p_opDef;
+	}
+
 	LexNode* Lexer::GetStructDefinitionNode(const std::vector<Token>& tokens, size_t& i)
 	{
 		const Token& token = tokens[i];
@@ -500,18 +646,20 @@ namespace Tolo
 			}
 
 			Affirm(
-				i + 1 < tokens.size() && tokens[i].type == Token::Type::Name && tokens[i + 1].type == Token::Type::Name,
-				"expected identifier at line %i", 
+				i + 2 < tokens.size() && tokens[i].type == Token::Type::Name && tokens[i + 1].type == Token::Type::Name && tokens[i + 2].type == Token::Type::Semicolon,
+				"expected property definition at line %i", 
 				tokens[i].line
 			);
 
 			p_structDef->children.push_back(new LexNode(LexNode::Type::Identifier, tokens[i]));
 			p_structDef->children.push_back(new LexNode(LexNode::Type::Identifier, tokens[i+1]));
 
-			i += 2;
+			i += 3;
 		}
 
 		Affirm(foundEndCurly, "missing '}' after line %i", token.line);
+		Affirm(i < tokens.size() && tokens[i].type == Token::Type::Semicolon, "missing ';' at line %i", tokens[i - 1].line);
+		i++;
 
 		return p_structDef;
 	}
@@ -608,6 +756,8 @@ namespace Tolo
 				p_result = GetVariableDefinitionNode(tokens, i);
 			else if (i + 2 < tokens.size() && tokens[i + 1].type == Token::Type::Name && tokens[i + 2].type == Token::Type::StartPar)
 				p_result = GetFunctionDefinitionNode(tokens, i);
+			else if (i + 1 < tokens.size() && tokens[i + 1].text == "operator")
+				p_result = GetOperatorDefinitionNode(tokens, i);
 			else
 				p_result = GetVariableLoadNode(tokens, i);
 		}

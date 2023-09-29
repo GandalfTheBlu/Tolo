@@ -52,6 +52,7 @@ namespace Tolo
 	struct Parser
 	{
 		typedef std::vector<OpCode> DataTypeOperators;
+		typedef std::map<std::string, FunctionInfo> DataTypeOperatorFunctions;
 
 		std::map<std::string, Int> typeNameToSize;
 		std::map<std::string, FunctionInfo> userFunctions;
@@ -59,6 +60,7 @@ namespace Tolo
 		FunctionInfo* currentFunction;
 		std::string currentExpectedReturnType;
 		std::map<std::string, DataTypeOperators> typeNameOperators;
+		std::map<std::string, DataTypeOperatorFunctions> typeNameOperatorFunctions;
 		std::map<std::string, StructInfo> typeNameToStructInfo;
 
 		Parser();
@@ -110,6 +112,8 @@ namespace Tolo
 		Expression* ParseVariableDefinition(LexNode* p_lexNode);
 
 		Expression* ParseFunctionDefinition(LexNode* p_lexNode);
+
+		Expression* ParseOperatorDefinition(LexNode* p_lexNode);
 
 		Expression* ParseStructDefinition(LexNode* p_lexNode);
 

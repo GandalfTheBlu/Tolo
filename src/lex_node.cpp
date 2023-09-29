@@ -26,6 +26,9 @@ namespace Tolo
 
 	bool LexNode::IsValidExpressionInScope()
 	{
-		return type != Type::FunctionDefinition && type != Type::Identifier && type != Type::StructDefinition;
+		return type != Type::FunctionDefinition && 
+			type != Type::OperatorDefinition && 
+			type != Type::Identifier && 
+			type != Type::StructDefinition;
 	}
 }

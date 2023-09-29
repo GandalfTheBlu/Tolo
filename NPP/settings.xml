@@ -13,7 +13,7 @@
             <Keywords name="Numbers, suffix1"></Keywords>
             <Keywords name="Numbers, suffix2"></Keywords>
             <Keywords name="Numbers, range"></Keywords>
-            <Keywords name="Operators1">= , &lt; &gt; + - * / !</Keywords>
+            <Keywords name="Operators1">= , &lt; &gt; + - * / ! ; . &amp;&amp; ||</Keywords>
             <Keywords name="Operators2"></Keywords>
             <Keywords name="Folders in code1, open">( { [</Keywords>
             <Keywords name="Folders in code1, middle"></Keywords>
@@ -24,7 +24,7 @@
             <Keywords name="Folders in comment, open"></Keywords>
             <Keywords name="Folders in comment, middle"></Keywords>
             <Keywords name="Folders in comment, close"></Keywords>
-            <Keywords name="Keywords1">void char int float struct</Keywords>
+            <Keywords name="Keywords1">char int float struct operator</Keywords>
             <Keywords name="Keywords2">return if else while break continue</Keywords>
             <Keywords name="Keywords3">main</Keywords>
             <Keywords name="Keywords4"></Keywords>

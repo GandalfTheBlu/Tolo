@@ -11,6 +11,7 @@ namespace Tolo
 			EndPar,
 			StartCurly,
 			EndCurly,
+			Semicolon,
 			Comma,
 			Dot,
 			Plus,

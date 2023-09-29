@@ -12,6 +12,7 @@ namespace Tolo
 			{')', Token::Type::EndPar},
 			{'{', Token::Type::StartCurly},
 			{'}', Token::Type::EndCurly},
+			{';', Token::Type::Semicolon},
 			{',', Token::Type::Comma},
 			{'.', Token::Type::Dot},
 			{'+', Token::Type::Plus},

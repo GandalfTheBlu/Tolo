@@ -11,6 +11,8 @@ namespace Tolo
 
 		Lexer();
 
+		bool IsOverloadableOperator(const Token& token);
+
 		LexNode* GetReturnNode(const std::vector<Token>& tokens, size_t& i);
 
 		LexNode* GetIfNode(const std::vector<Token>& tokens, size_t& i);
@@ -32,6 +34,8 @@ namespace Tolo
 		LexNode* GetFunctionDefinitionNode(const std::vector<Token>& tokens, size_t& i);
 
 		LexNode* GetStructDefinitionNode(const std::vector<Token>& tokens, size_t& i);
+
+		LexNode* GetOperatorDefinitionNode(const std::vector<Token>& tokens, size_t& i);
 
 		int GetBinaryOpPrecedence(Token::Type tokenType);
 

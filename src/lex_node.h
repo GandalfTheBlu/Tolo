@@ -30,6 +30,7 @@ namespace Tolo
 			StructDefinition,
 			VariableDefinition,
 			FunctionDefinition,
+			OperatorDefinition,
 			Identifier,
 			LiteralConstant,
 			EndCurly,

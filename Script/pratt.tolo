@@ -1,16 +1,43 @@
 
 
+struct vec3
+{
+	float x;
+	float y;
+	float z;
+};
+
+vec3 operator+(vec3 a, vec3 b)
+{
+	return vec3(a.x + b.x, a.y + b.y, a.z + b.z);
+}
+
+vec3 operator-(vec3 a, vec3 b)
+{
+	return vec3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
+vec3 operator-(vec3 a)
+{
+	return vec3(-a.x, -a.y, -a.z);
+}
+
+char operator==(vec3 a, vec3 b)
+{
+	return a.x == b.x && a.y == b.y && a.z == b.z;
+}
 
 int main()
 {
-	int a = 2
-	int b = 2
-	int c = a * -(b + 3)
+	vec3 a = vec3(1.0, 2.0, 3.0);
+	vec3 b = a + a;
+	vec3 c = b - a;
+	vec3 d = -a;
 	
-	if(c == -10 && 1 < 2 && a != (b - 1) && !(a != 2))
+	if(b == a + a && c == a && d == -vec3(1.0, 2.0, 3.0))
 	{
-		return 1
+		return 1;
 	}
 	
-	return 0
+	return 0;
 }
