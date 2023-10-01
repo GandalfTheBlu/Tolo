@@ -284,5 +284,50 @@ namespace Tolo
 		vm.instructionPtr += sizeof(Char);
 	}
 
+	template<typename T>
+	void Op_T_Bit_And(VirtualMachine& vm)
+	{
+		T lhs = Pop<T>(vm);
+		T rhs = Pop<T>(vm);
+		Push<T>(vm, lhs & rhs);
+		vm.instructionPtr += sizeof(Char);
+	}
+
+	template<typename T>
+	void Op_T_Bit_Or(VirtualMachine& vm)
+	{
+		T lhs = Pop<T>(vm);
+		T rhs = Pop<T>(vm);
+		Push<T>(vm, lhs | rhs);
+		vm.instructionPtr += sizeof(Char);
+	}
+
+	template<typename T>
+	void Op_T_Bit_Xor(VirtualMachine& vm)
+	{
+		T lhs = Pop<T>(vm);
+		T rhs = Pop<T>(vm);
+		Push<T>(vm, lhs ^ rhs);
+		vm.instructionPtr += sizeof(Char);
+	}
+
+	template<typename T>
+	void Op_T_Bit_LeftShift(VirtualMachine& vm)
+	{
+		T lhs = Pop<T>(vm);
+		Int rhs = Pop<Int>(vm);
+		Push<T>(vm, lhs << rhs);
+		vm.instructionPtr += sizeof(Char);
+	}
+
+	template<typename T>
+	void Op_T_Bit_RightShift(VirtualMachine& vm)
+	{
+		T lhs = Pop<T>(vm);
+		Int rhs = Pop<Int>(vm);
+		Push<T>(vm, lhs >> rhs);
+		vm.instructionPtr += sizeof(Char);
+	}
+
 	void RunProgram(Char* p_stack, Ptr codeStart, Ptr codeEnd);
 }

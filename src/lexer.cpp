@@ -681,6 +681,11 @@ namespace Tolo
 			return 2;
 		case Token::Type::Plus:
 		case Token::Type::Minus:
+		case Token::Type::Ampersand:
+		case Token::Type::VerticalBar:
+		case Token::Type::Caret:
+		case Token::Type::DoubleLeftArrow:
+		case Token::Type::DoubleRightArrow:
 			return 3;
 		case Token::Type::Asterisk:
 		case Token::Type::ForwardSlash:

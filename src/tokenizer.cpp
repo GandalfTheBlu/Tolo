@@ -22,7 +22,10 @@ namespace Tolo
 			{'<', Token::Type::LeftArrow},
 			{'>', Token::Type::RightArrow},
 			{'=', Token::Type::EqualSign},
-			{'!', Token::Type::ExclamationMark}
+			{'!', Token::Type::ExclamationMark},
+			{'^', Token::Type::Caret},
+			{'&', Token::Type::Ampersand},
+			{'|', Token::Type::VerticalBar}
 		};
 
 		static std::map<std::string, Token::Type> doubleToType
@@ -31,6 +34,8 @@ namespace Tolo
 			{">=", Token::Type::RightArrowEqualSign},
 			{"==", Token::Type::DoubleEqualSign},
 			{"!=", Token::Type::ExclamationMarkEqualSign},
+			{"<<", Token::Type::DoubleLeftArrow},
+			{">>", Token::Type::DoubleRightArrow},
 			{"&&", Token::Type::DoubleAmpersand},
 			{"||", Token::Type::DoubleVerticalBar}
 		};

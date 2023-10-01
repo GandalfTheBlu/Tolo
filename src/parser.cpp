@@ -52,6 +52,11 @@ namespace Tolo
 			OpCode::Char_Sub,
 			OpCode::Char_Mul,
 			OpCode::Char_Div,
+			OpCode::Bit_8_And,
+			OpCode::Bit_8_Or,
+			OpCode::Bit_8_Xor,
+			OpCode::Bit_8_LeftShift,
+			OpCode::Bit_8_RightShift,
 			OpCode::Char_Less,
 			OpCode::Char_Greater,
 			OpCode::Char_Equal,
@@ -70,6 +75,11 @@ namespace Tolo
 			OpCode::Int_Sub,
 			OpCode::Int_Mul,
 			OpCode::Int_Div,
+			OpCode::Bit_32_And,
+			OpCode::Bit_32_Or,
+			OpCode::Bit_32_Xor,
+			OpCode::Bit_32_LeftShift,
+			OpCode::Bit_32_RightShift,
 			OpCode::Int_Less,
 			OpCode::Int_Greater,
 			OpCode::Int_Equal,
@@ -88,6 +98,11 @@ namespace Tolo
 			OpCode::Float_Sub,
 			OpCode::Float_Mul,
 			OpCode::Float_Div,
+			OpCode::Bit_32_And,
+			OpCode::Bit_32_Or,
+			OpCode::Bit_32_Xor,
+			OpCode::Bit_32_LeftShift,
+			OpCode::Bit_32_RightShift,
 			OpCode::Float_Less,
 			OpCode::Float_Greater,
 			OpCode::Float_Equal,
@@ -452,7 +467,12 @@ namespace Tolo
 			{Token::Type::Plus, 0},
 			{Token::Type::Minus, 1},
 			{Token::Type::Asterisk, 2},
-			{Token::Type::ForwardSlash, 3}
+			{Token::Type::ForwardSlash, 3},
+			{Token::Type::Ampersand, 4},
+			{Token::Type::VerticalBar, 5},
+			{Token::Type::Caret, 6},
+			{Token::Type::DoubleLeftArrow, 7},
+			{Token::Type::DoubleRightArrow, 8}
 		};
 
 
@@ -542,14 +562,14 @@ namespace Tolo
 	{
 		static std::map<Token::Type, size_t> opTypeToOpIndex
 		{
-			{Token::Type::LeftArrow, 4},
-			{Token::Type::RightArrow, 5},
-			{Token::Type::DoubleEqualSign, 6},
-			{Token::Type::LeftArrowEqualSign, 7},
-			{Token::Type::RightArrowEqualSign, 8},
-			{Token::Type::ExclamationMarkEqualSign, 9},
-			{Token::Type::DoubleAmpersand, 10},
-			{Token::Type::DoubleVerticalBar, 11}
+			{Token::Type::LeftArrow, 9},
+			{Token::Type::RightArrow, 10},
+			{Token::Type::DoubleEqualSign, 11},
+			{Token::Type::LeftArrowEqualSign, 12},
+			{Token::Type::RightArrowEqualSign, 13},
+			{Token::Type::ExclamationMarkEqualSign, 14},
+			{Token::Type::DoubleAmpersand, 15},
+			{Token::Type::DoubleVerticalBar, 16}
 		};
 
 		if (currentExpectedReturnType != "char" && currentExpectedReturnType != ANY_VALUE_TYPE)
@@ -624,6 +644,11 @@ namespace Tolo
 		case Token::Type::Minus:
 		case Token::Type::Asterisk:
 		case Token::Type::ForwardSlash:
+		case Token::Type::Ampersand:
+		case Token::Type::VerticalBar:
+		case Token::Type::Caret:
+		case Token::Type::DoubleLeftArrow:
+		case Token::Type::DoubleRightArrow:
 			return ParseBinaryMathOp(p_lexNode);
 		}
 		
@@ -632,7 +657,7 @@ namespace Tolo
 
 	Expression* Parser::ParseUnaryNegate(LexNode* p_lexNode)
 	{
-		const size_t opIndex = 12;
+		const size_t opIndex = 17;
 
 		bool anyValueType = false;
 		bool customOperator = false;
@@ -707,7 +732,7 @@ namespace Tolo
 
 	Expression* Parser::ParseUnaryNot(LexNode* p_lexNode)
 	{
-		const size_t opIndex = 13;
+		const size_t opIndex = 18;
 
 		if (currentExpectedReturnType != "char" && currentExpectedReturnType != ANY_VALUE_TYPE)
 			Affirm(false, "expected expression of type '%s' at line %i", currentExpectedReturnType.c_str(), p_lexNode->token.line);
