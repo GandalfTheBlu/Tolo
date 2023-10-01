@@ -32,26 +32,49 @@ namespace Tolo
 		FunctionHandle& operator=(const FunctionHandle& rhs);
 	};
 
+	struct StructHandle
+	{
+		std::string typeName;
+		std::vector<std::pair<std::string, std::string>> properties;
+
+		StructHandle();
+		StructHandle(const std::string& _typeName, const std::vector<std::pair<std::string, std::string>>& _properties);
+		StructHandle(const StructHandle& rhs);
+		StructHandle& operator=(const StructHandle& rhs);
+	};
+
 	class ProgramHandle
 	{
 	private:
 		std::string codePath;
 		Char* p_stack;
+		std::string mainFunctionName;
 		Ptr codeStart;
 		Ptr codeEnd;
 		Int mainReturnValueSize;
+		std::map<std::string, Int> typeNameToSize;
 		std::map<std::string, NativeFunctionInfo> nativeFunctions;
+		std::map<std::string, StructInfo> typeNameToStructInfo;
+		std::map<std::string, std::map<std::string, NativeFunctionInfo>> typeNameToPrimitiveOpFuncs;
 
 		ProgramHandle() = delete;
 		ProgramHandle(const ProgramHandle&) = delete;
 		ProgramHandle& operator=(const ProgramHandle&) = delete;
 
+		void ReadTextFile(const std::string& filePath, std::string& outText);
+
+		void AddNativeFunction(const FunctionHandle& function);
+
+		void AddNativeOperator(const FunctionHandle& function);
+
 	public:
-		ProgramHandle(const std::string& _codePath, Ptr stackSize);
+		ProgramHandle(const std::string& _codePath, Ptr stackSize, const std::string& _mainFunctionName = "main");
 
 		~ProgramHandle();
 
 		void AddFunction(const FunctionHandle& function);
+
+		void AddStruct(const StructHandle& _struct);
 
 		void Compile();
 

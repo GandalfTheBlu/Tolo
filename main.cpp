@@ -105,6 +105,21 @@ namespace Test
 int main()
 {
 	ProgramHandle program("Script/pratt.tolo", 1024);
+	program.AddStruct({ 
+		"vec3",
+		{
+			{"float", "x"},
+			{"float", "y"},
+			{"float", "z"}
+		} 
+	});
+	program.AddFunction({ "vec3", "operator+", {"vec3", "vec3"}, [](VirtualMachine& vm)
+		{
+			vec3 a = Pop<vec3>(vm);
+			vec3 b = Pop<vec3>(vm);
+			Push<vec3>(vm, add(a, b));
+		}
+	});
 	program.Compile();
 	int ret = program.Execute<int>();
 

@@ -1,16 +1,16 @@
 
 
-struct vec3
+/*struct vec3
 {
 	float x;
 	float y;
 	float z;
-};
+};*/
 
-vec3 operator+(vec3 a, vec3 b)
+/*vec3 operator+(vec3 a, vec3 b)
 {
 	return vec3(a.x + b.x, a.y + b.y, a.z + b.z);
-}
+}*/
 
 vec3 operator-(vec3 a, vec3 b)
 {
@@ -26,6 +26,13 @@ char operator==(vec3 a, vec3 b)
 {
 	return a.x == b.x && a.y == b.y && a.z == b.z;
 }
+
+// hello comment
+
+/*
+	hello long 
+	comment
+*/
 
 int main()
 {

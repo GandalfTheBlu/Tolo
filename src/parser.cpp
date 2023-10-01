@@ -475,52 +475,16 @@ namespace Tolo
 			{Token::Type::DoubleRightArrow, 8}
 		};
 
-
-		bool anyValueType = false;
-		bool customOperator = false;
+		Expression* p_lhs = ParseNextExpression(p_lexNode->children[0]);
 
 		if (currentExpectedReturnType == ANY_VALUE_TYPE)
-			anyValueType = true;
-		else if (typeNameOperatorFunctions.count(currentExpectedReturnType) != 0)
-		{
-			customOperator = true;
-		}
-		else
-		{
-			Affirm(
-				typeNameOperators.count(currentExpectedReturnType) != 0, 
-				"expected expression of type '%s' at line %i", 
-				currentExpectedReturnType.c_str(), p_lexNode->token.line
-			);
-		}
-
-		Expression* p_lhs = ParseNextExpression(p_lexNode->children[0]);
-		if (anyValueType)
-		{
 			currentExpectedReturnType = p_lhs->GetDataType();
-			Affirm(
-				typeNameOperators.count(currentExpectedReturnType) != 0,
-				"cannot perform binary math operation '%s' on operand of type '%s' at line %i",
-				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
-			);
-		}
 
-		if (customOperator)
+		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 && 
+			typeNameToOpFuncs[currentExpectedReturnType].count(p_lexNode->token.text) != 0)
 		{
-			Affirm(
-				typeNameOperatorFunctions.count(currentExpectedReturnType) != 0,
-				"cannot perform binary math operation '%s' on operand of type '%s' at line %i",
-				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
-			);
-
-			DataTypeOperatorFunctions& opFunctions = typeNameOperatorFunctions[currentExpectedReturnType];
+			DataTypeOperatorFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
 			const std::string& opName = p_lexNode->token.text;
-
-			Affirm(
-				opFunctions.count(opName) != 0,
-				"cannot perform binary math operation '%s' on operand of type '%s' at line %i",
-				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
-			);
 
 			FunctionInfo& funcInfo = opFunctions[opName];
 
@@ -531,8 +495,37 @@ namespace Tolo
 
 			return p_callOp;
 		}
+		else if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 &&
+			typeNameToNativeOpFuncs[currentExpectedReturnType].count(p_lexNode->token.text) != 0)
+		{
+			DataTypeNativeOpFuncs& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
+			std::string opName = p_lexNode->token.text;
+
+			NativeFunctionInfo& funcInfo = opFunctions[opName];
+
+			ECallNativeFunction* p_callNativeOp = new ECallNativeFunction(funcInfo.returnTypeName);
+			p_callNativeOp->argumentLoads.push_back(p_lhs);
+
+			std::string oldRetType = currentExpectedReturnType;
+			if (p_lexNode->token.type == Token::Type::DoubleLeftArrow || p_lexNode->token.type == Token::Type::DoubleRightArrow)
+				currentExpectedReturnType = "int";
+
+			p_callNativeOp->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[1]));
+
+			currentExpectedReturnType = oldRetType;
+
+			p_callNativeOp->functionPtrLoad = new ELoadConstPtr(funcInfo.functionPtr);
+
+			return p_callNativeOp;
+		}
 		else
 		{
+			Affirm(
+				typeNameOperators.count(currentExpectedReturnType) != 0,
+				"cannot perform binary math operation '%s' on operand of type '%s' at line %i",
+				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
+			);
+
 			OpCode opCode = typeNameOperators[currentExpectedReturnType][opTypeToOpIndex[p_lexNode->token.type]];
 
 			Affirm(
@@ -583,8 +576,48 @@ namespace Tolo
 
 		currentExpectedReturnType = p_lhs->GetDataType();
 
-		if (typeNameOperators.count(currentExpectedReturnType) != 0)
+		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 && 
+			typeNameToOpFuncs[currentExpectedReturnType].count(p_lexNode->token.text) != 0)
 		{
+			DataTypeOperatorFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
+			const std::string& opName = p_lexNode->token.text;
+
+			FunctionInfo& funcInfo = opFunctions[opName];
+
+			ECallFunction* p_callOp = new ECallFunction(funcInfo.parametersSize, funcInfo.localsSize, funcInfo.returnTypeName);
+			p_callOp->argumentLoads.push_back(p_lhs);
+			p_callOp->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[1]));
+			p_callOp->functionIpLoad = new ELoadConstPtrToLabel(currentExpectedReturnType + opName);
+
+			currentExpectedReturnType = "char";
+
+			return p_callOp;
+		}
+		else if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 && 
+			typeNameToNativeOpFuncs[currentExpectedReturnType].count(p_lexNode->token.text) != 0)
+		{
+			DataTypeNativeOpFuncs& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
+			std::string opName = p_lexNode->token.text;
+
+			NativeFunctionInfo& funcInfo = opFunctions[opName];
+
+			ECallNativeFunction* p_callNativeOp = new ECallNativeFunction(funcInfo.returnTypeName);
+			p_callNativeOp->argumentLoads.push_back(p_lhs);
+			p_callNativeOp->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[1]));
+			p_callNativeOp->functionPtrLoad = new ELoadConstPtr(funcInfo.functionPtr);
+
+			currentExpectedReturnType = "char";
+
+			return p_callNativeOp;
+		}
+		else
+		{
+			Affirm(
+				typeNameOperators.count(currentExpectedReturnType) != 0,
+				"cannot perform binary compare operation '%s' on operand of type '%s' at line %i",
+				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
+			);
+
 			OpCode opCode = typeNameOperators[currentExpectedReturnType][opTypeToOpIndex[p_lexNode->token.type]];
 
 			Affirm(
@@ -601,36 +634,6 @@ namespace Tolo
 			currentExpectedReturnType = "char";
 
 			return p_binCompOp;
-		}
-		else if (typeNameOperatorFunctions.count(currentExpectedReturnType) != 0)
-		{
-			DataTypeOperatorFunctions& opFunctions = typeNameOperatorFunctions[currentExpectedReturnType];
-			const std::string& opName = p_lexNode->token.text;
-
-			Affirm(
-				opFunctions.count(opName) != 0,
-				"cannot perform binary compare operation '%s' on operand of type '%s' at line %i",
-				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
-			);
-
-			FunctionInfo& funcInfo = opFunctions[opName];
-
-			ECallFunction* p_callOp = new ECallFunction(funcInfo.parametersSize, funcInfo.localsSize, funcInfo.returnTypeName);
-			p_callOp->argumentLoads.push_back(p_lhs);
-			p_callOp->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[1]));
-			p_callOp->functionIpLoad = new ELoadConstPtrToLabel(currentExpectedReturnType + opName);
-
-			currentExpectedReturnType = "char";
-
-			return p_callOp;
-		}
-		else
-		{
-			Affirm(
-				false,
-				"cannot perform binary compare operation '%s' on operand of type '%s' at line %i",
-				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
-			);
 		}
 
 		return nullptr;
@@ -658,50 +661,17 @@ namespace Tolo
 	Expression* Parser::ParseUnaryNegate(LexNode* p_lexNode)
 	{
 		const size_t opIndex = 17;
-
-		bool anyValueType = false;
-		bool customOperator = false;
-
-		if (currentExpectedReturnType == ANY_VALUE_TYPE)
-			anyValueType = true;
-		else if (typeNameOperatorFunctions.count(currentExpectedReturnType))
-			customOperator = true;
-		else
-		{
-			Affirm(typeNameOperators.count(currentExpectedReturnType) != 0, 
-				"expected expression of type '%s' at line %i", 
-				currentExpectedReturnType.c_str(), p_lexNode->token.line
-			);
-		}
+		const std::string opName = "negate";
 
 		Expression* p_val = ParseNextExpression(p_lexNode->children[0]);
-		if (anyValueType)
-		{
+
+		if (currentExpectedReturnType == ANY_VALUE_TYPE)
 			currentExpectedReturnType = p_val->GetDataType();
-			Affirm(
-				typeNameOperators.count(currentExpectedReturnType) != 0,
-				"cannot perform unary 'negate' on operand of type '%s' at line %i",
-				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
-			);
-		}
 
-		if (customOperator)
+		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 &&
+			typeNameToOpFuncs[currentExpectedReturnType].count(opName) != 0)
 		{
-			Affirm(
-				typeNameOperatorFunctions.count(currentExpectedReturnType) != 0,
-				"cannot perform unary 'negate' operation on operand of type '%s' at line %i",
-				currentExpectedReturnType.c_str(), p_lexNode->token.line
-			);
-
-			DataTypeOperatorFunctions& opFunctions = typeNameOperatorFunctions[currentExpectedReturnType];
-
-			std::string opName = "negate";
-
-			Affirm(
-				opFunctions.count(opName) != 0,
-				"cannot perform unary 'negate' on operand of type '%s' at line %i",
-				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
-			);
+			DataTypeOperatorFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
 
 			FunctionInfo& funcInfo = opFunctions[opName];
 
@@ -711,8 +681,27 @@ namespace Tolo
 
 			return p_callOp;
 		}
+		else if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 && 
+			typeNameToNativeOpFuncs[currentExpectedReturnType].count(opName) != 0)
+		{
+			DataTypeNativeOpFuncs& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
+
+			NativeFunctionInfo& funcInfo = opFunctions[opName];
+
+			ECallNativeFunction* p_callNativeOp = new ECallNativeFunction(funcInfo.returnTypeName);
+			p_callNativeOp->argumentLoads.push_back(p_val);
+			p_callNativeOp->functionPtrLoad = new ELoadConstPtr(funcInfo.functionPtr);
+
+			return p_callNativeOp;
+		}
 		else
 		{
+			Affirm(
+				typeNameOperators.count(currentExpectedReturnType) != 0,
+				"cannot perform unary 'negate' on operand of type '%s' at line %i",
+				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
+			);
+
 			OpCode opCode = typeNameOperators[currentExpectedReturnType][opIndex];
 
 			Affirm(
@@ -1099,9 +1088,10 @@ namespace Tolo
 			opName = "negate";
 		}
 
-		DataTypeOperatorFunctions& opFunctions = typeNameOperatorFunctions[operandTypeName];
+		DataTypeOperatorFunctions& opFunctions = typeNameToOpFuncs[operandTypeName];
 		Affirm(
-			opFunctions.count(opName) == 0,
+			opFunctions.count(opName) == 0 && 
+			(typeNameToNativeOpFuncs.count(operandTypeName) == 0 || typeNameToNativeOpFuncs[operandTypeName].count(opName) == 0),
 			"operator '%s' for type '%s' at line %i is already defined",
 			opName.c_str(), operandTypeName.c_str(), p_lexNode->token.line
 		);
@@ -1152,7 +1142,7 @@ namespace Tolo
 			);
 
 			Affirm(
-				typeNameToSize.contains(propTypeName) != 0,
+				typeNameToSize.count(propTypeName) != 0,
 				"type name '%s' at line %i is not defined",
 				propTypeName.c_str(), p_lexNode->children[i]->token.line
 			);

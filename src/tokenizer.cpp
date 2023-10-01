@@ -58,13 +58,31 @@ namespace Tolo
 
 				i++;
 			}
-			else if (c == '#')
+			else if (doubleStr == "//")
 			{
+				i += 2;
 				for (; i < code.size() && code[i] != '\n'; i++);
 				if (code[i] == '\n')
 					line++;
 
 				i++;
+			}
+			else if (doubleStr == "/*")
+			{
+				i += 2;
+				for (; i + 1 < code.size() && !(code[i] == '*' && code[i + 1] == '/'); i++)
+				{
+					if (code[i] == '\n')
+						line++;
+				}
+
+				Affirm(
+					i + 1 < code.size() && code[i] == '*' && code[i + 1] == '/',
+					"missing '*/' at line %i", 
+					line
+				);
+
+				i += 2;
 			}
 			else if (doubleToType.count(doubleStr) != 0)
 			{
