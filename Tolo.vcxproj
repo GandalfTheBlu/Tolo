@@ -144,6 +144,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="src\file_io.cpp" />
     <ClCompile Include="src\program_handle.cpp" />
     <ClCompile Include="src\code_builder.cpp" />
     <ClCompile Include="src\expression.cpp" />
@@ -157,6 +158,7 @@
     <ClInclude Include="src\code_builder.h" />
     <ClInclude Include="src\common.h" />
     <ClInclude Include="src\expression.h" />
+    <ClInclude Include="src\file_io.h" />
     <ClInclude Include="src\lexer.h" />
     <ClInclude Include="src\lex_node.h" />
     <ClInclude Include="src\parser.h" />

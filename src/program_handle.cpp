@@ -1,8 +1,7 @@
 #include "program_handle.h"
 #include "tokenizer.h"
 #include "lexer.h"
-#include <fstream>
-#include <sstream>
+#include "file_io.h"
 
 namespace Tolo
 {
@@ -72,19 +71,6 @@ namespace Tolo
 	ProgramHandle::~ProgramHandle()
 	{
 		std::free(p_stack);
-	}
-
-	void ProgramHandle::ReadTextFile(const std::string& filePath, std::string& outText)
-	{
-		std::ifstream file;
-		file.open(filePath);
-
-		Affirm(file.is_open(), "failed to open file '%s'", filePath.c_str());
-
-		std::stringstream stringStream;
-		stringStream << file.rdbuf();
-		outText = stringStream.str();
-		file.close();
 	}
 
 	void ProgramHandle::AddNativeFunction(const FunctionHandle& function)
@@ -220,13 +206,12 @@ namespace Tolo
 		typeNameToSize[_struct.typeName] = propertyOffset;
 	}
 
-	void ProgramHandle::Compile()
+	void ProgramHandle::Compile(std::string& outCode)
 	{
-		std::string code;
-		ReadTextFile(codePath, code);
+		ReadTextFile(codePath, outCode);
 
 		std::vector<Token> tokens;
-		Tokenize(code, tokens);
+		Tokenize(outCode, tokens);
 
 		Lexer lexer;
 		for (auto& e : nativeFunctions)
@@ -292,5 +277,16 @@ namespace Tolo
 			delete e;
 
 		codeEnd = cb.codeLength;
+	}
+
+	void ProgramHandle::Compile()
+	{
+		std::string outCode;
+		Compile(outCode);
+	}
+
+	const std::string& ProgramHandle::GetCodePath() const
+	{
+		return codePath;
 	}
 }

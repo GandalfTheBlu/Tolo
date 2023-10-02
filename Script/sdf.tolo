@@ -1,0 +1,7 @@
+
+
+float sdf(vec3 p)
+{
+	p.x = p.x * 2.0;
+	return length(p) - 0.6;
+}

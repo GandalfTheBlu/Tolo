@@ -61,8 +61,6 @@ namespace Tolo
 		ProgramHandle(const ProgramHandle&) = delete;
 		ProgramHandle& operator=(const ProgramHandle&) = delete;
 
-		void ReadTextFile(const std::string& filePath, std::string& outText);
-
 		void AddNativeFunction(const FunctionHandle& function);
 
 		void AddNativeOperator(const FunctionHandle& function);
@@ -75,6 +73,8 @@ namespace Tolo
 		void AddFunction(const FunctionHandle& function);
 
 		void AddStruct(const StructHandle& _struct);
+
+		void Compile(std::string& outCode);
 
 		void Compile();
 
@@ -98,5 +98,7 @@ namespace Tolo
 
 			return *(RETURN_TYPE*)(p_stack + codeEnd);
 		}
+
+		const std::string& GetCodePath() const;
 	};
 }

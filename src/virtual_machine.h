@@ -43,6 +43,12 @@ namespace Tolo
 	}
 
 	template<typename T>
+	void SetStruct(VirtualMachine& vm, Ptr pos, const T& val)
+	{
+		std::memcpy(vm.p_stack + pos, &val, sizeof(T));
+	}
+
+	template<typename T>
 	T Get(VirtualMachine& vm, Ptr pos)
 	{
 		return *(T*)(vm.p_stack + pos);
@@ -52,6 +58,13 @@ namespace Tolo
 	void Push(VirtualMachine& vm, T val)
 	{
 		Set<T>(vm, vm.stackPtr, val);
+		vm.stackPtr += sizeof(T);
+	}
+
+	template<typename T>
+	void PushStruct(VirtualMachine& vm, const T& val)
+	{
+		SetStruct<T>(vm, vm.stackPtr, val);
 		vm.stackPtr += sizeof(T);
 	}
 

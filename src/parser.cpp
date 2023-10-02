@@ -490,7 +490,12 @@ namespace Tolo
 
 			ECallFunction* p_callOp = new ECallFunction(funcInfo.parametersSize, funcInfo.localsSize, funcInfo.returnTypeName);
 			p_callOp->argumentLoads.push_back(p_lhs);
+
+			std::string oldRetType = currentExpectedReturnType;
+			currentExpectedReturnType = ANY_VALUE_TYPE;
 			p_callOp->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[1]));
+			currentExpectedReturnType = oldRetType;
+
 			p_callOp->functionIpLoad = new ELoadConstPtrToLabel(currentExpectedReturnType + opName);
 
 			return p_callOp;
@@ -507,11 +512,8 @@ namespace Tolo
 			p_callNativeOp->argumentLoads.push_back(p_lhs);
 
 			std::string oldRetType = currentExpectedReturnType;
-			if (p_lexNode->token.type == Token::Type::DoubleLeftArrow || p_lexNode->token.type == Token::Type::DoubleRightArrow)
-				currentExpectedReturnType = "int";
-
+			currentExpectedReturnType = ANY_VALUE_TYPE;
 			p_callNativeOp->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[1]));
-
 			currentExpectedReturnType = oldRetType;
 
 			p_callNativeOp->functionPtrLoad = new ELoadConstPtr(funcInfo.functionPtr);
@@ -538,8 +540,12 @@ namespace Tolo
 			p_binMathOp->lhsLoad = p_lhs;
 
 			std::string oldRetType = currentExpectedReturnType;
-			if (currentExpectedReturnType == "ptr")
+			if (currentExpectedReturnType == "ptr" ||
+				p_lexNode->token.type == Token::Type::DoubleLeftArrow ||
+				p_lexNode->token.type == Token::Type::DoubleRightArrow)
+			{
 				currentExpectedReturnType = "int";
+			}
 
 			p_binMathOp->rhsLoad = ParseNextExpression(p_lexNode->children[1]);
 
@@ -1063,12 +1069,6 @@ namespace Tolo
 
 			if (i == 1)
 				operandTypeName = varTypeName;
-
-			Affirm(
-				varTypeName == operandTypeName,
-				"parameter of type '%s' at line %i does not match return type '%s' of operator function",
-				varTypeName.c_str(), p_lexNode->children[i]->token.line, operandTypeName.c_str()
-			);
 
 			Affirm(
 				funcInfo.varNameToVarInfo.count(varName) == 0,
