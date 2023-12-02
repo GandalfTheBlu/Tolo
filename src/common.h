@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdio>
-#include <cstdlib>
+#include <string>
+#include <cassert>
 
 namespace Tolo
 {
@@ -85,15 +86,36 @@ namespace Tolo
 		INVALID
 	};
 
+	struct Error
+	{
+		std::string message;
+
+		void Print() const;
+	};
+
+	inline void Error::Print() const
+	{
+		std::printf("[ERROR] %s\n", message.c_str());
+	}
+
 	template<typename ...ARGS>
-	void Affirm(bool test, const char* msg, ARGS... args)
+	void Affirm(bool test, const char* format, ARGS... args)
 	{
 		if (test)
 			return;
 
-		std::printf("[ERROR] ");
-		std::printf(msg, args...);
-		std::printf("\n");
-		std::exit(1);
+		Error error;
+
+		int strSize = std::snprintf(nullptr, 0, format, args ...) + 1;
+		assert(strSize > 0);
+		char* buf = new char[strSize];
+		std::snprintf(buf, strSize, format, args ...);
+		error.message = std::string(buf, buf + strSize - 1);
+		delete[] buf;
+
+		while (error.message.back() == '\n')
+			error.message.pop_back();
+
+		throw(error);
 	}
 }

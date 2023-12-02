@@ -86,9 +86,6 @@ namespace Tolo
 		Int size = Pop<Int>(vm);
 		Ptr addr = Pop<Ptr>(vm);
 
-		/*for (Int i = 0; i < size; i++)
-			Push<Char>(vm, Get<Char>(vm, addr + i));*/
-
 		std::memcpy(vm.p_stack + vm.stackPtr, vm.p_stack + addr, size);
 		vm.stackPtr += size;
 
@@ -100,7 +97,6 @@ namespace Tolo
 	{
 		vm.instructionPtr += sizeof(Char);
 		
-		//Push<T>(vm, Get<T>(vm, vm.instructionPtr));
 		std::memcpy(vm.p_stack + vm.stackPtr, vm.p_stack + vm.instructionPtr, sizeof(T));
 		vm.stackPtr += sizeof(T);
 		
@@ -124,9 +120,6 @@ namespace Tolo
 	{
 		Int size = Pop<Int>(vm);
 		Ptr addr = Pop<Ptr>(vm);
-
-		/*for (Int i = size - 1; i >= 0; i--)
-			Set<Char>(vm, addr + i, Pop<Char>(vm));*/
 
 		std::memcpy(vm.p_stack + addr, vm.p_stack + vm.stackPtr - size, size);
 		vm.stackPtr -= size;
@@ -161,9 +154,6 @@ namespace Tolo
 		vm.framePtr = Pop<Ptr>(vm);
 		vm.instructionPtr = Pop<Ptr>(vm);
 		vm.stackPtr -= Pop<Int>(vm);
-
-		/*for (Int i = 0; i < retValSize; i++)
-			Push<Char>(vm, Get<Char>(vm, retValAddr + i));*/
 
 		std::memcpy(vm.p_stack + vm.stackPtr, vm.p_stack + retValAddr, retValSize);
 		vm.stackPtr += retValSize;
