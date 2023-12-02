@@ -139,8 +139,8 @@ namespace Tolo
 
 	void ELoadVariable::Evaluate(CodeBuilder& cb) 
 	{
-		cb.Op(OpCode::Load_FP);
 		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(-(Int)(sizeof(Ptr) + sizeof(Ptr) + sizeof(Int)) - varOffset);
+		cb.Op(OpCode::Load_FP);
 		cb.Op(OpCode::Ptr_Add);
 		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(varSize);
 		cb.Op(OpCode::Load_Bytes_From);
@@ -158,8 +158,8 @@ namespace Tolo
 
 	void ELoadVariablePtr::Evaluate(CodeBuilder& cb) 
 	{
-		cb.Op(OpCode::Load_FP);
 		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(-12 - varOffset);
+		cb.Op(OpCode::Load_FP);
 		cb.Op(OpCode::Ptr_Add);
 	}
 
