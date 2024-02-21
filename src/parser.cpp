@@ -870,6 +870,12 @@ namespace Tolo
 		);
 
 		size_t callArgCount = p_lexNode->children.size();
+		if (p_lexNode->children.size() > 0 &&
+			p_lexNode->children.back()->type == LexNode::Type::Semicolon)
+		{
+			callArgCount--;
+		}
+
 		if (info.returnTypeName == "void")
 		{
 			Affirm(
@@ -877,7 +883,6 @@ namespace Tolo
 				p_lexNode->children.back()->type == LexNode::Type::Semicolon,
 				"missing ';' at line %i", p_lexNode->token.line
 			);
-			callArgCount--;
 		}
 
 		Affirm(

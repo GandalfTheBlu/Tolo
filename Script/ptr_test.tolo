@@ -1,0 +1,18 @@
+
+
+void main()
+{
+	ptr string = string_new();
+	
+	string_add_char(string, 'a');
+	string_add_char(string, 'b');
+	string_add_char(string, 'c');
+	
+	string_print(string);
+	
+	string_set_char(string, 1, 'a');
+	
+	string_print(string);
+	
+	string_delete(string);
+}
