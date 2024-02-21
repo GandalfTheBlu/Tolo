@@ -34,7 +34,8 @@ namespace Tolo
 			Identifier,
 			LiteralConstant,
 			EndCurly,
-			EndPar
+			EndPar,
+			Semicolon
 		};
 
 		Type type;

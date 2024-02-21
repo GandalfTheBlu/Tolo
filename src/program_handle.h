@@ -79,7 +79,8 @@ namespace Tolo
 		void Compile();
 
 		template<typename RETURN_TYPE, typename... ARGUMENTS>
-		RETURN_TYPE Execute(const ARGUMENTS&... arguments)
+		std::enable_if_t<!std::is_same<RETURN_TYPE, void>::value, RETURN_TYPE>
+		Execute(const ARGUMENTS&... arguments)
 		{
 			Affirm(
 				mainReturnValueSize == sizeof(RETURN_TYPE),
@@ -97,6 +98,26 @@ namespace Tolo
 			RunProgram(p_stack, codeStart, codeEnd);
 
 			return *(RETURN_TYPE*)(p_stack + codeEnd);
+		}
+
+		template<typename RETURN_TYPE, typename... ARGUMENTS>
+		std::enable_if_t<std::is_same<RETURN_TYPE, void>::value>
+		Execute(const ARGUMENTS&... arguments)
+		{
+			Affirm(
+				mainReturnValueSize == 0,
+				"requested return type does not match size of 'main'-function's return type"
+			);
+
+			Ptr argByteOffset = codeStart;
+			bool writeSuccess = (WriteValue(p_stack, argByteOffset, arguments) && ...);
+
+			Affirm(
+				writeSuccess && argByteOffset == 0,
+				"argument list provided to 'main'-function does not match the size of parameter list"
+			);
+
+			RunProgram(p_stack, codeStart, codeEnd);
 		}
 
 		const std::string& GetCodePath() const;

@@ -8,7 +8,7 @@ namespace Tolo
 	typedef char Char;
 	typedef int Int;
 	typedef float Float;
-	typedef unsigned long Ptr;
+	typedef std::uintptr_t Ptr;
 
 	enum class OpCode : Char
 	{

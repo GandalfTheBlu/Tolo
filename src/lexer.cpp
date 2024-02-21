@@ -304,6 +304,12 @@ namespace Tolo
 			token.line
 		);
 
+		if (i < tokens.size() && tokens[i].type == Token::Type::Semicolon)
+		{
+			p_funcCall->children.push_back(new LexNode(LexNode::Type::Semicolon, tokens[i]));
+			i++;
+		}
+
 		return p_funcCall;
 	}
 
@@ -415,12 +421,17 @@ namespace Tolo
 			token.line
 		);
 
-		Affirm(
-			i < tokens.size() && tokens[i].type == Token::Type::Semicolon,
-			"missing ';' at line %i", 
-			tokens[i - 1].line
-		);
-		i++;
+		// function call always consumes traling semicolon
+		if (p_exp->type != LexNode::Type::NativeFunctionCall &&
+			p_exp->type != LexNode::Type::UserFunctionCall)
+		{
+			Affirm(
+				i < tokens.size() && tokens[i].type == Token::Type::Semicolon,
+				"missing ';' at line %i", 
+				tokens[i - 1].line
+			);
+			i++;
+		}
 
 		p_varDef->children.push_back(p_exp);
 

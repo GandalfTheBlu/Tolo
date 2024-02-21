@@ -41,6 +41,7 @@ namespace Tolo
 	Parser::Parser() :
 		currentFunction(nullptr)
 	{
+		typeNameToSize["void"] = 0;
 		typeNameToSize["char"] = sizeof(Char);
 		typeNameToSize["int"] = sizeof(Int);
 		typeNameToSize["float"] = sizeof(Float);
@@ -801,6 +802,22 @@ namespace Tolo
 
 		FunctionInfo& info = userFunctions[funcName];
 
+		size_t callArgCount = p_lexNode->children.size();
+		if (p_lexNode->children.size() > 0 && 
+			p_lexNode->children.back()->type == LexNode::Type::Semicolon)
+		{
+			callArgCount--;
+		}
+
+		if (info.returnTypeName == "void")
+		{
+			Affirm(
+				p_lexNode->children.size() > 0 && 
+				p_lexNode->children.back()->type == LexNode::Type::Semicolon,
+				"missing ';' at line %i", p_lexNode->token.line
+			);
+		}
+
 		ECallFunction* p_call = new ECallFunction(info.parametersSize, info.localsSize, info.returnTypeName);
 		p_call->functionIpLoad = new ELoadConstPtrToLabel(funcName);
 
@@ -812,7 +829,7 @@ namespace Tolo
 		);
 
 		Affirm(
-			info.parameterNames.size() == p_lexNode->children.size(),
+			info.parameterNames.size() == callArgCount,
 			"argument count in function call att line %i does not match parameter count",
 			p_lexNode->token.line
 		);
@@ -852,8 +869,19 @@ namespace Tolo
 			oldRetType.c_str(), p_lexNode->token.line, info.returnTypeName.c_str()
 		);
 
+		size_t callArgCount = p_lexNode->children.size();
+		if (info.returnTypeName == "void")
+		{
+			Affirm(
+				p_lexNode->children.size() > 0 &&
+				p_lexNode->children.back()->type == LexNode::Type::Semicolon,
+				"missing ';' at line %i", p_lexNode->token.line
+			);
+			callArgCount--;
+		}
+
 		Affirm(
-			info.parameterTypeNames.size() == p_lexNode->children.size(),
+			info.parameterTypeNames.size() == callArgCount,
 			"argument count in function call att line %i does not match parameter count",
 			p_lexNode->token.line
 		);
@@ -993,11 +1021,21 @@ namespace Tolo
 		currentFunction = nullptr;
 
 		// check for final return expression
-		Affirm(
-			p_defFunc->body.size() > 0 && p_lexNode->children.back()->type == LexNode::Type::Return,
-			"missing 'return'-statement in function '%s' at line %i",
-			funcName.c_str(), p_lexNode->token.line
-		);
+		if (funcInfo.returnTypeName == "void" && 
+			(p_defFunc->body.size() == 0 || p_lexNode->children.back()->type != LexNode::Type::Return))
+		{
+			// add a return statement if function has void return type and no return statement exists at end
+			// of function
+			p_defFunc->body.push_back(new EReturn(0));
+		}
+		else
+		{
+			Affirm(
+				p_defFunc->body.size() > 0 && p_lexNode->children.back()->type == LexNode::Type::Return,
+				"missing 'return'-statement in function '%s' at line %i",
+				funcName.c_str(), p_lexNode->token.line
+			);
+		}
 
 		return p_defFunc;
 	}
