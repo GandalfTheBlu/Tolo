@@ -66,6 +66,7 @@ namespace Tolo
 		typeNameToSize["char"] = sizeof(Char);
 		typeNameToSize["int"] = sizeof(Int);
 		typeNameToSize["float"] = sizeof(Float);
+		typeNameToSize["ptr"] = sizeof(Ptr);
 	}
 
 	ProgramHandle::~ProgramHandle()

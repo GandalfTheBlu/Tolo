@@ -757,42 +757,54 @@ namespace Tolo
 		return ParseUnaryNot(p_lexNode);
 	}
 
+	Expression* Parser::ParseStructInitialization(LexNode* p_lexNode)
+	{
+		const std::string& funcName = p_lexNode->token.text;
+
+		std::string oldRetType = currentExpectedReturnType;
+		Affirm(
+			oldRetType == funcName || oldRetType == ANY_VALUE_TYPE,
+			"expected expression of type '%s' at line %i but got '%s'",
+			oldRetType.c_str(), p_lexNode->token.line, funcName.c_str()
+		);
+
+		StructInfo& structInfo = typeNameToStructInfo[funcName];
+
+		size_t callArgCount = p_lexNode->children.size();
+		if (p_lexNode->children.size() > 0 &&
+			p_lexNode->children.back()->type == LexNode::Type::Semicolon)
+		{
+			callArgCount--;
+		}
+
+		Affirm(
+			structInfo.propNameToVarInfo.size() == callArgCount,
+			"number of arguments provided to struct initializer '%s' at line %i does not match number of properties",
+			funcName.c_str(), p_lexNode->token.line
+		);
+
+		ELoadMulti* p_loadMulti = new ELoadMulti(funcName);
+
+		size_t argIndex = 0;
+		for (const std::string& propName : structInfo.propNames)
+		{
+			currentExpectedReturnType = structInfo.propNameToVarInfo[propName].typeName;
+			p_loadMulti->loaders.push_back(ParseNextExpression(p_lexNode->children[argIndex]));
+			argIndex++;
+		}
+
+		currentExpectedReturnType = oldRetType;
+
+		return p_loadMulti;
+	}
+
 	Expression* Parser::ParseUserFunctionCall(LexNode* p_lexNode)
 	{
 		const std::string& funcName = p_lexNode->token.text;
 
 		// handle struct initialization
 		if (typeNameToStructInfo.count(funcName) != 0)
-		{
-			std::string oldRetType = currentExpectedReturnType;
-			Affirm(
-				oldRetType == funcName || oldRetType == ANY_VALUE_TYPE,
-				"expected expression of type '%s' at line %i but got '%s'",
-				oldRetType.c_str(), p_lexNode->token.line, funcName.c_str()
-			);
-
-			StructInfo& structInfo = typeNameToStructInfo[funcName];
-				
-			Affirm(
-				structInfo.propNameToVarInfo.size() == p_lexNode->children.size(),
-				"number of arguments provided to struct initializer '%s' at line %i does not match number of properties",
-				funcName.c_str(), p_lexNode->token.line
-			);
-
-			ELoadMulti* p_loadMulti = new ELoadMulti(funcName);
-
-			size_t argIndex = 0;
-			for (const std::string& propName : structInfo.propNames)
-			{
-				currentExpectedReturnType = structInfo.propNameToVarInfo[propName].typeName;
-				p_loadMulti->loaders.push_back(ParseNextExpression(p_lexNode->children[argIndex]));
-				argIndex++;
-			}
-
-			currentExpectedReturnType = oldRetType;
-
-			return p_loadMulti;
-		}
+			return ParseStructInitialization(p_lexNode);
 
 		Affirm(
 			userFunctions.count(funcName) != 0,
@@ -850,6 +862,10 @@ namespace Tolo
 	Expression* Parser::ParseNativeFunctionCall(LexNode* p_lexNode)
 	{
 		const std::string& funcName = p_lexNode->token.text;
+
+		// handle struct initialization
+		if (typeNameToStructInfo.count(funcName) != 0)
+				return ParseStructInitialization(p_lexNode);
 
 		Affirm(
 			nativeFunctions.count(funcName) != 0, 

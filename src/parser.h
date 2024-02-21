@@ -108,6 +108,8 @@ namespace Tolo
 
 		Expression* ParseUnaryOp(LexNode* p_lexNode);
 
+		Expression* ParseStructInitialization(LexNode* p_lexNode);
+
 		Expression* ParseUserFunctionCall(LexNode* p_lexNode);
 
 		Expression* ParseNativeFunctionCall(LexNode* p_lexNode);

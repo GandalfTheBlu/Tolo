@@ -2,17 +2,10 @@
 
 void main()
 {
-	ptr string = string_new();
-	
-	string_add_char(string, 'a');
-	string_add_char(string, 'b');
-	string_add_char(string, 'c');
-	
-	string_print(string);
-	
-	string_set_char(string, 1, 'a');
-	
-	string_print(string);
-	
-	string_delete(string);
+	string str = string(null(), 0, 0);
+	str = str + 'a';
+	str = str + 'b';
+	str = str + 'c';
+	str = str + '\0';
+	print_string(str);
 }
