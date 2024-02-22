@@ -200,6 +200,18 @@ namespace Tolo
 
 			return new ELoadConstFloat(value);
 		}
+		if (p_lexNode->token.type == Token::Type::ConstString)
+		{
+			const std::string& value = p_lexNode->token.text;
+
+			Affirm(
+				currentExpectedReturnType == "ptr" || currentExpectedReturnType == ANY_VALUE_TYPE,
+				"expected an expression of type '%s' but got 'ptr' (const string: \"%s\") at line %i",
+				currentExpectedReturnType.c_str(), value.c_str(), p_lexNode->token.line
+			);
+
+			return new ELoadConstString(value);
+		}
 	}
 
 	Expression* Parser::ParseVariableLoad(LexNode* p_lexNode)

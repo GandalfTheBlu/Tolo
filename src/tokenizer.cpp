@@ -114,10 +114,10 @@ namespace Tolo
 						charStr += '\n';
 					else if (ec == 't')
 						charStr += '\t';
-					else if (ec >= '0' && ec <= '9')
-						charStr += ('\0' + ec - '0');
+					else if (ec == '0')
+						charStr += '\0';
 					else
-						Affirm(false, "invalid escape character [%c] at line %i", ec, line);
+						Affirm(false, "invalid escape character '%c' at line %i", ec, line);
 
 					i += 4;
 				}
@@ -128,6 +128,51 @@ namespace Tolo
 					i += 3;
 				}
 				tokens.push_back({ Token::Type::ConstChar, charStr, line });
+			}
+			else if (c == '"')
+			{
+				std::string str;
+				i++;
+				bool foundEndQuote = false;
+
+				for (; i < code.size(); i++)
+				{
+					c = code[i];
+					Affirm(c != '\n', "unexpected newline at line %i", line);
+
+					if (c == '"')
+					{
+						foundEndQuote = true;
+						i++;
+						break;
+					}
+					else if (c == '\\')
+					{
+						Affirm(i + 1 < code.size(), "unexpected end of tokens at line %i", line);
+
+						char ec = code[i + 1];
+						if (ec == '\'')
+							str += '\'';
+						else if (ec == '\\')
+							str += '\\';
+						else if (ec == 'n')
+							str += '\n';
+						else if (ec == 't')
+							str += '\t';
+						else if (ec == '0')
+							str += '\0';
+						else
+							Affirm(false, "invalid escape character '%c' at line %i", ec, line);
+
+						i++;
+					}
+					else
+						str += c;
+				}
+
+				Affirm(foundEndQuote, "missing '\"' at line %i", line);
+
+				tokens.push_back({ Token::Type::ConstString, str, line });
 			}
 			else if (c >= '0' && c <= '9')
 			{

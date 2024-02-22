@@ -57,6 +57,22 @@ namespace Tolo
 	}
 
 
+	ELoadConstString::ELoadConstString(const std::string& _value) :
+		value(_value)
+	{}
+
+	void ELoadConstString::Evaluate(CodeBuilder& cb)
+	{
+		cb.Op(OpCode::Load_Const_Ptr);
+		cb.ConstStringPtr(value);
+	}
+
+	std::string ELoadConstString::GetDataType()
+	{
+		return "ptr";
+	}
+
+
 	ELoadConstPtr::ELoadConstPtr(Ptr _value) :
 		value(_value)
 	{}

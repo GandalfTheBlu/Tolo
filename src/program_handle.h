@@ -48,6 +48,8 @@ namespace Tolo
 	private:
 		std::string codePath;
 		Char* p_stack;
+		Ptr stackSize;
+		Ptr constStringCapacity;
 		std::string mainFunctionName;
 		Ptr codeStart;
 		Ptr codeEnd;
@@ -66,7 +68,7 @@ namespace Tolo
 		void AddNativeOperator(const FunctionHandle& function);
 
 	public:
-		ProgramHandle(const std::string& _codePath, Ptr stackSize, const std::string& _mainFunctionName = "main");
+		ProgramHandle(const std::string& _codePath, Ptr _stackSize, Ptr _constStringCapacity, const std::string& _mainFunctionName = "main");
 
 		~ProgramHandle();
 
@@ -109,11 +111,11 @@ namespace Tolo
 				"requested return type does not match size of 'main'-function's return type"
 			);
 
-			Ptr argByteOffset = codeStart;
+			Ptr argByteOffset = constStringCapacity;
 			bool writeSuccess = (WriteValue(p_stack, argByteOffset, arguments) && ...);
 
 			Affirm(
-				writeSuccess && argByteOffset == 0,
+				writeSuccess && argByteOffset == codeStart,
 				"argument list provided to 'main'-function does not match the size of parameter list"
 			);
 

@@ -36,7 +36,8 @@ namespace Tolo
 			Name,
 			ConstChar,
 			ConstInt,
-			ConstFloat
+			ConstFloat,
+			ConstString
 		};
 
 		Type type;

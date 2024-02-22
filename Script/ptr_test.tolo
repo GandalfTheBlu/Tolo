@@ -2,10 +2,6 @@
 
 void main()
 {
-	string str = string(null(), 0, 0);
-	str = str + 'a';
-	str = str + 'b';
-	str = str + 'c';
-	str = str + '\0';
+	ptr str = "hello\n";
 	print_string(str);
 }

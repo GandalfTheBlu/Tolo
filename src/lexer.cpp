@@ -723,7 +723,10 @@ namespace Tolo
 		const Token& token = tokens[i];
 		LexNode* p_result = nullptr;
 
-		if (token.type == Token::Type::ConstChar || token.type == Token::Type::ConstInt || token.type == Token::Type::ConstFloat)
+		if (token.type == Token::Type::ConstChar || 
+			token.type == Token::Type::ConstInt || 
+			token.type == Token::Type::ConstFloat ||
+			token.type == Token::Type::ConstString)
 		{
 			i++;
 			p_result = new LexNode(LexNode::Type::LiteralConstant, token);

@@ -54,8 +54,10 @@ namespace Tolo
 	}
 
 
-	ProgramHandle::ProgramHandle(const std::string& _codePath, Ptr stackSize, const std::string& _mainFunctionName) :
+	ProgramHandle::ProgramHandle(const std::string& _codePath, Ptr _stackSize, Ptr _constStringCapacity, const std::string& _mainFunctionName) :
 		codePath(_codePath),
+		stackSize(_stackSize),
+		constStringCapacity(_constStringCapacity),
 		mainFunctionName(_mainFunctionName),
 		codeStart(0),
 		codeEnd(0),
@@ -235,8 +237,6 @@ namespace Tolo
 		std::vector<Expression*> expressions;
 		parser.Parse(lexNodes, expressions);
 
-		CodeBuilder cb(p_stack);
-
 		Affirm(
 			parser.userFunctions.count(mainFunctionName) != 0,
 			"failed to get main function, no function called '%s' found",
@@ -252,7 +252,10 @@ namespace Tolo
 			mainParamsSize += parser.typeNameToSize[paramTypeName];
 		}
 
-		cb.codeLength += mainParamsSize;// allocate space for main arguments in bottom of stack
+		CodeBuilder cb(p_stack, stackSize, constStringCapacity);
+
+		// allocate space for main arguments in bottom of stack
+		cb.codeLength += mainParamsSize;
 
 		codeStart = cb.codeLength;
 		mainReturnValueSize = parser.typeNameToSize[mainInfo.returnTypeName];

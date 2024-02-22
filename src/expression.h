@@ -47,6 +47,17 @@ namespace Tolo
 		virtual std::string GetDataType() override;
 	};
 
+	struct ELoadConstString : public Expression
+	{
+		std::string value;
+
+		ELoadConstString(const std::string& _value);
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+
+		virtual std::string GetDataType() override;
+	};
+
 	struct ELoadConstPtr : public Expression
 	{
 		Ptr value;
