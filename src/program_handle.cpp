@@ -54,7 +54,7 @@ namespace Tolo
 	}
 
 
-	ProgramHandle::ProgramHandle(const std::string& _codePath, Ptr _stackSize, Ptr _constStringCapacity, const std::string& _mainFunctionName) :
+	ProgramHandle::ProgramHandle(const std::string& _codePath, Int _stackSize, Int _constStringCapacity, const std::string& _mainFunctionName) :
 		codePath(_codePath),
 		stackSize(_stackSize),
 		constStringCapacity(_constStringCapacity),
@@ -63,7 +63,7 @@ namespace Tolo
 		codeEnd(0),
 		mainReturnValueSize(0)
 	{
-		p_stack = (Char*)std::malloc(stackSize);
+		p_stack = static_cast<Char*>(std::malloc(stackSize));
 
 		typeNameToSize["char"] = sizeof(Char);
 		typeNameToSize["int"] = sizeof(Int);
@@ -85,7 +85,7 @@ namespace Tolo
 		);
 
 		NativeFunctionInfo& info = nativeFunctions[function.functionName];
-		info.functionPtr = reinterpret_cast<Ptr>(function.p_function);
+		info.p_functionPtr = reinterpret_cast<Ptr>(function.p_function);
 		info.returnTypeName = function.returnTypeName;
 		info.parameterTypeNames = function.parameterTypeNames;
 	}
@@ -112,7 +112,7 @@ namespace Tolo
 		}
 		
 		const std::string operandTypeName = function.parameterTypeNames.front();
-		std::map<std::string, NativeFunctionInfo>& opFunctions = typeNameToPrimitiveOpFuncs[operandTypeName];
+		std::map<std::string, NativeFunctionInfo>& opFunctions = typeNameToNativeOpFuncs[operandTypeName];
 
 		Affirm(
 			opFunctions.count(opName) == 0,
@@ -121,7 +121,7 @@ namespace Tolo
 		);
 
 		NativeFunctionInfo& info = opFunctions[opName];
-		info.functionPtr = reinterpret_cast<Ptr>(function.p_function);
+		info.p_functionPtr = reinterpret_cast<Ptr>(function.p_function);
 		info.returnTypeName = function.returnTypeName;
 		info.parameterTypeNames = function.parameterTypeNames;
 	}
@@ -226,7 +226,7 @@ namespace Tolo
 		Parser parser;
 		parser.nativeFunctions = nativeFunctions;
 		parser.typeNameToStructInfo = typeNameToStructInfo;
-		parser.typeNameToNativeOpFuncs = typeNameToPrimitiveOpFuncs;
+		parser.typeNameToNativeOpFuncs = typeNameToNativeOpFuncs;
 
 		// transfer struct type sizes
 		for (auto& e : typeNameToStructInfo)
@@ -263,7 +263,7 @@ namespace Tolo
 		ECallFunction mainCall(mainParamsSize, mainInfo.localsSize, mainInfo.returnTypeName);
 		// tell the main function to load arguments from the beginning of the stack, where the user will write them
 		mainCall.argumentLoads = { new ELoadConstBytes(mainParamsSize, 0) };
-		mainCall.functionIpLoad = new ELoadConstPtrToLabel(mainFunctionName);
+		mainCall.p_functionIpLoad = new ELoadConstPtrToLabel(mainFunctionName);
 		mainCall.Evaluate(cb);
 		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel("__program_end__");
 		cb.Op(OpCode::Write_IP);

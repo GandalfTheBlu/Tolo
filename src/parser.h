@@ -35,7 +35,7 @@ namespace Tolo
 	struct NativeFunctionInfo
 	{
 		std::string returnTypeName;
-		Ptr functionPtr;
+		Ptr p_functionPtr;
 		std::vector<std::string> parameterTypeNames;
 
 		NativeFunctionInfo();

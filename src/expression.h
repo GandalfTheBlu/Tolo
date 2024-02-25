@@ -60,9 +60,9 @@ namespace Tolo
 
 	struct ELoadConstPtr : public Expression
 	{
-		Ptr value;
+		Ptr p_value;
 
-		ELoadConstPtr(Ptr _value);
+		ELoadConstPtr(Ptr _p_value);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -83,9 +83,9 @@ namespace Tolo
 	struct ELoadConstBytes : public Expression
 	{
 		Int bytesSize;
-		Ptr bytesPtr;
+		Ptr p_bytesPtr;
 
-		ELoadConstBytes(Int _bytesSize, Ptr _bytesPtr);
+		ELoadConstBytes(Int _bytesSize, Ptr _p_bytesPtr);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -132,9 +132,9 @@ namespace Tolo
 
 	struct EWriteBytesTo : public Expression
 	{
-		Expression* bytesSizeLoad;
-		Expression* writePtrLoad;
-		Expression* dataLoad;
+		Expression* p_bytesSizeLoad;
+		Expression* p_writePtrLoad;
+		Expression* p_dataLoad;
 
 		EWriteBytesTo();
 
@@ -150,7 +150,7 @@ namespace Tolo
 		Int paramsSize;
 		Int localsSize;
 		std::vector<Expression*> argumentLoads;
-		Expression* functionIpLoad;
+		Expression* p_functionIpLoad;
 		std::string returnTypeName;
 
 		ECallFunction(Int _paramsSize, Int _localsSize, const std::string& _returnTypeName);
@@ -165,7 +165,7 @@ namespace Tolo
 	struct ECallNativeFunction : public Expression
 	{
 		std::vector<Expression*> argumentLoads;
-		Expression* functionPtrLoad;
+		Expression* p_functionPtrLoad;
 		std::string returnTypeName;
 
 		ECallNativeFunction(const std::string& _returnTypeName);
@@ -180,8 +180,8 @@ namespace Tolo
 	struct EBinaryOp : public Expression
 	{
 		OpCode op;
-		Expression* lhsLoad;
-		Expression* rhsLoad;
+		Expression* p_lhsLoad;
+		Expression* p_rhsLoad;
 
 		EBinaryOp(OpCode _op);
 
@@ -195,7 +195,7 @@ namespace Tolo
 	struct EUnaryOp : public Expression
 	{
 		OpCode op;
-		Expression* valLoad;
+		Expression* p_valLoad;
 
 		EUnaryOp(OpCode _op);
 
@@ -209,7 +209,7 @@ namespace Tolo
 	struct EReturn : public Expression
 	{
 		Int retValSize;
-		Expression* retValLoad;
+		Expression* p_retValLoad;
 
 		EReturn(Int _retValSize);
 
@@ -222,7 +222,7 @@ namespace Tolo
 
 	struct EIfSingle : public Expression
 	{
-		Expression* conditionLoad;
+		Expression* p_conditionLoad;
 		std::vector<Expression*> body;
 
 		EIfSingle();
@@ -237,9 +237,9 @@ namespace Tolo
 
 	struct EIfChain : public Expression
 	{
-		Expression* conditionLoad;
+		Expression* p_conditionLoad;
 		std::vector<Expression*> body;
-		Expression* chain;
+		Expression* p_chain;
 
 		EIfChain();
 
@@ -252,7 +252,7 @@ namespace Tolo
 
 	struct EElseIfSingle : public Expression
 	{
-		Expression* conditionLoad;
+		Expression* p_conditionLoad;
 		std::vector<Expression*> body;
 
 		EElseIfSingle();
@@ -266,9 +266,9 @@ namespace Tolo
 
 	struct EElseIfChain : public Expression
 	{
-		Expression* conditionLoad;
+		Expression* p_conditionLoad;
 		std::vector<Expression*> body;
-		Expression* chain;
+		Expression* p_chain;
 
 		EElseIfChain();
 
@@ -294,7 +294,7 @@ namespace Tolo
 
 	struct EWhile : public Expression
 	{
-		Expression* conditionLoad;
+		Expression* p_conditionLoad;
 		std::vector<Expression*> body;
 
 		EWhile();

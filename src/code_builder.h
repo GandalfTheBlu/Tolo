@@ -8,18 +8,18 @@ namespace Tolo
 {
 	struct CodeBuilder
 	{
-		Char* p_stack;
+		Ptr p_stack;
 		std::map<std::string, Ptr> constStringToIp;
-		Ptr stackSize;
-		Ptr constStringCapacity;
-		Ptr nextConstStringIp;
-		Ptr codeLength;
+		Int stackSize;
+		Int constStringCapacity;
+		Ptr p_nextConstStringIp;
+		Int codeLength;
 		std::map<std::string, Ptr> labelNameToLabelIp;
-		std::map<std::string, std::vector<Ptr>> labelNameToRefIps;
+		std::map<std::string, std::vector<Int>> labelNameToStackOffsets;
 		Int currentBranchDepth;
 		Int currentWhileDepth;
 
-		CodeBuilder(Char* _p_stack, Ptr _stackSize, Ptr _constStringCapacity);
+		CodeBuilder(Ptr _p_stack, Int _stackSize, Int _constStringCapacity);
 
 		void Op(OpCode val);
 
@@ -31,7 +31,7 @@ namespace Tolo
 
 		void ConstStringPtr(const std::string& val);
 
-		void ConstPtr(Ptr val);
+		void ConstPtr(Ptr p_val);
 
 		void ConstPtrToLabel(const std::string& labelName);
 

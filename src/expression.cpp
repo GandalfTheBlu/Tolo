@@ -73,14 +73,14 @@ namespace Tolo
 	}
 
 
-	ELoadConstPtr::ELoadConstPtr(Ptr _value) :
-		value(_value)
+	ELoadConstPtr::ELoadConstPtr(Ptr _p_value) :
+		p_value(_p_value)
 	{}
 
 	void ELoadConstPtr::Evaluate(CodeBuilder& cb) 
 	{
 		cb.Op(OpCode::Load_Const_Ptr);
-		cb.ConstPtr(value);
+		cb.ConstPtr(p_value);
 	}
 
 	std::string ELoadConstPtr::GetDataType()
@@ -105,14 +105,14 @@ namespace Tolo
 	}
 
 
-	ELoadConstBytes::ELoadConstBytes(Int _bytesSize, Ptr _bytesPtr) : 
+	ELoadConstBytes::ELoadConstBytes(Int _bytesSize, Ptr _p_bytesPtr) : 
 		bytesSize(_bytesSize),
-		bytesPtr(_bytesPtr)
+		p_bytesPtr(_p_bytesPtr)
 	{}
 
 	void ELoadConstBytes::Evaluate(CodeBuilder& cb)
 	{
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtr(bytesPtr);
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtr(p_bytesPtr);
 		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(bytesSize);
 		cb.Op(OpCode::Load_Bytes_From);
 	}
@@ -186,23 +186,23 @@ namespace Tolo
 
 
 	EWriteBytesTo::EWriteBytesTo() :
-		bytesSizeLoad(nullptr),
-		writePtrLoad(nullptr),
-		dataLoad(nullptr)
+		p_bytesSizeLoad(nullptr),
+		p_writePtrLoad(nullptr),
+		p_dataLoad(nullptr)
 	{}
 
 	EWriteBytesTo::~EWriteBytesTo()
 	{
-		delete bytesSizeLoad;
-		delete writePtrLoad;
-		delete dataLoad;
+		delete p_bytesSizeLoad;
+		delete p_writePtrLoad;
+		delete p_dataLoad;
 	}
 
 	void EWriteBytesTo::Evaluate(CodeBuilder& cb) 
 	{
-		dataLoad->Evaluate(cb);
-		writePtrLoad->Evaluate(cb);
-		bytesSizeLoad->Evaluate(cb);
+		p_dataLoad->Evaluate(cb);
+		p_writePtrLoad->Evaluate(cb);
+		p_bytesSizeLoad->Evaluate(cb);
 		cb.Op(OpCode::Write_Bytes_To);
 	}
 
@@ -215,7 +215,7 @@ namespace Tolo
 	ECallFunction::ECallFunction(Int _paramsSize, Int _localsSize, const std::string& _returnTypeName) :
 		paramsSize(_paramsSize),
 		localsSize(_localsSize),
-		functionIpLoad(nullptr),
+		p_functionIpLoad(nullptr),
 		returnTypeName(_returnTypeName)
 	{}
 
@@ -224,7 +224,7 @@ namespace Tolo
 		for (auto e : argumentLoads)
 			delete e;
 
-		delete functionIpLoad;
+		delete p_functionIpLoad;
 	}
 
 	void ECallFunction::Evaluate(CodeBuilder& cb)
@@ -232,7 +232,7 @@ namespace Tolo
 		for (int i = (int)argumentLoads.size() - 1; i >= 0; i--)
 			argumentLoads[i]->Evaluate(cb);
 
-		functionIpLoad->Evaluate(cb);
+		p_functionIpLoad->Evaluate(cb);
 
 		cb.Op(OpCode::Call);
 		cb.ConstInt(paramsSize);
@@ -247,7 +247,7 @@ namespace Tolo
 
 	ECallNativeFunction::ECallNativeFunction(const std::string& _returnTypeName) :
 		returnTypeName(_returnTypeName),
-		functionPtrLoad(nullptr)
+		p_functionPtrLoad(nullptr)
 	{}
 
 	ECallNativeFunction::~ECallNativeFunction()
@@ -255,7 +255,7 @@ namespace Tolo
 		for (auto e : argumentLoads)
 			delete e;
 
-		delete functionPtrLoad;
+		delete p_functionPtrLoad;
 	}
 
 	void ECallNativeFunction::Evaluate(CodeBuilder& cb)
@@ -263,7 +263,7 @@ namespace Tolo
 		for (int i = (int)argumentLoads.size() - 1; i >= 0; i--)
 			argumentLoads[i]->Evaluate(cb);
 
-		functionPtrLoad->Evaluate(cb);
+		p_functionPtrLoad->Evaluate(cb);
 
 		cb.Op(OpCode::Call_Native);
 	}
@@ -276,20 +276,20 @@ namespace Tolo
 
 	EBinaryOp::EBinaryOp(OpCode _op) :
 		op(_op),
-		lhsLoad(nullptr),
-		rhsLoad(nullptr)
+		p_lhsLoad(nullptr),
+		p_rhsLoad(nullptr)
 	{}
 
 	EBinaryOp::~EBinaryOp()
 	{
-		delete lhsLoad;
-		delete rhsLoad;
+		delete p_lhsLoad;
+		delete p_rhsLoad;
 	}
 
 	void EBinaryOp::Evaluate(CodeBuilder& cb) 
 	{
-		rhsLoad->Evaluate(cb);
-		lhsLoad->Evaluate(cb);
+		p_rhsLoad->Evaluate(cb);
+		p_lhsLoad->Evaluate(cb);
 		cb.Op(op);
 	}
 
@@ -308,7 +308,6 @@ namespace Tolo
 		case Tolo::OpCode::Float_Div:
 			return "float";
 		case Tolo::OpCode::Ptr_Add:
-		case Tolo::OpCode::Ptr_Sub:
 			return "ptr";
 		}
 
@@ -318,40 +317,40 @@ namespace Tolo
 
 	EUnaryOp::EUnaryOp(OpCode _op) :
 		op(_op),
-		valLoad(nullptr)
+		p_valLoad(nullptr)
 	{}
 
 	EUnaryOp::~EUnaryOp()
 	{
-		delete valLoad;
+		delete p_valLoad;
 	}
 
 	void EUnaryOp::Evaluate(CodeBuilder& cb)
 	{
-		valLoad->Evaluate(cb);
+		p_valLoad->Evaluate(cb);
 		cb.Op(op);
 	}
 
 	std::string EUnaryOp::GetDataType()
 	{
-		return valLoad->GetDataType();
+		return p_valLoad->GetDataType();
 	}
 
 
 	EReturn::EReturn(Int _retValSize) :
 		retValSize(_retValSize),
-		retValLoad(nullptr)
+		p_retValLoad(nullptr)
 	{}
 
 	EReturn::~EReturn()
 	{
-		delete retValLoad;
+		delete p_retValLoad;
 	}
 
 	void EReturn::Evaluate(CodeBuilder& cb) 
 	{
-		if(retValLoad != nullptr)
-			retValLoad->Evaluate(cb);
+		if(p_retValLoad != nullptr)
+			p_retValLoad->Evaluate(cb);
 
 		cb.Op(OpCode::Return);
 		cb.ConstInt(retValSize);
@@ -359,20 +358,20 @@ namespace Tolo
 
 	std::string EReturn::GetDataType()
 	{
-		if (retValLoad == nullptr)
+		if (p_retValLoad == nullptr)
 			return "void";
 		else
-			return retValLoad->GetDataType();
+			return p_retValLoad->GetDataType();
 	}
 
 
 	EWhile::EWhile() :
-		conditionLoad(nullptr)
+		p_conditionLoad(nullptr)
 	{}
 
 	EWhile::~EWhile()
 	{
-		delete conditionLoad;
+		delete p_conditionLoad;
 
 		for (auto e : body)
 			delete e;
@@ -394,7 +393,7 @@ namespace Tolo
 		cb.RemoveLabel(depthId + "__while_condition__");
 		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__while_body__");
 		cb.RemoveLabel(depthId + "__while_body__");
-		conditionLoad->Evaluate(cb);
+		p_conditionLoad->Evaluate(cb);
 		cb.Op(OpCode::Write_IP_If);
 
 		cb.DefineLabel(depthId + "__while_end__");
@@ -410,12 +409,12 @@ namespace Tolo
 
 
 	EIfSingle::EIfSingle() :
-		conditionLoad(nullptr)
+		p_conditionLoad(nullptr)
 	{}
 
 	EIfSingle::~EIfSingle()
 	{
-		delete conditionLoad;
+		delete p_conditionLoad;
 
 		for (auto e : body)
 			delete e;
@@ -427,7 +426,7 @@ namespace Tolo
 		std::string depthId = std::to_string(cb.currentBranchDepth);
 
 		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_body__");
-		conditionLoad->Evaluate(cb);
+		p_conditionLoad->Evaluate(cb);
 		cb.Op(OpCode::Write_IP_If);
 
 		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_end__");
@@ -452,18 +451,18 @@ namespace Tolo
 
 
 	EIfChain::EIfChain() :
-		conditionLoad(nullptr),
-		chain(nullptr)
+		p_conditionLoad(nullptr),
+		p_chain(nullptr)
 	{}
 
 	EIfChain::~EIfChain()
 	{
-		delete conditionLoad;
+		delete p_conditionLoad;
 
 		for (auto e : body)
 			delete e;
 
-		delete chain;
+		delete p_chain;
 	}
 
 	void EIfChain::Evaluate(CodeBuilder& cb)
@@ -472,7 +471,7 @@ namespace Tolo
 		std::string depthId = std::to_string(cb.currentBranchDepth);
 
 		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_body__");
-		conditionLoad->Evaluate(cb);
+		p_conditionLoad->Evaluate(cb);
 		cb.Op(OpCode::Write_IP_If);
 
 		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_end__");
@@ -490,7 +489,7 @@ namespace Tolo
 		cb.DefineLabel(depthId + "__if_end__");
 		cb.RemoveLabel(depthId + "__if_end__");
 
-		chain->Evaluate(cb);
+		p_chain->Evaluate(cb);
 
 		cb.DefineLabel(depthId + "__chain_end__");
 		cb.RemoveLabel(depthId + "__chain_end__");
@@ -505,12 +504,12 @@ namespace Tolo
 
 
 	EElseIfSingle::EElseIfSingle() :
-		conditionLoad(nullptr)
+		p_conditionLoad(nullptr)
 	{}
 
 	EElseIfSingle::~EElseIfSingle()
 	{
-		delete conditionLoad;
+		delete p_conditionLoad;
 
 		for (auto e : body)
 			delete e;
@@ -521,7 +520,7 @@ namespace Tolo
 		std::string depthId = std::to_string(cb.currentBranchDepth);
 
 		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_body__");
-		conditionLoad->Evaluate(cb);
+		p_conditionLoad->Evaluate(cb);
 		cb.Op(OpCode::Write_IP_If);
 
 		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_end__");
@@ -544,18 +543,18 @@ namespace Tolo
 
 
 	EElseIfChain::EElseIfChain() :
-		conditionLoad(nullptr),
-		chain(nullptr)
+		p_conditionLoad(nullptr),
+		p_chain(nullptr)
 	{}
 
 	EElseIfChain::~EElseIfChain()
 	{
-		delete conditionLoad;
+		delete p_conditionLoad;
 
 		for (auto e : body)
 			delete e;
 
-		delete chain;
+		delete p_chain;
 	}
 
 	void EElseIfChain::Evaluate(CodeBuilder& cb)
@@ -563,7 +562,7 @@ namespace Tolo
 		std::string depthId = std::to_string(cb.currentBranchDepth);
 
 		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_body__");
-		conditionLoad->Evaluate(cb);
+		p_conditionLoad->Evaluate(cb);
 		cb.Op(OpCode::Write_IP_If);
 
 		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_end__");
@@ -581,7 +580,7 @@ namespace Tolo
 		cb.DefineLabel(depthId + "__if_end__");
 		cb.RemoveLabel(depthId + "__if_end__");
 
-		chain->Evaluate(cb);
+		p_chain->Evaluate(cb);
 	}
 
 	std::string EElseIfChain::GetDataType()

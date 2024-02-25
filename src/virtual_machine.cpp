@@ -4,10 +4,9 @@
 
 namespace Tolo
 {
-	void RunProgram(Char* p_stack, Ptr codeStart, Ptr codeEnd)
+	void RunProgram(Ptr p_stack, Int codeStart, Int codeEnd)
 	{
-		VirtualMachine vm{ codeEnd, codeStart, 0, p_stack };
-		void(*ops[])(VirtualMachine&)
+		static void(*ops[])(VirtualMachine&)
 		{
 			Op_Load_FP,
 			Op_Load_Bytes_From,
@@ -66,7 +65,13 @@ namespace Tolo
 
 			Op_TU_Add<Ptr, Int>,
 			Op_TU_Sub<Ptr, Int>,
-
+			Op_T_Less<Ptr>,
+			Op_T_Greater<Ptr>,
+			Op_T_Equal<Ptr>,
+			Op_T_LessOrEqual<Ptr>,
+			Op_T_GreaterOrEqual<Ptr>,
+			Op_T_NotEqual<Ptr>,
+				
 			Op_T_Bit_And<Char>,
 			Op_T_Bit_Or<Char>,
 			Op_T_Bit_Xor<Char>,
@@ -81,7 +86,7 @@ namespace Tolo
 		};
 
 #ifdef DEBUG_VM
-		const char* debugOpNames[]
+		static const char* debugOpNames[]
 		{
 			"Load_FP",
 			"Load_Bytes_From",
@@ -140,6 +145,12 @@ namespace Tolo
 
 			"Ptr_Add",
 			"Ptr_Sub",
+			"Ptr_Less",
+			"Ptr_Greater",
+			"Ptr_Equal",
+			"Ptr_LessOrEqual",
+			"Ptr_GreaterOrEqual",
+			"Ptr_NotEqual",
 
 			"Bit_8_And",
 			"Bit_8_Or",
@@ -155,9 +166,17 @@ namespace Tolo
 		};
 #endif
 
-		while (vm.instructionPtr < codeEnd)
+		VirtualMachine vm{
+			p_stack + codeEnd,
+			p_stack + codeStart,
+			p_stack + 0
+		};
+
+		const Ptr p_codeEnd = p_stack + codeEnd;
+
+		while (vm.p_instructionPtr < p_codeEnd)
 		{
-			Char opCode = p_stack[vm.instructionPtr];
+			Char opCode = *vm.p_instructionPtr;
 #ifdef DEBUG_VM
 			std::printf("%s\n", debugOpNames[opCode]);
 #endif

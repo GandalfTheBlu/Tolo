@@ -1,27 +1,30 @@
 #include "src/program_handle.h"
+#include "src/pointer_toolkit.h"
 #include "src/file_io.h"
 #include <iostream>
 
 using namespace Tolo;
 
-const char* GetConstString(VirtualMachine& vm)
+const char* GetString(VirtualMachine& vm)
 {
-	Ptr strPtr = Pop<Ptr>(vm);
-	return static_cast<const char*>(vm.p_stack + strPtr);
+	Ptr p_str = Pop<Ptr>(vm);
+	return static_cast<const char*>(p_str);
 }
 
 int main()
 {
-	ProgramHandle handle("Script/ptr_test.tolo", 1024, 128);
+	ProgramHandle program("Script/ptr_test.tolo", 1024, 128);
 	
-	handle.AddFunction({ "void", "print_string", {"ptr"}, [](VirtualMachine& vm)
+	AddPointerToolkit(program);
+
+	program.AddFunction({ "void", "print", {"ptr"}, [](VirtualMachine& vm)
 		{
-			std::cout << GetConstString(vm);
+			std::cout << GetString(vm);
 		}
 	});
-	
-	handle.Compile();
-	handle.Execute<void>();
+
+	program.Compile();
+	program.Execute<void>();
 
 	return 0;
 }

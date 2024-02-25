@@ -8,13 +8,13 @@
 namespace Tolo
 {
 	template<typename T>
-	bool WriteValue(Char* p_data, Ptr& inoutIndex, const T& value)
+	bool WriteValue(Ptr p_data, Int& inoutOffset, const T& value)
 	{
-		if (inoutIndex < sizeof(T))
+		if (inoutOffset < sizeof(T))
 			return false;
 
-		inoutIndex -= sizeof(T);
-		*(T*)(p_data + inoutIndex) = value;
+		inoutOffset -= sizeof(T);
+		*reinterpret_cast<T*>(p_data + inoutOffset) = value;
 
 		return true;
 	}
@@ -47,17 +47,17 @@ namespace Tolo
 	{
 	private:
 		std::string codePath;
-		Char* p_stack;
-		Ptr stackSize;
-		Ptr constStringCapacity;
+		Ptr p_stack;
+		Int stackSize;
+		Int constStringCapacity;
 		std::string mainFunctionName;
-		Ptr codeStart;
-		Ptr codeEnd;
+		Int codeStart;
+		Int codeEnd;
 		Int mainReturnValueSize;
 		std::map<std::string, Int> typeNameToSize;
 		std::map<std::string, NativeFunctionInfo> nativeFunctions;
 		std::map<std::string, StructInfo> typeNameToStructInfo;
-		std::map<std::string, std::map<std::string, NativeFunctionInfo>> typeNameToPrimitiveOpFuncs;
+		std::map<std::string, std::map<std::string, NativeFunctionInfo>> typeNameToNativeOpFuncs;
 
 		ProgramHandle() = delete;
 		ProgramHandle(const ProgramHandle&) = delete;
@@ -68,7 +68,7 @@ namespace Tolo
 		void AddNativeOperator(const FunctionHandle& function);
 
 	public:
-		ProgramHandle(const std::string& _codePath, Ptr _stackSize, Ptr _constStringCapacity, const std::string& _mainFunctionName = "main");
+		ProgramHandle(const std::string& _codePath, Int _stackSize, Int _constStringCapacity, const std::string& _mainFunctionName = "main");
 
 		~ProgramHandle();
 
@@ -89,7 +89,7 @@ namespace Tolo
 				"requested return type does not match size of 'main'-function's return type"
 			);
 
-			Ptr argByteOffset = codeStart;
+			Int argByteOffset = codeStart;
 			bool writeSuccess = (WriteValue(p_stack, argByteOffset, arguments) && ...);
 
 			Affirm(
@@ -111,7 +111,7 @@ namespace Tolo
 				"requested return type does not match size of 'main'-function's return type"
 			);
 
-			Ptr argByteOffset = constStringCapacity;
+			Int argByteOffset = constStringCapacity;
 			bool writeSuccess = (WriteValue(p_stack, argByteOffset, arguments) && ...);
 
 			Affirm(

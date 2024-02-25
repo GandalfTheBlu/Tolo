@@ -145,6 +145,7 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="src\file_io.cpp" />
+    <ClCompile Include="src\pointer_toolkit.cpp" />
     <ClCompile Include="src\program_handle.cpp" />
     <ClCompile Include="src\code_builder.cpp" />
     <ClCompile Include="src\expression.cpp" />
@@ -161,6 +162,7 @@
     <ClInclude Include="src\file_io.h" />
     <ClInclude Include="src\lexer.h" />
     <ClInclude Include="src\lex_node.h" />
+    <ClInclude Include="src\pointer_toolkit.h" />
     <ClInclude Include="src\parser.h" />
     <ClInclude Include="src\program_handle.h" />
     <ClInclude Include="src\token.h" />

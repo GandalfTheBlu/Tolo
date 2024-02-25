@@ -8,7 +8,7 @@ namespace Tolo
 	typedef char Char;
 	typedef int Int;
 	typedef float Float;
-	typedef std::uintptr_t Ptr;
+	typedef Char* Ptr;
 
 	enum class OpCode : Char
 	{
@@ -70,6 +70,12 @@ namespace Tolo
 
 		Ptr_Add,//			-					Ptr Int				Ptr
 		Ptr_Sub,//			-					Ptr Int				Ptr
+		Ptr_Less,//			-					Ptr Ptr				Char
+		Ptr_Greater,//		-					Ptr Ptr				Char
+		Ptr_Equal,//		-					Ptr Ptr				Char
+		Ptr_LessOrEqual,//  -					Ptr Ptr				Char
+		Ptr_GreaterOrEqual,//-					Ptr Ptr				Char
+		Ptr_NotEqual,//		-					Ptr Ptr				Char
 
 		Bit_8_And,//		-					[8-bit] [8-bit]		[8-bit]
 		Bit_8_Or,//			-					[8-bit] [8-bit]		[8-bit]

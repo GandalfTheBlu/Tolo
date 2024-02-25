@@ -32,7 +32,7 @@ namespace Tolo
 	{}
 
 	NativeFunctionInfo::NativeFunctionInfo() :
-		functionPtr(0)
+		p_functionPtr(nullptr)
 	{}
 
 	StructInfo::StructInfo()
@@ -113,6 +113,29 @@ namespace Tolo
 			OpCode::INVALID,
 			OpCode::INVALID,
 			OpCode::Float_Negate,
+			OpCode::INVALID
+		};
+
+		typeNameOperators["ptr"] =
+		{
+			OpCode::Ptr_Add,
+			OpCode::Ptr_Sub,
+			OpCode::INVALID,
+			OpCode::INVALID,
+			OpCode::INVALID,
+			OpCode::INVALID,
+			OpCode::INVALID,
+			OpCode::INVALID,
+			OpCode::INVALID,
+			OpCode::Ptr_Less,
+			OpCode::Ptr_Greater,
+			OpCode::Ptr_Equal,
+			OpCode::Ptr_LessOrEqual,
+			OpCode::Ptr_GreaterOrEqual,
+			OpCode::Ptr_NotEqual,
+			OpCode::INVALID,
+			OpCode::INVALID,
+			OpCode::INVALID,
 			OpCode::INVALID
 		};
 
@@ -248,12 +271,12 @@ namespace Tolo
 		const VariableInfo& info = currentFunction->varNameToVarInfo[varName];
 
 		EWriteBytesTo* p_write = new EWriteBytesTo();
-		p_write->bytesSizeLoad = new ELoadConstInt(typeNameToSize[info.typeName]);
-		p_write->writePtrLoad = new ELoadVariablePtr(info.offset);
+		p_write->p_bytesSizeLoad = new ELoadConstInt(typeNameToSize[info.typeName]);
+		p_write->p_writePtrLoad = new ELoadVariablePtr(info.offset);
 
 		currentExpectedReturnType = info.typeName;
 
-		p_write->dataLoad = ParseNextExpression(p_lexNode->children[0]);
+		p_write->p_dataLoad = ParseNextExpression(p_lexNode->children[0]);
 
 		currentExpectedReturnType = "void";
 
@@ -342,12 +365,12 @@ namespace Tolo
 		}
 
 		EWriteBytesTo* p_write = new EWriteBytesTo();
-		p_write->bytesSizeLoad = new ELoadConstInt(typeNameToSize[currentVarInfo.typeName]);
-		p_write->writePtrLoad = new ELoadVariablePtr(propOffset);
+		p_write->p_bytesSizeLoad = new ELoadConstInt(typeNameToSize[currentVarInfo.typeName]);
+		p_write->p_writePtrLoad = new ELoadVariablePtr(propOffset);
 
 		currentExpectedReturnType = currentVarInfo.typeName;
 
-		p_write->dataLoad = ParseNextExpression(p_lexNode->children.back());
+		p_write->p_dataLoad = ParseNextExpression(p_lexNode->children.back());
 
 		currentExpectedReturnType = "void";
 
@@ -369,7 +392,7 @@ namespace Tolo
 		else
 		{
 			currentExpectedReturnType = currentFunction->returnTypeName;
-			p_ret->retValLoad = ParseNextExpression(p_lexNode->children[0]);
+			p_ret->p_retValLoad = ParseNextExpression(p_lexNode->children[0]);
 			currentExpectedReturnType = "void";
 		}
 
@@ -382,7 +405,7 @@ namespace Tolo
 		EIfSingle* p_if = new EIfSingle();
 
 		currentExpectedReturnType = "char";
-		p_if->conditionLoad = ParseNextExpression(p_lexNode->children[0]);
+		p_if->p_conditionLoad = ParseNextExpression(p_lexNode->children[0]);
 		currentExpectedReturnType = "void";
 
 		for (size_t i = 1; i < p_lexNode->children.size(); i++)
@@ -398,7 +421,7 @@ namespace Tolo
 		EIfChain* p_if = new EIfChain();
 
 		currentExpectedReturnType = "char";
-		p_if->conditionLoad = ParseNextExpression(p_lexNode->children[0]);
+		p_if->p_conditionLoad = ParseNextExpression(p_lexNode->children[0]);
 		currentExpectedReturnType = "void";
 
 		for (size_t i = 1; i+1 < p_lexNode->children.size(); i++)
@@ -406,7 +429,7 @@ namespace Tolo
 			p_if->body.push_back(ParseNextExpression(p_lexNode->children[i]));
 		}
 
-		p_if->chain = ParseNextExpression(p_lexNode->children.back());
+		p_if->p_chain = ParseNextExpression(p_lexNode->children.back());
 
 		return p_if;
 	}
@@ -416,7 +439,7 @@ namespace Tolo
 		EElseIfSingle* p_elif = new EElseIfSingle();
 
 		currentExpectedReturnType = "char";
-		p_elif->conditionLoad = ParseNextExpression(p_lexNode->children[0]);
+		p_elif->p_conditionLoad = ParseNextExpression(p_lexNode->children[0]);
 		currentExpectedReturnType = "void";
 
 		for (size_t i = 1; i < p_lexNode->children.size(); i++)
@@ -432,7 +455,7 @@ namespace Tolo
 		EElseIfChain* p_elif = new EElseIfChain();
 
 		currentExpectedReturnType = "char";
-		p_elif->conditionLoad = ParseNextExpression(p_lexNode->children[0]);
+		p_elif->p_conditionLoad = ParseNextExpression(p_lexNode->children[0]);
 		currentExpectedReturnType = "void";
 
 		for (size_t i = 1; i + 1 < p_lexNode->children.size(); i++)
@@ -440,7 +463,7 @@ namespace Tolo
 			p_elif->body.push_back(ParseNextExpression(p_lexNode->children[i]));
 		}
 
-		p_elif->chain = ParseNextExpression(p_lexNode->children.back());
+		p_elif->p_chain = ParseNextExpression(p_lexNode->children.back());
 
 		return p_elif;
 	}
@@ -462,7 +485,7 @@ namespace Tolo
 		EWhile* p_while = new EWhile();
 
 		currentExpectedReturnType = "char";
-		p_while->conditionLoad = ParseNextExpression(p_lexNode->children[0]);
+		p_while->p_conditionLoad = ParseNextExpression(p_lexNode->children[0]);
 		currentExpectedReturnType = "void";
 
 		for (size_t i = 1; i < p_lexNode->children.size(); i++)
@@ -509,7 +532,7 @@ namespace Tolo
 			p_callOp->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[1]));
 			currentExpectedReturnType = oldRetType;
 
-			p_callOp->functionIpLoad = new ELoadConstPtrToLabel(currentExpectedReturnType + opName);
+			p_callOp->p_functionIpLoad = new ELoadConstPtrToLabel(currentExpectedReturnType + opName);
 
 			return p_callOp;
 		}
@@ -529,7 +552,7 @@ namespace Tolo
 			p_callNativeOp->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[1]));
 			currentExpectedReturnType = oldRetType;
 
-			p_callNativeOp->functionPtrLoad = new ELoadConstPtr(funcInfo.functionPtr);
+			p_callNativeOp->p_functionPtrLoad = new ELoadConstPtr(funcInfo.p_functionPtr);
 
 			return p_callNativeOp;
 		}
@@ -550,7 +573,7 @@ namespace Tolo
 			);
 
 			EBinaryOp* p_binMathOp = new EBinaryOp(opCode);
-			p_binMathOp->lhsLoad = p_lhs;
+			p_binMathOp->p_lhsLoad = p_lhs;
 
 			std::string oldRetType = currentExpectedReturnType;
 			if (currentExpectedReturnType == "ptr" ||
@@ -560,7 +583,7 @@ namespace Tolo
 				currentExpectedReturnType = "int";
 			}
 
-			p_binMathOp->rhsLoad = ParseNextExpression(p_lexNode->children[1]);
+			p_binMathOp->p_rhsLoad = ParseNextExpression(p_lexNode->children[1]);
 
 			currentExpectedReturnType = oldRetType;
 
@@ -606,7 +629,7 @@ namespace Tolo
 			ECallFunction* p_callOp = new ECallFunction(funcInfo.parametersSize, funcInfo.localsSize, funcInfo.returnTypeName);
 			p_callOp->argumentLoads.push_back(p_lhs);
 			p_callOp->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[1]));
-			p_callOp->functionIpLoad = new ELoadConstPtrToLabel(currentExpectedReturnType + opName);
+			p_callOp->p_functionIpLoad = new ELoadConstPtrToLabel(currentExpectedReturnType + opName);
 
 			currentExpectedReturnType = "char";
 
@@ -623,7 +646,7 @@ namespace Tolo
 			ECallNativeFunction* p_callNativeOp = new ECallNativeFunction(funcInfo.returnTypeName);
 			p_callNativeOp->argumentLoads.push_back(p_lhs);
 			p_callNativeOp->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[1]));
-			p_callNativeOp->functionPtrLoad = new ELoadConstPtr(funcInfo.functionPtr);
+			p_callNativeOp->p_functionPtrLoad = new ELoadConstPtr(funcInfo.p_functionPtr);
 
 			currentExpectedReturnType = "char";
 
@@ -646,9 +669,9 @@ namespace Tolo
 			);
 
 			EBinaryOp* p_binCompOp = new EBinaryOp(opCode);
-			p_binCompOp->lhsLoad = p_lhs;
+			p_binCompOp->p_lhsLoad = p_lhs;
 
-			p_binCompOp->rhsLoad = ParseNextExpression(p_lexNode->children[1]);
+			p_binCompOp->p_rhsLoad = ParseNextExpression(p_lexNode->children[1]);
 
 			currentExpectedReturnType = "char";
 
@@ -696,7 +719,7 @@ namespace Tolo
 
 			ECallFunction* p_callOp = new ECallFunction(funcInfo.parametersSize, funcInfo.localsSize, funcInfo.returnTypeName);
 			p_callOp->argumentLoads.push_back(p_val);
-			p_callOp->functionIpLoad = new ELoadConstPtrToLabel(currentExpectedReturnType + opName);
+			p_callOp->p_functionIpLoad = new ELoadConstPtrToLabel(currentExpectedReturnType + opName);
 
 			return p_callOp;
 		}
@@ -709,7 +732,7 @@ namespace Tolo
 
 			ECallNativeFunction* p_callNativeOp = new ECallNativeFunction(funcInfo.returnTypeName);
 			p_callNativeOp->argumentLoads.push_back(p_val);
-			p_callNativeOp->functionPtrLoad = new ELoadConstPtr(funcInfo.functionPtr);
+			p_callNativeOp->p_functionPtrLoad = new ELoadConstPtr(funcInfo.p_functionPtr);
 
 			return p_callNativeOp;
 		}
@@ -730,7 +753,7 @@ namespace Tolo
 			);
 
 			EUnaryOp* p_unaryOp = new EUnaryOp(opCode);
-			p_unaryOp->valLoad = p_val;
+			p_unaryOp->p_valLoad = p_val;
 
 			return p_unaryOp;
 		}
@@ -756,7 +779,7 @@ namespace Tolo
 		);
 
 		EUnaryOp* p_unaryNot = new EUnaryOp(opCode);
-		p_unaryNot->valLoad = p_val;
+		p_unaryNot->p_valLoad = p_val;
 
 		return p_unaryNot;
 	}
@@ -843,7 +866,7 @@ namespace Tolo
 		}
 
 		ECallFunction* p_call = new ECallFunction(info.parametersSize, info.localsSize, info.returnTypeName);
-		p_call->functionIpLoad = new ELoadConstPtrToLabel(funcName);
+		p_call->p_functionIpLoad = new ELoadConstPtrToLabel(funcName);
 
 		std::string oldRetType = currentExpectedReturnType;
 		Affirm(
@@ -888,7 +911,7 @@ namespace Tolo
 		NativeFunctionInfo& info = nativeFunctions[funcName];
 
 		ECallNativeFunction* p_call = new ECallNativeFunction(info.returnTypeName);
-		p_call->functionPtrLoad = new ELoadConstPtr(info.functionPtr);
+		p_call->p_functionPtrLoad = new ELoadConstPtr(info.p_functionPtr);
 
 		std::string oldRetType = currentExpectedReturnType;
 		Affirm(
@@ -944,12 +967,12 @@ namespace Tolo
 		const VariableInfo& info = currentFunction->varNameToVarInfo[varName];
 
 		EWriteBytesTo* p_write = new EWriteBytesTo();
-		p_write->bytesSizeLoad = new ELoadConstInt(typeNameToSize[info.typeName]);
-		p_write->writePtrLoad = new ELoadVariablePtr(info.offset);
+		p_write->p_bytesSizeLoad = new ELoadConstInt(typeNameToSize[info.typeName]);
+		p_write->p_writePtrLoad = new ELoadVariablePtr(info.offset);
 
 		currentExpectedReturnType = info.typeName;
 
-		p_write->dataLoad = ParseNextExpression(p_lexNode->children[1]);
+		p_write->p_dataLoad = ParseNextExpression(p_lexNode->children[1]);
 
 		currentExpectedReturnType = "void";
 

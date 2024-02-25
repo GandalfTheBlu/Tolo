@@ -1,7 +1,13 @@
 
-
 void main()
 {
-	ptr str = "hello\n";
-	print_string(str);
+	ptr stack_str = "hello\n";
+	int len = strlen(stack_str);
+	ptr heap_str = malloc(len + 1);
+	memcpy(heap_str, stack_str, len + 1);
+	
+	print(stack_str);
+	print(heap_str);
+	
+	free(heap_str);
 }

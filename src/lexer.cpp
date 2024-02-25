@@ -28,6 +28,28 @@ namespace Tolo
 		return false;
 	}
 
+	LexNode* Lexer::GetBreakNode(const std::vector<Token>& tokens, size_t& i)
+	{
+		Affirm(i + 1 < tokens.size() && tokens[i+1].type == Token::Type::Semicolon, "missing ';' at line %i", tokens[i].line);
+		Affirm(isInsideWhile, "cannot use keyword 'break' when not inside a 'while' body");
+		
+		LexNode* p_break = new LexNode(LexNode::Type::Break, tokens[i]);
+		i += 2;
+
+		return p_break;
+	}
+
+	LexNode* Lexer::GetContinueNode(const std::vector<Token>& tokens, size_t& i)
+	{
+		Affirm(i + 1 < tokens.size() && tokens[i + 1].type == Token::Type::Semicolon, "missing ';' at line %i", tokens[i].line);
+		Affirm(isInsideWhile, "cannot use keyword 'continue' when not inside a 'while' body");
+
+		LexNode* p_cont = new LexNode(LexNode::Type::Continue, tokens[i]);
+		i += 2;
+
+		return p_cont;
+	}
+
 	LexNode* Lexer::GetReturnNode(const std::vector<Token>& tokens, size_t& i)
 	{
 		LexNode* p_ret = new LexNode(LexNode::Type::Return, tokens[i]);
@@ -748,15 +770,9 @@ namespace Tolo
 		else if (token.type == Token::Type::Name)
 		{
 			if (token.text == "break")
-			{
-				Affirm(isInsideWhile, "cannot use keyword 'break' when not inside a 'while' body");
-				p_result = new LexNode(LexNode::Type::Break, tokens[i++]);
-			}
+				p_result = GetBreakNode(tokens, i);
 			else if (token.text == "continue")
-			{
-				Affirm(isInsideWhile, "cannot use keyword 'break' when not inside a 'while' body");
-				p_result = new LexNode(LexNode::Type::Continue, tokens[i++]);
-			}
+				p_result = GetContinueNode(tokens, i);
 			else if (token.text == "return")
 				p_result = GetReturnNode(tokens, i);
 			else if (token.text == "if")

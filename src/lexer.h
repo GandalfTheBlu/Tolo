@@ -13,6 +13,10 @@ namespace Tolo
 
 		bool IsOverloadableOperator(const Token& token);
 
+		LexNode* GetBreakNode(const std::vector<Token>& tokens, size_t& i);
+
+		LexNode* GetContinueNode(const std::vector<Token>& tokens, size_t& i);
+
 		LexNode* GetReturnNode(const std::vector<Token>& tokens, size_t& i);
 
 		LexNode* GetIfNode(const std::vector<Token>& tokens, size_t& i);
