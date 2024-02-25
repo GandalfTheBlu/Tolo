@@ -48,6 +48,9 @@
     <ClCompile Include="src\pointer_toolkit.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\preprocessor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\virtual_machine.h">
@@ -84,6 +87,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\pointer_toolkit.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\preprocessor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

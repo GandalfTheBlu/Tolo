@@ -64,12 +64,17 @@ namespace Tolo
 		else
 			i++;
 
-		Affirm(
-			i < tokens.size() && tokens[i].type == Token::Type::Semicolon,
-			"missing ';' at line %i",
-			tokens[i - 1].line
-		);
-		i++;
+		// function call always consumes traling semicolon
+		if (p_exp->type != LexNode::Type::NativeFunctionCall &&
+			p_exp->type != LexNode::Type::UserFunctionCall)
+		{
+			Affirm(
+				i < tokens.size() && tokens[i].type == Token::Type::Semicolon,
+				"missing ';' at line %i",
+				tokens[i - 1].line
+			);
+			i++;
+		}
 
 		return p_ret;
 	}

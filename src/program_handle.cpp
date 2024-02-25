@@ -1,4 +1,5 @@
 #include "program_handle.h"
+#include "preprocessor.h"
 #include "tokenizer.h"
 #include "lexer.h"
 #include "file_io.h"
@@ -211,7 +212,10 @@ namespace Tolo
 
 	void ProgramHandle::Compile(std::string& outCode)
 	{
-		ReadTextFile(codePath, outCode);
+		std::string rawCode;
+		ReadTextFile(codePath, rawCode);
+
+		Preprocess(rawCode, outCode);
 
 		std::vector<Token> tokens;
 		Tokenize(outCode, tokens);

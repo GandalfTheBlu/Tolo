@@ -42,7 +42,6 @@ namespace Tolo
 
 		int line = 1;
 
-
 		for (size_t i = 0; i < code.size();)
 		{
 			char c = code[i];
