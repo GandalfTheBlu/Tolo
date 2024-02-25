@@ -1,4 +1,5 @@
-#include "pointer_toolkit.h"
+#include "standard_toolkit.h"
+#include <iostream>
 
 namespace Tolo
 {
@@ -22,7 +23,7 @@ namespace Tolo
 		Push<T>(vm, value);
 	}
 
-	void AddPointerToolkit(ProgramHandle& program)
+	void AddMemoryToolkit(ProgramHandle& program)
 	{
 		program.AddFunction({ "ptr", "malloc", {"int"}, [](VirtualMachine& vm)
 			{
@@ -64,5 +65,17 @@ namespace Tolo
 				std::memcpy(p_dst, p_src, static_cast<size_t>(size));
 			}
 		});
+	}
+
+	void AddIOToolkit(ProgramHandle& program)
+	{
+		program.AddFunction({ "void", "print", {"ptr"}, [](VirtualMachine& vm)
+			{
+				Ptr p_str = Pop<Ptr>(vm);
+				std::cout << static_cast<const char*>(p_str);
+			}
+		});
+
+		// todo: add input and file io
 	}
 }

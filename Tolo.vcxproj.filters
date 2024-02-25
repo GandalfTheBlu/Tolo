@@ -45,7 +45,7 @@
     <ClCompile Include="src\file_io.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\pointer_toolkit.cpp">
+    <ClCompile Include="src\standard_toolkit.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\preprocessor.cpp">
@@ -86,7 +86,7 @@
     <ClInclude Include="src\file_io.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\pointer_toolkit.h">
+    <ClInclude Include="src\standard_toolkit.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\preprocessor.h">

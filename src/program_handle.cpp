@@ -3,6 +3,7 @@
 #include "tokenizer.h"
 #include "lexer.h"
 #include "file_io.h"
+#include "standard_toolkit.h"
 
 namespace Tolo
 {
@@ -70,6 +71,12 @@ namespace Tolo
 		typeNameToSize["int"] = sizeof(Int);
 		typeNameToSize["float"] = sizeof(Float);
 		typeNameToSize["ptr"] = sizeof(Ptr);
+
+		standardTookitAdders =
+		{
+			{"memory", AddMemoryToolkit},
+			{"io", AddIOToolkit}
+		};
 	}
 
 	ProgramHandle::~ProgramHandle()
@@ -215,7 +222,17 @@ namespace Tolo
 		std::string rawCode;
 		ReadTextFile(codePath, rawCode);
 
-		Preprocess(rawCode, outCode);
+		std::map<std::string, bool> standardIncludeFlags;
+		for (auto pair : standardTookitAdders)
+			standardIncludeFlags[pair.first] = false;
+
+		Preprocess(rawCode, outCode, standardIncludeFlags);
+
+		for (auto pair : standardIncludeFlags)
+		{
+			if (pair.second)
+				standardTookitAdders.at(pair.first)(*this);
+		}
 
 		std::vector<Token> tokens;
 		Tokenize(outCode, tokens);

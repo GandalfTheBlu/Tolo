@@ -58,6 +58,7 @@ namespace Tolo
 		std::map<std::string, NativeFunctionInfo> nativeFunctions;
 		std::map<std::string, StructInfo> typeNameToStructInfo;
 		std::map<std::string, std::map<std::string, NativeFunctionInfo>> typeNameToNativeOpFuncs;
+		std::map<std::string, void(*)(ProgramHandle&)> standardTookitAdders;
 
 		ProgramHandle() = delete;
 		ProgramHandle(const ProgramHandle&) = delete;
