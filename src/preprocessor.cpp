@@ -13,7 +13,7 @@ namespace Tolo
 	)
 	{
 		// find include files
-		std::regex includeFileRgx("(?:^|\\n)#include\\s\"([\\S\\s]+?)\"");
+		std::regex includeFileRgx("(^|\\n)#include\\s\"([\\S\\s]+?)\"");
 		std::smatch includeFileMatch;
 		auto start = inCode.cbegin();
 		bool hasInclude = false;
@@ -21,8 +21,10 @@ namespace Tolo
 		while (std::regex_search(start, inCode.cend(), includeFileMatch, includeFileRgx))
 		{
 			hasInclude = true;
-			std::string includePath = includeFileMatch[1];
+			std::string newline = includeFileMatch[1];
+			std::string includePath = includeFileMatch[2];
 
+			outCode += newline;
 			outCode += includeFileMatch.prefix();
 
 			if (inoutIncludePaths.count(includePath) == 0)
@@ -53,7 +55,7 @@ namespace Tolo
 		RecursiveApplyIncludes(inCode, allCode, includePaths);
 
 		// find include flags
-		std::regex includeFlagRgx("(?:^|\\n)#include\\s<([\\S\\s]+?)>");
+		std::regex includeFlagRgx("(^|\\n)#include\\s<([\\S\\s]+?)>");
 		std::smatch includeFlagMatch;
 		auto start = allCode.cbegin();
 		bool hasInclude = false;
@@ -61,8 +63,10 @@ namespace Tolo
 		while (std::regex_search(start, allCode.cend(), includeFlagMatch, includeFlagRgx))
 		{
 			hasInclude = true;
-			std::string includeFlag = includeFlagMatch[1];
+			std::string newline = includeFlagMatch[1];
+			std::string includeFlag = includeFlagMatch[2];
 
+			outCode += newline;
 			outCode += includeFlagMatch.prefix();
 
 			Affirm(
