@@ -740,6 +740,9 @@ namespace Tolo
 		case Token::Type::ExclamationMark:
 		case Token::Type::Minus:
 			return 4;
+		case Token::Type::Ampersand:
+		case Token::Type::Asterisk:
+			return 6;
 		}
 
 		return 0;
@@ -758,7 +761,10 @@ namespace Tolo
 			i++;
 			p_result = new LexNode(LexNode::Type::LiteralConstant, token);
 		}
-		else if (token.type == Token::Type::Minus || token.type == Token::Type::ExclamationMark)
+		else if (token.type == Token::Type::Minus || 
+			token.type == Token::Type::ExclamationMark ||
+			token.type == Token::Type::Ampersand ||
+			token.type == Token::Type::Asterisk)
 		{
 			i++;
 			p_result = new LexNode(LexNode::Type::UnaryOperation, token);

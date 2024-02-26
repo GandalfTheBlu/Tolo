@@ -43,8 +43,8 @@ namespace Tolo
 
 	struct StructInfo
 	{
-		std::map<std::string, VariableInfo> propNameToVarInfo;
-		std::vector<std::string> propNames;
+		std::map<std::string, VariableInfo> memberNameToVarInfo;
+		std::vector<std::string> memberNames;
 
 		StructInfo();
 	};
@@ -105,6 +105,10 @@ namespace Tolo
 		Expression* ParseUnaryNegate(LexNode* p_lexNode);
 
 		Expression* ParseUnaryNot(LexNode* p_lexNode);
+
+		Expression* ParseUnaryReference(LexNode* p_lexNode);
+
+		Expression* ParseUnaryDereference(LexNode* p_lexNode);
 
 		Expression* ParseUnaryOp(LexNode* p_lexNode);
 

@@ -76,6 +76,13 @@ namespace Tolo
 			}
 		});
 
+		program.AddFunction({ "void", "print_int", {"int"}, [](VirtualMachine& vm)
+			{
+				Int value = Pop<Int>(vm);
+				std::cout << value;
+			}
+		});
+
 		// todo: add input and file io
 	}
 }

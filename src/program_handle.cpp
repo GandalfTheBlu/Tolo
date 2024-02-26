@@ -204,13 +204,13 @@ namespace Tolo
 			);
 
 			Affirm(
-				info.propNameToVarInfo.count(prop.second) == 0,
+				info.memberNameToVarInfo.count(prop.second) == 0,
 				"property '%s' is already defined in struct '%s'",
 				prop.second.c_str(), _struct.typeName.c_str()
 			);
 
-			info.propNameToVarInfo[prop.second] = VariableInfo(prop.first, propertyOffset);
-			info.propNames.push_back(prop.second);
+			info.memberNameToVarInfo[prop.second] = VariableInfo(prop.first, propertyOffset);
+			info.memberNames.push_back(prop.second);
 			propertyOffset += typeNameToSize[prop.first];
 		}
 

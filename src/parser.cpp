@@ -308,12 +308,12 @@ namespace Tolo
 
 			StructInfo& structInfo = typeNameToStructInfo[currentVarInfo.typeName];
 
-			Affirm(structInfo.propNameToVarInfo.count(propName) != 0,
+			Affirm(structInfo.memberNameToVarInfo.count(propName) != 0,
 				"cannot access property '%s' at line %i because the struct '%s' does not contain it",
 				propName.c_str(), p_lexNode->children[0]->token.line, currentVarInfo.typeName.c_str()
 			);
 
-			VariableInfo& propInfo = structInfo.propNameToVarInfo[propName];
+			VariableInfo& propInfo = structInfo.memberNameToVarInfo[propName];
 			propOffset -= propInfo.offset;
 
 			currentVarInfo = propInfo;
@@ -339,34 +339,34 @@ namespace Tolo
 		);
 
 		VariableInfo currentVarInfo = currentFunction->varNameToVarInfo[varName];
-		Int propOffset = currentVarInfo.offset;
+		Int memberOffset = currentVarInfo.offset;
 
 		for (size_t i = 0; i+1 < p_lexNode->children.size(); i++)
 		{
-			const std::string& propName = p_lexNode->children[i]->token.text;
+			const std::string& memberName = p_lexNode->children[i]->token.text;
 
 			Affirm(
 				typeNameToStructInfo.count(currentVarInfo.typeName) != 0,
 				"cannot get property '%s' at line %i because preceeding expression is not a struct",
-				propName.c_str(), p_lexNode->children[i]->token.line
+				memberName.c_str(), p_lexNode->children[i]->token.line
 			);
 
 			StructInfo& structInfo = typeNameToStructInfo[currentVarInfo.typeName];
 
-			Affirm(structInfo.propNameToVarInfo.count(propName) != 0,
+			Affirm(structInfo.memberNameToVarInfo.count(memberName) != 0,
 				"cannot access property '%s' at line %i because the struct '%s' does not contain it",
-				propName.c_str(), p_lexNode->children[0]->token.line, currentVarInfo.typeName.c_str()
+				memberName.c_str(), p_lexNode->children[0]->token.line, currentVarInfo.typeName.c_str()
 			);
 
-			VariableInfo& propInfo = structInfo.propNameToVarInfo[propName];
-			propOffset -= propInfo.offset;
+			VariableInfo& memberInfo = structInfo.memberNameToVarInfo[memberName];
+			memberOffset -= memberInfo.offset;
 
-			currentVarInfo = propInfo;
+			currentVarInfo = memberInfo;
 		}
 
 		EWriteBytesTo* p_write = new EWriteBytesTo();
 		p_write->p_bytesSizeLoad = new ELoadConstInt(typeNameToSize[currentVarInfo.typeName]);
-		p_write->p_writePtrLoad = new ELoadVariablePtr(propOffset);
+		p_write->p_writePtrLoad = new ELoadVariablePtr(memberOffset);
 
 		currentExpectedReturnType = currentVarInfo.typeName;
 
@@ -784,12 +784,124 @@ namespace Tolo
 		return p_unaryNot;
 	}
 
+	Expression* Parser::ParseUnaryReference(LexNode* p_lexNode)
+	{
+		Affirm(
+			currentExpectedReturnType == "ptr",
+			"expected expression of type '%s', but got 'ptr' at line %i",
+			currentExpectedReturnType.c_str(), p_lexNode->token.line
+		);
+
+		if (p_lexNode->children[0]->type == LexNode::Type::VariableLoad)
+		{
+			const std::string& varName = p_lexNode->children[0]->token.text;
+			
+			Affirm(
+				currentFunction->varNameToVarInfo.count(varName) != 0,
+				"undefined variable '%s' at line %i",
+				varName.c_str(), p_lexNode->children[0]->token.line
+			);
+
+			VariableInfo& info = currentFunction->varNameToVarInfo[varName];
+			
+			return new ELoadVariablePtr(info.offset);
+		}
+		else if (p_lexNode->children[0]->type == LexNode::Type::PropertyLoad)
+		{
+			const std::string& varName = p_lexNode->children[0]->token.text;
+
+			Affirm(
+				currentFunction->varNameToVarInfo.count(varName) != 0,
+				"undefined name '%s' at line %i",
+				varName.c_str(), p_lexNode->token.line
+			);
+
+			VariableInfo currentVarInfo = currentFunction->varNameToVarInfo[varName];
+			Int memberOffset = currentVarInfo.offset;
+
+			for (size_t i = 0; i + 1 < p_lexNode->children.size(); i++)
+			{
+				const std::string& memberName = p_lexNode->children[i]->token.text;
+
+				Affirm(
+					typeNameToStructInfo.count(currentVarInfo.typeName) != 0,
+					"cannot get member '%s' at line %i because preceeding expression is not a struct",
+					memberName.c_str(), p_lexNode->children[i]->token.line
+				);
+
+				StructInfo& structInfo = typeNameToStructInfo[currentVarInfo.typeName];
+
+				Affirm(structInfo.memberNameToVarInfo.count(memberName) != 0,
+					"cannot access member '%s' at line %i because the struct '%s' does not contain it",
+					memberName.c_str(), p_lexNode->children[0]->token.line, currentVarInfo.typeName.c_str()
+				);
+				
+				VariableInfo& memberInfo = structInfo.memberNameToVarInfo[memberName];
+				memberOffset -= memberInfo.offset;
+
+				currentVarInfo = memberInfo;
+			}
+
+			return new ELoadVariablePtr(memberOffset);
+		}
+		
+		Affirm(
+			false,
+			"expected variable or struct member at line '%i'",
+			p_lexNode->children[0]->token.line
+		);
+
+		return nullptr;
+	}
+
+	Expression* Parser::ParseUnaryDereference(LexNode* p_lexNode)
+	{
+		Affirm(
+			currentExpectedReturnType != "void",
+			"unexpected value expression at line %i",
+			p_lexNode->token.line
+		);
+
+		Affirm(
+			currentExpectedReturnType != ANY_VALUE_TYPE,
+			"undetermined type for dereferencing pointer at line %i",
+			p_lexNode->token.line
+		);
+
+		Affirm(
+			typeNameToSize.count(currentExpectedReturnType) != 0,
+			"undefined type '%s' at line %i",
+			currentExpectedReturnType.c_str(), p_lexNode->token.line
+		);
+
+		ELoadBytesFromPtr* p_loadBytes = new ELoadBytesFromPtr(
+			currentExpectedReturnType, 
+			typeNameToSize[currentExpectedReturnType]
+		);
+
+		std::string oldType = currentExpectedReturnType;
+		currentExpectedReturnType = "ptr";
+
+		p_loadBytes->p_ptrLoad = ParseNextExpression(p_lexNode->children[0]);
+
+		currentExpectedReturnType = oldType;
+
+		return p_loadBytes;
+	}
+
 	Expression* Parser::ParseUnaryOp(LexNode* p_lexNode)
 	{
-		if (p_lexNode->token.type == Token::Type::Minus)
+		switch (p_lexNode->token.type)
+		{
+		case Token::Type::Minus:
 			return ParseUnaryNegate(p_lexNode);
-		
-		return ParseUnaryNot(p_lexNode);
+		case Token::Type::ExclamationMark:
+			return ParseUnaryNot(p_lexNode);
+		case Token::Type::Ampersand:
+			return ParseUnaryReference(p_lexNode);
+		}
+
+		return ParseUnaryDereference(p_lexNode);
 	}
 
 	Expression* Parser::ParseStructInitialization(LexNode* p_lexNode)
@@ -813,7 +925,7 @@ namespace Tolo
 		}
 
 		Affirm(
-			structInfo.propNameToVarInfo.size() == callArgCount,
+			structInfo.memberNameToVarInfo.size() == callArgCount,
 			"number of arguments provided to struct initializer '%s' at line %i does not match number of properties",
 			funcName.c_str(), p_lexNode->token.line
 		);
@@ -821,9 +933,9 @@ namespace Tolo
 		ELoadMulti* p_loadMulti = new ELoadMulti(funcName);
 
 		size_t argIndex = 0;
-		for (const std::string& propName : structInfo.propNames)
+		for (const std::string& propName : structInfo.memberNames)
 		{
-			currentExpectedReturnType = structInfo.propNameToVarInfo[propName].typeName;
+			currentExpectedReturnType = structInfo.memberNameToVarInfo[propName].typeName;
 			p_loadMulti->loaders.push_back(ParseNextExpression(p_lexNode->children[argIndex]));
 			argIndex++;
 		}
@@ -1242,13 +1354,13 @@ namespace Tolo
 			);
 
 			Affirm(
-				structInfo.propNameToVarInfo.count(propName) == 0,
+				structInfo.memberNameToVarInfo.count(propName) == 0,
 				"property '%s' at line %i is already defined in struct '%s'",
 				propName.c_str(), p_lexNode->children[i + 1]->token.line, structName.c_str()
 			);
 
-			structInfo.propNameToVarInfo[propName] = VariableInfo(propTypeName, propertyOffset);
-			structInfo.propNames.push_back(propName);
+			structInfo.memberNameToVarInfo[propName] = VariableInfo(propTypeName, propertyOffset);
+			structInfo.memberNames.push_back(propName);
 			propertyOffset += typeNameToSize[propTypeName];
 		}
 

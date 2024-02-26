@@ -92,6 +92,21 @@ namespace Tolo
 		virtual std::string GetDataType() override;
 	};
 
+	struct ELoadBytesFromPtr : public Expression
+	{
+		std::string dataTypeName;
+		Int bytesSize;
+		Expression* p_ptrLoad;
+
+		ELoadBytesFromPtr(const std::string& _dataTypeName, Int _bytesSize);
+
+		~ELoadBytesFromPtr();
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+
+		virtual std::string GetDataType() override;
+	};
+
 	struct EDefineFunction : public Expression
 	{
 		std::string functionName;

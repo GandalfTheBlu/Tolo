@@ -123,6 +123,30 @@ namespace Tolo
 	}
 
 
+	ELoadBytesFromPtr::ELoadBytesFromPtr(const std::string& _dataTypeName, Int _bytesSize) :
+		dataTypeName(_dataTypeName),
+		bytesSize(_bytesSize),
+		p_ptrLoad(nullptr)
+	{}
+
+	ELoadBytesFromPtr::~ELoadBytesFromPtr()
+	{
+		delete p_ptrLoad;
+	}
+
+	void ELoadBytesFromPtr::Evaluate(CodeBuilder& cb)
+	{
+		p_ptrLoad->Evaluate(cb);
+		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(bytesSize);
+		cb.Op(OpCode::Load_Bytes_From);
+	}
+
+	std::string ELoadBytesFromPtr::GetDataType()
+	{
+		return dataTypeName;
+	}
+
+
 	EDefineFunction::EDefineFunction(const std::string& _functionName) :
 		functionName(_functionName)
 	{}

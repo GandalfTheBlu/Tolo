@@ -1,0 +1,42 @@
+#include <memory>
+#include <io>
+
+struct MyStruct
+{
+    int member;
+};
+
+void main()
+{
+    // reference
+    int a = 1337;
+    ptr p_a = &a;
+    int also_a = get_int(p_a);
+    print_int(also_a);
+
+    print("\n");
+
+    MyStruct m = MyStruct(420);
+    ptr p_m_member = &m.member;
+    int m_member = get_int(p_m_member);
+    print_int(m_member);
+
+    print("\n");
+
+    // dereference
+    int b = 69;
+    ptr p_b = &b;
+    int also_b = *p_b;
+    print_int(also_b);
+
+    print("\n");
+
+    ptr str = "abc";
+    char c_a = *str;
+    char c_b = *(str + 1);
+    char c_c = *(str + 2);
+    if(c_a == 'a' && c_b == 'b' && c_c == 'c')
+    {
+        print("yes!");
+    }
+}
