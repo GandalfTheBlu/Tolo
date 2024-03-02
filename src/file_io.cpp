@@ -17,4 +17,20 @@ namespace Tolo
 		outText = stringStream.str();
 		file.close();
 	}
+
+	bool WriteTextFile(const std::string& path, const std::string& text, bool append)
+	{
+		std::ofstream file;
+		if (append)
+			file.open(path, std::ios::app);
+		else
+			file.open(path);
+
+		Affirm(file.is_open(), "failed to open file '%s'", path.c_str());
+
+		file << text;
+
+		file.close();
+		return true;
+	}
 }

@@ -93,7 +93,7 @@ namespace Tolo
 		program.AddFunction({ "int", "input_int", {},  Input<Int> });
 		program.AddFunction({ "float", "input_float", {},  Input<Float> });
 
-		program.AddFunction({ "void", "read_file_txt", {"ptr", "ptr", "int"}, [](VirtualMachine& vm)
+		program.AddFunction({ "void", "get_file_txt", {"ptr", "ptr", "int"}, [](VirtualMachine& vm)
 			{
 				const char* p_filepath = static_cast<const char*>(Pop<Ptr>(vm));
 				Ptr p_buffer = Pop<Ptr>(vm);
@@ -104,6 +104,22 @@ namespace Tolo
 
 				for (size_t i = 0; i < text.size() && i < capacity; i++)
 					p_buffer[i] = text[i];
+			}
+		});
+		program.AddFunction({ "void", "set_file_txt", {"ptr", "ptr"}, [](VirtualMachine& vm)
+			{
+				const char* p_filepath = static_cast<const char*>(Pop<Ptr>(vm));
+				const char* p_str = static_cast<const char*>(Pop<Ptr>(vm));
+
+				WriteTextFile(p_filepath, p_str, false);
+			}
+		});
+		program.AddFunction({ "void", "add_file_txt", {"ptr", "ptr"}, [](VirtualMachine& vm)
+			{
+				const char* p_filepath = static_cast<const char*>(Pop<Ptr>(vm));
+				const char* p_str = static_cast<const char*>(Pop<Ptr>(vm));
+
+				WriteTextFile(p_filepath, p_str, true);
 			}
 		});
 	}
