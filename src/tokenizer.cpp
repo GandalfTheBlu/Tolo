@@ -23,6 +23,7 @@ namespace Tolo
 			{'>', Token::Type::RightArrow},
 			{'=', Token::Type::EqualSign},
 			{'!', Token::Type::ExclamationMark},
+			{'~', Token::Type::Tilde},
 			{'^', Token::Type::Caret},
 			{'&', Token::Type::Ampersand},
 			{'|', Token::Type::VerticalBar}

@@ -330,5 +330,13 @@ namespace Tolo
 		vm.p_instructionPtr += sizeof(Char);
 	}
 
+	template<typename T>
+	void Op_T_Bit_Invert(VirtualMachine& vm)
+	{
+		T val = Pop<T>(vm);
+		Push<T>(vm, ~val);
+		vm.p_instructionPtr += sizeof(Char);
+	}
+
 	void RunProgram(Ptr p_stack, Int codeStart, Int codeEnd);
 }

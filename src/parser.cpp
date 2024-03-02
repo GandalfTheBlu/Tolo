@@ -66,7 +66,8 @@ namespace Tolo
 			OpCode::Char_NotEqual,
 			OpCode::And,
 			OpCode::Or,
-			OpCode::Char_Negate
+			OpCode::Char_Negate,
+			OpCode::Bit_8_Invert
 		};
 
 		typeNameOperators["int"] =
@@ -88,7 +89,8 @@ namespace Tolo
 			OpCode::Int_NotEqual,
 			OpCode::INVALID,
 			OpCode::INVALID,
-			OpCode::Int_Negate
+			OpCode::Int_Negate,
+			OpCode::Bit_32_Invert
 		};
 
 		typeNameOperators["float"] =
@@ -110,7 +112,8 @@ namespace Tolo
 			OpCode::Float_NotEqual,
 			OpCode::INVALID,
 			OpCode::INVALID,
-			OpCode::Float_Negate
+			OpCode::Float_Negate,
+			OpCode::Bit_32_Invert
 		};
 
 		typeNameOperators["ptr"] =
@@ -130,6 +133,7 @@ namespace Tolo
 			OpCode::Ptr_LessOrEqual,
 			OpCode::Ptr_GreaterOrEqual,
 			OpCode::Ptr_NotEqual,
+			OpCode::INVALID,
 			OpCode::INVALID,
 			OpCode::INVALID,
 			OpCode::INVALID
@@ -1059,6 +1063,8 @@ namespace Tolo
 			return PNegate(lexNode);
 		case Token::Type::ExclamationMark:
 			return PNot(lexNode);
+		case Token::Type::Tilde:
+			return PBitInvert(lexNode);
 		}
 
 		return nullptr;
@@ -1172,6 +1178,27 @@ namespace Tolo
 		unaryNotExp->valLoad = PReadableValue(lexNode->children[0]);
 
 		return unaryNotExp;
+	}
+
+	Parser::SharedExp Parser::PBitInvert(const SharedNode& lexNode)
+	{
+		const size_t opIndex = 18;
+
+		const std::string& retType = currentExpectedReturnType;
+
+		Affirm(
+			typeNameOperators.count(retType) != 0 &&
+			typeNameOperators.at(retType)[opIndex] != OpCode::INVALID,
+			"cannot perform unary 'bitwise invert' on operand of type '%s' at line %i",
+			retType.c_str(), lexNode->token.line
+		);
+
+		OpCode opCode = typeNameOperators.at(retType)[opIndex];
+		auto bitInvExp = std::make_shared<EUnaryOp>(opCode);
+
+		bitInvExp->valLoad = PReadableValue(lexNode->children[0]);
+
+		return bitInvExp;
 	}
 
 	Parser::SharedExp Parser::PFunctionCall(const SharedNode& lexNode) 

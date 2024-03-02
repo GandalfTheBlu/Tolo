@@ -28,6 +28,7 @@ namespace Tolo
 			ExclamationMarkEqualSign,
 			DoubleLeftArrow,
 			DoubleRightArrow,
+			Tilde,
 			Caret,
 			Ampersand,
 			VerticalBar,

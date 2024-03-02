@@ -120,6 +120,7 @@ namespace Tolo
 		{
 		case Token::Type::ExclamationMark:
 		case Token::Type::Minus:
+		case Token::Type::Tilde:
 			return 5;
 		case Token::Type::Ampersand:
 		case Token::Type::Asterisk:
@@ -464,7 +465,8 @@ namespace Tolo
 		if (token.type == Token::Type::ExclamationMark ||
 			token.type == Token::Type::Minus ||
 			token.type == Token::Type::Ampersand ||
-			token.type == Token::Type::Asterisk)
+			token.type == Token::Type::Asterisk || 
+			token.type == Token::Type::Tilde)
 		{
 			return LUnaryOp();
 		}

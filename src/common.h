@@ -82,12 +82,14 @@ namespace Tolo
 		Bit_8_Xor,//		-					[8-bit] [8-bit]		[8-bit]
 		Bit_8_LeftShift,//	-					[8-bit] [8-bit]		[8-bit]
 		Bit_8_RightShift,//	-					[8-bit] [8-bit]		[8-bit]
+		Bit_8_Invert,//		-					[8-bit]				[8-bit]
 
 		Bit_32_And,//		-					[32-bit] [32-bit]	[32-bit]
 		Bit_32_Or,//		-					[32-bit] [32-bit]	[32-bit]
 		Bit_32_Xor,//		-					[32-bit] [32-bit]	[32-bit]
 		Bit_32_LeftShift,//	-					[32-bit] [32-bit]	[32-bit]
 		Bit_32_RightShift,//-					[32-bit] [32-bit]	[32-bit]
+		Bit_32_Invert,//	-					[32-bit]			[32-bit]
 
 		INVALID
 	};

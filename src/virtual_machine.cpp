@@ -77,12 +77,14 @@ namespace Tolo
 			Op_T_Bit_Xor<Char>,
 			Op_T_Bit_LeftShift<Char>,
 			Op_T_Bit_RightShift<Char>,
+			Op_T_Bit_Invert<Char>,
 
 			Op_T_Bit_And<Int>,
 			Op_T_Bit_Or<Int>,
 			Op_T_Bit_Xor<Int>,
 			Op_T_Bit_LeftShift<Int>,
-			Op_T_Bit_RightShift<Int>
+			Op_T_Bit_RightShift<Int>,
+			Op_T_Bit_Invert<Int>
 		};
 
 #ifdef DEBUG_VM
@@ -157,12 +159,14 @@ namespace Tolo
 			"Bit_8_Xor",
 			"Bit_8_LeftShift",
 			"Bit_8_RightShift",
+			"Bit_8_Invert",
 
 			"Bit_32_And",
 			"Bit_32_Or",
 			"Bit_32_Xor",
 			"Bit_32_LeftShift",
-			"Bit_32_RightShift"
+			"Bit_32_RightShift",
+			"Bit_32_Invert"
 		};
 #endif
 

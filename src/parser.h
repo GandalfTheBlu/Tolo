@@ -49,7 +49,6 @@ namespace Tolo
 		StructInfo();
 	};
 
-
 	struct Parser
 	{
 		typedef std::vector<OpCode> DataTypeOperators;
@@ -143,6 +142,8 @@ namespace Tolo
 		SharedExp PNegate(const SharedNode& lexNode);
 
 		SharedExp PNot(const SharedNode& lexNode);
+
+		SharedExp PBitInvert(const SharedNode& lexNode);
 
 		SharedExp PFunctionCall(const SharedNode& lexNode);
 

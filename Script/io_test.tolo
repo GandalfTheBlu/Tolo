@@ -1,0 +1,7 @@
+#include <io>
+
+void main()
+{
+    int inv = ~0;
+    print_int(inv);
+}
