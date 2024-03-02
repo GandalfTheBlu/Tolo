@@ -46,6 +46,8 @@ namespace Tolo
 
 		SharedNode LOperatorDefinition();
 
+		SharedNode LMemberFunctionDefinition();
+
 		// statements
 		SharedNode LStatement();
 

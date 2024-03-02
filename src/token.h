@@ -12,6 +12,7 @@ namespace Tolo
 			StartCurly,
 			EndCurly,
 			Semicolon,
+			DoubleColon,
 			Comma,
 			Dot,
 			Plus,

@@ -31,12 +31,14 @@ namespace Tolo
 			Parenthesis,
 			FunctionCall,
 			MemberVariableAccess,
+			MemberFunctionCall,
 
 			// definitions
 			StructDefinition,
 			VariableDefinition,
 			FunctionDefinition,
-			OperatorDefinition
+			OperatorDefinition,
+			MemberFunctionDefinition
 		};
 
 		Type type;

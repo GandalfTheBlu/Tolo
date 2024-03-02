@@ -1,0 +1,20 @@
+#include <io>
+
+struct Obj
+{
+    int a;
+    int b;
+};
+
+int Obj::sum()
+{
+    return *a + *b;
+}
+
+void main()
+{
+    Obj o = Obj(11, 33);
+    int sum = o.sum();
+
+    print_int(sum);
+}

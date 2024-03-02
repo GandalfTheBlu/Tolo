@@ -52,8 +52,8 @@ namespace Tolo
 	struct Parser
 	{
 		typedef std::vector<OpCode> DataTypeOperators;
-		typedef std::map<std::string, FunctionInfo> DataTypeOperatorFunctions;
-		typedef std::map<std::string, NativeFunctionInfo> DataTypeNativeOpFuncs;
+		typedef std::map<std::string, FunctionInfo> DataTypeFunctions;
+		typedef std::map<std::string, NativeFunctionInfo> DataTypeNativeFunctions;
 
 		std::map<std::string, Int> typeNameToSize;
 		std::map<std::string, FunctionInfo> userFunctions;
@@ -61,9 +61,10 @@ namespace Tolo
 		FunctionInfo* p_currentFunction;
 		std::string currentExpectedReturnType;
 		std::map<std::string, DataTypeOperators> typeNameOperators;
-		std::map<std::string, DataTypeOperatorFunctions> typeNameToOpFuncs;
-		std::map<std::string, DataTypeNativeOpFuncs> typeNameToNativeOpFuncs;
+		std::map<std::string, DataTypeFunctions> typeNameToOpFuncs;
+		std::map<std::string, DataTypeNativeFunctions> typeNameToNativeOpFuncs;
 		std::map<std::string, StructInfo> typeNameToStructInfo;
+		std::map<std::string, DataTypeFunctions> typeNameToMemberFunctions;
 
 		using SharedExp = std::shared_ptr<Expression>;
 		using SharedNode = std::shared_ptr<LexNode>;
@@ -86,6 +87,8 @@ namespace Tolo
 		SharedExp PFunctionDefinition(const SharedNode& lexNode);
 
 		SharedExp POperatorDefinition(const SharedNode& lexNode);
+
+		SharedExp PMemberFunctionDefinition(const SharedNode& lexNode);
 
 		// statements
 		SharedExp PStatement(const SharedNode& lexNode);
@@ -152,5 +155,7 @@ namespace Tolo
 		SharedExp PNativeFunctionCall(const SharedNode& lexNode);
 
 		SharedExp PStructInitialization(const SharedNode& lexNode);
+
+		SharedExp PMemberFunctionCall(const SharedNode& lexNode);
 	};
 }

@@ -4,7 +4,7 @@ using namespace Tolo;
 
 int main()
 {
-	ProgramHandle program("Script/io_test.tolo", 1024, 128);
+	ProgramHandle program("Script/method_test.tolo", 1024, 128);
 
 	program.Compile();
 	program.Execute<void>();

@@ -211,9 +211,11 @@ namespace Tolo
 			return PStructDefinition(lexNode);
 		case LexNode::Type::FunctionDefinition:
 			return PFunctionDefinition(lexNode);
+		case LexNode::Type::OperatorDefinition:
+			return POperatorDefinition(lexNode);
 		}
 
-		return POperatorDefinition(lexNode);
+		return PMemberFunctionDefinition(lexNode);
 	}
 
 	Parser::SharedExp Parser::PStructDefinition(const SharedNode& lexNode) 
@@ -451,7 +453,7 @@ namespace Tolo
 		if (opName == "-" && funcInfo.parameterNames.size() == 1)
 			opName = "negate";
 
-		DataTypeOperatorFunctions& opFunctions = typeNameToOpFuncs[operandTypeName];
+		DataTypeFunctions& opFunctions = typeNameToOpFuncs[operandTypeName];
 		Affirm(
 			opFunctions.count(opName) == 0 &&
 			(typeNameToNativeOpFuncs.count(operandTypeName) == 0 || 
@@ -476,6 +478,135 @@ namespace Tolo
 			"operator function at line %i does not return a value",
 			lexNode->token.line
 		);
+
+		return defFuncExp;
+	}
+
+	Parser::SharedExp Parser::PMemberFunctionDefinition(const SharedNode& lexNode)
+	{
+		const std::string& returnTypeName = lexNode->token.text;
+		const std::string& structTypeName = lexNode->children[0]->token.text;
+		const std::string& funcName = lexNode->children[1]->token.text;
+
+		Affirm(
+			typeNameToSize.count(returnTypeName) != 0,
+			"undefined type '%s' at line %i",
+			returnTypeName.c_str(), lexNode->token.line
+		);
+
+		Affirm(
+			typeNameToStructInfo.count(structTypeName) != 0,
+			"undefined struct type '%s' at line %i",
+			structTypeName.c_str(), lexNode->token.line
+		);
+
+		DataTypeFunctions& structFuncs = typeNameToMemberFunctions[structTypeName];
+
+		Affirm(
+			structFuncs.count(funcName) == 0,
+			"name '%s' at line %i is already a defined member function",
+			funcName.c_str(), lexNode->children[1]->token.line
+		);
+
+		auto defFuncExp = std::make_shared<EDefineFunction>(structTypeName + "::" + funcName);
+		FunctionInfo& funcInfo = structFuncs[funcName];
+		funcInfo.returnTypeName = returnTypeName;
+		Int nextVarOffset = 0;
+
+		// flatten content nodes into a single array to find all variable definitions
+		std::vector<SharedNode> bodyContent;
+		FlattenNode(lexNode->children.back(), bodyContent);
+
+		// find all local variable definitions
+		for (auto statNode : bodyContent)
+		{
+			if (statNode->type != LexNode::Type::BinaryOperation ||
+				statNode->children[0]->type != LexNode::Type::VariableDefinition)
+			{
+				continue;
+			}
+
+			const SharedNode& varDefNode = statNode->children[0];
+
+			const std::string& varTypeName = varDefNode->token.text;
+			const std::string& varName = varDefNode->children[0]->token.text;
+
+			Affirm(
+				typeNameToSize.count(varTypeName) != 0,
+				"undefined type '%s' at line %i",
+				varTypeName.c_str(), statNode->token.line
+			);
+
+			Affirm(
+				funcInfo.varNameToVarInfo.count(varName) == 0,
+				"variable '%s' at line %i is already defined",
+				varName.c_str(), varDefNode->token.line
+			);
+
+			Int varSize = typeNameToSize[varTypeName];
+			nextVarOffset += varSize;
+			funcInfo.localsSize += varSize;
+			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
+		}
+
+		// add struct members as pointer variables (hidden parameters)
+		const StructInfo& structInfo = typeNameToStructInfo.at(structTypeName);
+		for (const std::string& membName : structInfo.memberNames)
+		{
+			Int varSize = sizeof(Ptr);
+			nextVarOffset += varSize;
+			funcInfo.parametersSize += varSize;
+			funcInfo.varNameToVarInfo[membName] = { "ptr", nextVarOffset };
+		}
+
+		// find all parameters
+		for (size_t i = 2; i + 2 < lexNode->children.size(); i += 2)
+		{
+			const std::string& varTypeName = lexNode->children[i]->token.text;
+			const std::string& varName = lexNode->children[i + 1]->token.text;
+
+			Affirm(
+				typeNameToSize.count(varTypeName) != 0,
+				"undefined type '%s' at line %i",
+				varTypeName.c_str(), lexNode->children[i]->token.line
+			);
+
+			Affirm(
+				funcInfo.varNameToVarInfo.count(varName) == 0,
+				"variable '%s' at line %i is already defined",
+				varName.c_str(), lexNode->children[i + 1]->token.line
+			);
+
+			Int varSize = typeNameToSize[varTypeName];
+			nextVarOffset += varSize;
+			funcInfo.parametersSize += varSize;
+			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
+			funcInfo.parameterNames.push_back(varName);
+		}
+
+		p_currentFunction = &funcInfo;
+
+		// parse body content
+		defFuncExp->body.push_back(PStatement(lexNode->children.back()));
+
+		p_currentFunction = nullptr;
+
+		// check for final return expression
+		if (funcInfo.returnTypeName == "void" &&
+			(defFuncExp->body.size() == 0 || bodyContent.back()->type != LexNode::Type::Return))
+		{
+			// add a return statement if function has void return type and no return statement exists at end
+			// of function
+			defFuncExp->body.push_back(std::make_shared<EReturn>(0));
+		}
+		else
+		{
+			Affirm(
+				defFuncExp->body.size() > 0 && bodyContent.back()->type == LexNode::Type::Return,
+				"missing 'return' in function '%s' at line %i",
+				funcName.c_str(), lexNode->token.line
+			);
+		}
 
 		return defFuncExp;
 	}
@@ -775,6 +906,8 @@ namespace Tolo
 			return PUnaryOp(lexNode);
 		case LexNode::Type::FunctionCall:
 			return PFunctionCall(lexNode);
+		case LexNode::Type::MemberFunctionCall:
+			return PMemberFunctionCall(lexNode);
 		}
 
 		Affirm(
@@ -899,7 +1032,7 @@ namespace Tolo
 		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 &&
 			typeNameToOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
 		{
-			const DataTypeOperatorFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
+			const DataTypeFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
 			const std::string& opName = lexNode->token.text;
 
 			const FunctionInfo& funcInfo = opFunctions.at(opName);
@@ -919,7 +1052,7 @@ namespace Tolo
 		if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 &&
 			typeNameToNativeOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
 		{
-			const DataTypeNativeOpFuncs& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
+			const DataTypeNativeFunctions& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
 			const std::string& opName = lexNode->token.text;
 
 			const NativeFunctionInfo& funcInfo = opFunctions.at(opName);
@@ -995,7 +1128,7 @@ namespace Tolo
 		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 &&
 			typeNameToOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
 		{
-			const DataTypeOperatorFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
+			const DataTypeFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
 			const std::string& opName = lexNode->token.text;
 
 			const FunctionInfo& funcInfo = opFunctions.at(opName);
@@ -1012,7 +1145,7 @@ namespace Tolo
 		if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 &&
 			typeNameToNativeOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
 		{
-			const DataTypeNativeOpFuncs& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
+			const DataTypeNativeFunctions& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
 			const std::string& opName = lexNode->token.text;
 
 			const NativeFunctionInfo& funcInfo = opFunctions.at(opName);
@@ -1126,7 +1259,7 @@ namespace Tolo
 		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 &&
 			typeNameToOpFuncs[currentExpectedReturnType].count(opName) != 0)
 		{
-			const DataTypeOperatorFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
+			const DataTypeFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
 
 			const FunctionInfo& funcInfo = opFunctions.at(opName);
 
@@ -1139,7 +1272,7 @@ namespace Tolo
 		if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 &&
 			typeNameToNativeOpFuncs[currentExpectedReturnType].count(opName) != 0)
 		{
-			const DataTypeNativeOpFuncs& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
+			const DataTypeNativeFunctions& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
 
 			const NativeFunctionInfo& funcInfo = opFunctions.at(opName);
 
@@ -1302,9 +1435,9 @@ namespace Tolo
 		std::string oldRetType = currentExpectedReturnType;
 		size_t argIndex = 0;
 
-		for (const std::string& propName : structInfo.memberNames)
+		for (const std::string& membName : structInfo.memberNames)
 		{
-			currentExpectedReturnType = structInfo.memberNameToVarInfo.at(propName).typeName;
+			currentExpectedReturnType = structInfo.memberNameToVarInfo.at(membName).typeName;
 			loadMultiExp->loaders.push_back(PReadableValue(lexNode->children[argIndex]));
 			argIndex++;
 		}
@@ -1312,5 +1445,99 @@ namespace Tolo
 		currentExpectedReturnType = oldRetType;
 
 		return loadMultiExp;
+	}
+
+	Parser::SharedExp Parser::PMemberFunctionCall(const SharedNode& lexNode)
+	{
+		const std::string& varName = lexNode->token.text;
+
+		Affirm(
+			p_currentFunction->varNameToVarInfo.count(varName) != 0,
+			"undefined variable '%s' at line %i",
+			varName.c_str(), lexNode->token.line
+		);
+
+		VariableInfo currentVarInfo = p_currentFunction->varNameToVarInfo[varName];
+		Int memberOffset = currentVarInfo.offset;
+
+		// traverse member access chain
+		for (size_t i=0; i+1<lexNode->children.size(); i++)
+		{
+			const SharedNode& membNode = lexNode->children[i];
+			const std::string& memberName = membNode->token.text;
+
+			Affirm(
+				typeNameToStructInfo.count(currentVarInfo.typeName) != 0,
+				"cannot get property '%s' at line %i because preceeding expression is not a struct",
+				memberName.c_str(), membNode->token.line
+			);
+
+			StructInfo& structInfo = typeNameToStructInfo[currentVarInfo.typeName];
+
+			Affirm(structInfo.memberNameToVarInfo.count(memberName) != 0,
+				"cannot access property '%s' at line %i because the struct '%s' does not contain it",
+				memberName.c_str(), membNode->token.line, currentVarInfo.typeName.c_str()
+			);
+
+			const VariableInfo& memberInfo = structInfo.memberNameToVarInfo[memberName];
+			memberOffset -= memberInfo.offset;
+
+			currentVarInfo = memberInfo;
+		}
+
+		// get the member function info
+		const std::string& structTypeName = currentVarInfo.typeName;
+		const SharedNode& funcNode = lexNode->children.back();
+		const std::string& funcName = funcNode->token.text;
+
+		Affirm(
+			typeNameToStructInfo.count(structTypeName) != 0,
+			"'%s' at line %i is not a struct",
+			structTypeName.c_str(), funcNode->token.line
+		);
+
+		Affirm(
+			typeNameToMemberFunctions.count(structTypeName) != 0 &&
+			typeNameToMemberFunctions.at(structTypeName).count(funcName) != 0,
+			"'%s' at line %i is not a member function of struct '%s'",
+			funcName.c_str(), funcNode->token.line, structTypeName.c_str()
+		);
+
+		const StructInfo& structInfo = typeNameToStructInfo.at(structTypeName);
+		const DataTypeFunctions& structFuncs = typeNameToMemberFunctions.at(structTypeName);
+		const FunctionInfo& funcInfo = structFuncs.at(funcName);
+
+		AffirmCurrentType(funcInfo.returnTypeName, lexNode->token.line);
+
+		auto membCallExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize, funcInfo.returnTypeName);
+		membCallExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(structTypeName + "::" + funcName);
+
+		// add struct members as pointer variables
+		for (const std::string& membName : structInfo.memberNames)
+		{
+			Int offset = memberOffset - structInfo.memberNameToVarInfo.at(membName).offset;
+			membCallExp->argumentLoads.push_back(std::make_shared<ELoadVariablePtr>(offset));
+		}
+
+		Affirm(
+			funcInfo.parameterNames.size() == funcNode->children.size(),
+			"argument count in function call att line %i does not match parameter count",
+			funcNode->token.line
+		);
+
+		// add parameters
+		std::string oldRetType = currentExpectedReturnType;
+
+		for (size_t i = 0; i < funcInfo.parameterNames.size(); i++)
+		{
+			const VariableInfo& varInfo = funcInfo.varNameToVarInfo.at(funcInfo.parameterNames[i]);
+			currentExpectedReturnType = varInfo.typeName;
+
+			membCallExp->argumentLoads.push_back(PReadableValue(funcNode->children[i]));
+		}
+
+		currentExpectedReturnType = oldRetType;
+
+		return membCallExp;
 	}
 }

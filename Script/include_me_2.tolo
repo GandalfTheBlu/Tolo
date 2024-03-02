@@ -1,5 +1,0 @@
-
-void myFun(ptr text)
-{
-    print(text);
-}

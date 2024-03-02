@@ -159,6 +159,12 @@ namespace Tolo
 		if (nameToken.text == "operator")
 			return LOperatorDefinition();
 		
+		if (tokenIndex + 2 < p_tokens->size() &&
+			p_tokens->at(tokenIndex + 2).type == Token::Type::DoubleColon)
+		{
+			return LMemberFunctionDefinition();
+		}
+
 		return LFunctionDefinition();
 	}
 
@@ -289,6 +295,47 @@ namespace Tolo
 		opDefNode->children.push_back(LStatement());
 
 		return opDefNode;
+	}
+
+	Lexer::SharedNode Lexer::LMemberFunctionDefinition()
+	{
+		const Token& retTypeToken = CurrentToken(Token::Type::Name);
+		const Token& structTypeToken = NextToken(Token::Type::Name);
+		ConsumeNextToken(Token::Type::DoubleColon);
+		const Token& funcNameToken = CurrentToken(Token::Type::Name);
+		ConsumeNextToken(Token::Type::StartPar);
+
+		auto membFuncDefNode = std::make_shared<LexNode>(LexNode::Type::MemberFunctionDefinition, retTypeToken);
+		membFuncDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, structTypeToken));
+		membFuncDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, funcNameToken));
+
+		if (CurrentToken().type == Token::Type::EndPar)
+		{
+			tokenIndex++;
+		}
+		else
+		{
+			while (true)
+			{
+				const Token& argTypeToken = CurrentToken(Token::Type::Name);
+				const Token& argNameToken = NextToken(Token::Type::Name);
+
+				membFuncDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, argTypeToken));
+				membFuncDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, argNameToken));
+
+				if (TryCompareNextToken(Token::Type::EndPar))
+				{
+					tokenIndex++;
+					break;
+				}
+
+				ConsumeNextToken(Token::Type::Comma);
+			}
+		}
+
+		membFuncDefNode->children.push_back(LStatement());
+
+		return membFuncDefNode;
 	}
 
 
@@ -539,8 +586,17 @@ namespace Tolo
 				break;
 			
 			const Token& nameToken = NextToken(Token::Type::Name);
-			tokenIndex++;
+
+			// handle member function call
+			if (TryCompareNextToken(Token::Type::StartPar))
+			{
+				membAccessNode->type = LexNode::Type::MemberFunctionCall;
+				membAccessNode->children.push_back(LFunctionCall());
+				break;
+			}
+
 			membAccessNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, nameToken));
+			tokenIndex++;
 		}
 
 		return membAccessNode;

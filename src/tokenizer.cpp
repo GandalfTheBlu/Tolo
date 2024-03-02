@@ -31,6 +31,7 @@ namespace Tolo
 
 		static std::map<std::string, Token::Type> doubleToType
 		{
+			{"::", Token::Type::DoubleColon},
 			{"<=", Token::Type::LeftArrowEqualSign},
 			{">=", Token::Type::RightArrowEqualSign},
 			{"==", Token::Type::DoubleEqualSign},
