@@ -218,7 +218,7 @@ namespace Tolo
 
 				if (TryCompareNextToken(Token::Type::EndPar))
 				{
-					tokenIndex++;
+					tokenIndex += 2;
 					break;
 				}
 
@@ -438,7 +438,7 @@ namespace Tolo
 		auto returnNode = std::make_shared<LexNode>(LexNode::Type::Return, CurrentToken());
 		tokenIndex++;
 
-		auto exprNode = LExpression(0);
+		returnNode->children.push_back(LExpression(0));
 		ConsumeCurrentToken(Token::Type::Semicolon);
 
 		return returnNode;

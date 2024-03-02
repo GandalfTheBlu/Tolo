@@ -1,7 +1,35 @@
 #include <io>
+#include <memory>
+
+struct string
+{
+    ptr buf;
+    int bufSize;
+};
+
+string new_string(int bufSize)
+{
+    ptr buf = malloc(bufSize);
+    memset(buf, '\0', bufSize);
+    return string(buf, bufSize);
+}
+
+void delete_string(string str)
+{
+    free(str.buf);
+}
 
 void main()
 {
-    int inv = ~0;
-    print_int(inv);
+    string filename = new_string(32);
+
+    print_str("file you want to print: ");
+    input_str(filename.buf, filename.bufSize - 1);
+
+    string text = new_string(128);
+    read_file_txt(filename.buf, text.buf, text.bufSize - 1);
+    print_str(text.buf);
+
+    delete_string(filename);
+    delete_string(text);
 }

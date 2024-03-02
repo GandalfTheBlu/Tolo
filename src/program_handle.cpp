@@ -218,7 +218,7 @@ namespace Tolo
 		typeNameToSize[_struct.typeName] = propertyOffset;
 	}
 
-	void ProgramHandle::Compile(std::string& outCode)
+	void ProgramHandle::Compile()
 	{
 		std::string rawCode;
 		ReadTextFile(codePath, rawCode);
@@ -227,7 +227,8 @@ namespace Tolo
 		for (auto pair : standardTookitAdders)
 			standardIncludeFlags[pair.first] = false;
 
-		Preprocess(rawCode, outCode, standardIncludeFlags);
+		std::string code;
+		Preprocess(rawCode, code, standardIncludeFlags);
 
 		for (auto pair : standardIncludeFlags)
 		{
@@ -236,7 +237,7 @@ namespace Tolo
 		}
 
 		std::vector<Token> tokens;
-		Tokenize(outCode, tokens);
+		Tokenize(code, tokens);
 
 		Lexer lexer;
 		std::vector<std::shared_ptr<LexNode>> lexNodes;
@@ -292,12 +293,6 @@ namespace Tolo
 		cb.RemoveLabel("__program_end__");
 
 		codeEnd = cb.codeLength;
-	}
-
-	void ProgramHandle::Compile()
-	{
-		std::string outCode;
-		Compile(outCode);
 	}
 
 	const std::string& ProgramHandle::GetCodePath() const

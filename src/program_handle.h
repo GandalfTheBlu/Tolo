@@ -77,8 +77,6 @@ namespace Tolo
 
 		void AddStruct(const StructHandle& _struct);
 
-		void Compile(std::string& outCode);
-
 		void Compile();
 
 		template<typename RETURN_TYPE, typename... ARGUMENTS>
@@ -100,7 +98,7 @@ namespace Tolo
 
 			RunProgram(p_stack, codeStart, codeEnd);
 
-			return *(RETURN_TYPE*)(p_stack + codeEnd);
+			return *reinterpret_cast<RETURN_TYPE*>(p_stack + codeEnd);
 		}
 
 		template<typename RETURN_TYPE, typename... ARGUMENTS>
