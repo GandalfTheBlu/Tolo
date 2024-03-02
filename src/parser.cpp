@@ -1,7 +1,7 @@
 #include "parser.h"
 #include <utility>
 
-#define ANY_VALUE_TYPE "__any__"
+#define ANY_VALUE_TYPE "0any"
 
 namespace Tolo
 {
@@ -39,7 +39,7 @@ namespace Tolo
 	{}
 
 	Parser::Parser() :
-		currentFunction(nullptr)
+		p_currentFunction(nullptr)
 	{
 		typeNameToSize["void"] = 0;
 		typeNameToSize["char"] = sizeof(Char);
@@ -66,8 +66,7 @@ namespace Tolo
 			OpCode::Char_NotEqual,
 			OpCode::And,
 			OpCode::Or,
-			OpCode::Char_Negate,
-			OpCode::Not
+			OpCode::Char_Negate
 		};
 
 		typeNameOperators["int"] =
@@ -89,8 +88,7 @@ namespace Tolo
 			OpCode::Int_NotEqual,
 			OpCode::INVALID,
 			OpCode::INVALID,
-			OpCode::Int_Negate,
-			OpCode::INVALID
+			OpCode::Int_Negate
 		};
 
 		typeNameOperators["float"] =
@@ -112,8 +110,7 @@ namespace Tolo
 			OpCode::Float_NotEqual,
 			OpCode::INVALID,
 			OpCode::INVALID,
-			OpCode::Float_Negate,
-			OpCode::INVALID
+			OpCode::Float_Negate
 		};
 
 		typeNameOperators["ptr"] =
@@ -135,31 +132,43 @@ namespace Tolo
 			OpCode::Ptr_NotEqual,
 			OpCode::INVALID,
 			OpCode::INVALID,
-			OpCode::INVALID,
 			OpCode::INVALID
 		};
 
 		currentExpectedReturnType = "void";
 	}
 
-	bool Parser::HasBody(LexNode* p_lexNode, Int& outBodyStartIndex, Int& outBodyEndIndex)
+	void Parser::AffirmCurrentType(const std::string& typeName, int line, bool canBeAnyValueType)
 	{
-		switch (p_lexNode->type)
+		if (canBeAnyValueType && typeName != "void")
+			return;
+
+		Affirm(
+			currentExpectedReturnType == typeName,
+			"expected expression of type '%s' but got '%s' at line %i",
+			currentExpectedReturnType.c_str(), typeName.c_str(), line
+		);
+	}
+
+	bool Parser::HasBody(const SharedNode& lexNode, size_t& outContentStartIndex, size_t& outContentCount)
+	{
+		switch (lexNode->type)
 		{
-		case LexNode::Type::While:
-		case LexNode::Type::IfSingle:
-		case LexNode::Type::ElseIfSingle:
-			outBodyStartIndex = 1;
-			outBodyEndIndex = (Int)p_lexNode->children.size() - 1;
-			break;
-		case LexNode::Type::IfChain:
-		case LexNode::Type::ElseIfChain:
-			outBodyStartIndex = 1;
-			outBodyEndIndex = (Int)p_lexNode->children.size() - 2;
+		case LexNode::Type::Scope:
+			outContentStartIndex = 0;
+			outContentCount = lexNode->children.size();
 			break;
 		case LexNode::Type::Else:
-			outBodyStartIndex = 0;
-			outBodyStartIndex = 0;
+			outContentStartIndex = 0;
+			outContentCount = 1;
+			break;
+		case LexNode::Type::While:
+		case LexNode::Type::IfSingle:
+		case LexNode::Type::IfChain:
+		case LexNode::Type::ElseIfSingle:
+		case LexNode::Type::ElseIfChain:
+			outContentStartIndex = 1;
+			outContentCount = 1;
 			break;
 		default:
 			return false;
@@ -168,335 +177,702 @@ namespace Tolo
 		return true;
 	}
 
-	void Parser::FlattenNode(LexNode* p_lexNode, std::vector<LexNode*>& outNodes)
+	void Parser::FlattenNode(const SharedNode& lexNode, std::vector<SharedNode>& outNodes)
 	{
-		Int bodyStartIndex = 0;
-		Int bodyEndIndex = 0;
-		if (!HasBody(p_lexNode, bodyStartIndex, bodyEndIndex))
+		size_t contentStart = 0;
+		size_t contentCount = 0;
+
+		if (!HasBody(lexNode, contentStart, contentCount))
 		{
-			outNodes.push_back(p_lexNode);
+			outNodes.push_back(lexNode);
 			return;
 		}
-
-		for (Int i = bodyStartIndex; i <= bodyEndIndex; i++)
-		{
-			LexNode* p_bodyNode = p_lexNode->children[i];
-			FlattenNode(p_bodyNode, outNodes);
-		}
+		
+		for(size_t i=0; i<contentCount; i++)
+			FlattenNode(lexNode->children[contentStart + i], outNodes);
+	}
+	
+	void Parser::Parse(const std::vector<SharedNode>& lexNodes, std::vector<SharedExp>& expressions)
+	{
+		for (const SharedNode& node : lexNodes)
+			expressions.push_back(PGlobalStructure(node));
 	}
 
-	Expression* Parser::ParseLiteralConstant(LexNode* p_lexNode)
+	// global structures
+	Parser::SharedExp Parser::PGlobalStructure(const SharedNode& lexNode) 
 	{
-		if (p_lexNode->token.type == Token::Type::ConstChar)
+		switch (lexNode->type)
 		{
-			Char value = p_lexNode->token.text[0];
-
-			Affirm(
-				currentExpectedReturnType == "char" || currentExpectedReturnType == ANY_VALUE_TYPE,
-				"expected an expression of type '%s' but got 'char' (%c) at line %i",
-				currentExpectedReturnType.c_str(), value, p_lexNode->token.line
-			);
-
-			return new ELoadConstChar(value);
+		case LexNode::Type::StructDefinition:
+			return PStructDefinition(lexNode);
+		case LexNode::Type::FunctionDefinition:
+			return PFunctionDefinition(lexNode);
 		}
-		if (p_lexNode->token.type == Token::Type::ConstInt)
-		{
-			Int value = std::stoi(p_lexNode->token.text);
 
-			Affirm(
-				currentExpectedReturnType == "int" || currentExpectedReturnType == ANY_VALUE_TYPE,
-				"expected an expression of type '%s' but got 'int' (%i) at line %i",
-				currentExpectedReturnType.c_str(), value, p_lexNode->token.line
-			);
-
-			return new ELoadConstInt(value);
-		}
-		if (p_lexNode->token.type == Token::Type::ConstFloat)
-		{
-			Float value = std::stof(p_lexNode->token.text);
-
-			Affirm(
-				currentExpectedReturnType == "float" || currentExpectedReturnType == ANY_VALUE_TYPE,
-				"expected an expression of type '%s' but got 'float' (%f) at line %i",
-				currentExpectedReturnType.c_str(), value, p_lexNode->token.line
-			);
-
-			return new ELoadConstFloat(value);
-		}
-		if (p_lexNode->token.type == Token::Type::ConstString)
-		{
-			const std::string& value = p_lexNode->token.text;
-
-			Affirm(
-				currentExpectedReturnType == "ptr" || currentExpectedReturnType == ANY_VALUE_TYPE,
-				"expected an expression of type '%s' but got 'ptr' (const string: \"%s\") at line %i",
-				currentExpectedReturnType.c_str(), value.c_str(), p_lexNode->token.line
-			);
-
-			return new ELoadConstString(value);
-		}
+		return POperatorDefinition(lexNode);
 	}
 
-	Expression* Parser::ParseVariableLoad(LexNode* p_lexNode)
+	Parser::SharedExp Parser::PStructDefinition(const SharedNode& lexNode) 
 	{
-		const std::string& varName = p_lexNode->token.text;
+		const std::string& structName = lexNode->token.text;
 
 		Affirm(
-			currentFunction->varNameToVarInfo.count(varName) != 0,
-			"undefined name '%s' at line %i",
-			varName.c_str(), p_lexNode->token.line
+			typeNameToSize.contains(structName) == 0,
+			"type name '%s' at line %i is already defined",
+			structName.c_str(), lexNode->token.line
 		);
 
-		const VariableInfo& info = currentFunction->varNameToVarInfo[varName];
+		StructInfo& structInfo = typeNameToStructInfo[structName];
 
-		Affirm(
-			info.typeName == currentExpectedReturnType || currentExpectedReturnType == ANY_VALUE_TYPE,
-			"expected '%s' to be of type '%s' at line %i",
-			varName.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
-		);
+		Int propertyOffset = 0;
+		for (size_t i = 0; i + 1 < lexNode->children.size(); i += 2)
+		{
+			const std::string& membTypeName = lexNode->children[i]->token.text;
+			const std::string& membName = lexNode->children[i + 1]->token.text;
 
-		return new ELoadVariable(info.offset, typeNameToSize[info.typeName], info.typeName);
+			Affirm(
+				membTypeName != structName,
+				"struct cannot contain itself, line %i",
+				lexNode->children[i]->token.line
+			);
+
+			Affirm(
+				typeNameToSize.count(membTypeName) != 0,
+				"type name '%s' at line %i is not defined",
+				membTypeName.c_str(), lexNode->children[i]->token.line
+			);
+
+			Affirm(
+				structInfo.memberNameToVarInfo.count(membName) == 0,
+				"member '%s' at line %i is already defined in struct '%s'",
+				membName.c_str(), lexNode->children[i + 1]->token.line, structName.c_str()
+			);
+
+			structInfo.memberNameToVarInfo[membName] = VariableInfo(membTypeName, propertyOffset);
+			structInfo.memberNames.push_back(membName);
+			propertyOffset += typeNameToSize[membTypeName];
+		}
+
+		typeNameToSize[structName] = propertyOffset;
+
+		return std::make_shared<EEmpty>();
 	}
 
-	Expression* Parser::ParseVariableWrite(LexNode* p_lexNode)
+	Parser::SharedExp Parser::PFunctionDefinition(const SharedNode& lexNode) 
 	{
-		const std::string& varName = p_lexNode->token.text;
+		const std::string& returnTypeName = lexNode->token.text;
 
 		Affirm(
-			currentFunction->varNameToVarInfo.count(varName) != 0,
-			"undefined name '%s' at line %i",
-			varName.c_str(), p_lexNode->token.line
+			typeNameToSize.count(returnTypeName) != 0,
+			"undefined type '%s' at line %i",
+			returnTypeName.c_str(), lexNode->token.line
 		);
 
-		const VariableInfo& info = currentFunction->varNameToVarInfo[varName];
+		const std::string& funcName = lexNode->children[0]->token.text;
 
-		EWriteBytesTo* p_write = new EWriteBytesTo();
-		p_write->p_bytesSizeLoad = new ELoadConstInt(typeNameToSize[info.typeName]);
-		p_write->p_writePtrLoad = new ELoadVariablePtr(info.offset);
+		Affirm(
+			userFunctions.count(funcName) == 0 && nativeFunctions.count(funcName) == 0,
+			"name '%s' at line %i is already a defined function",
+			funcName.c_str(), lexNode->children[0]->token.line
+		);
 
-		currentExpectedReturnType = info.typeName;
+		auto defFuncExp = std::make_shared<EDefineFunction>(funcName);
+		FunctionInfo& funcInfo = userFunctions[funcName];
+		funcInfo.returnTypeName = returnTypeName;
+		Int nextVarOffset = 0;
 
-		p_write->p_dataLoad = ParseNextExpression(p_lexNode->children[0]);
+		// flatten content nodes into a single array to find all variable definitions
+		std::vector<SharedNode> bodyContent;
+		FlattenNode(lexNode->children.back(), bodyContent);
 
+		// find all local variable definitions
+		for (auto statNode : bodyContent)
+		{
+			if (statNode->type != LexNode::Type::BinaryOperation ||
+				statNode->children[0]->type != LexNode::Type::VariableDefinition)
+			{
+				continue;
+			}
+
+			const SharedNode& varDefNode = statNode->children[0];
+
+			const std::string& varTypeName = varDefNode->token.text;
+			const std::string& varName = varDefNode->children[0]->token.text;
+
+			Affirm(
+				typeNameToSize.count(varTypeName) != 0,
+				"undefined type '%s' at line %i",
+				varTypeName.c_str(), statNode->token.line
+			);
+
+			Affirm(
+				funcInfo.varNameToVarInfo.count(varName) == 0,
+				"variable '%s' at line %i is already defined",
+				varName.c_str(), varDefNode->token.line
+			);
+
+			Int varSize = typeNameToSize[varTypeName];
+			nextVarOffset += varSize;
+			funcInfo.localsSize += varSize;
+			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
+		}
+
+		// find all parameters
+		for (size_t i = 1; i + 2 < lexNode->children.size(); i += 2)
+		{
+			const std::string& varTypeName = lexNode->children[i]->token.text;
+			const std::string& varName = lexNode->children[i + 1]->token.text;
+
+			Affirm(
+				typeNameToSize.count(varTypeName) != 0,
+				"undefined type '%s' at line %i",
+				varTypeName.c_str(), lexNode->children[i]->token.line
+			);
+
+			Affirm(
+				funcInfo.varNameToVarInfo.count(varName) == 0,
+				"variable '%s' at line %i is already defined",
+				varName.c_str(), lexNode->children[i + 1]->token.line
+			);
+
+			Int varSize = typeNameToSize[varTypeName];
+			nextVarOffset += varSize;
+			funcInfo.parametersSize += varSize;
+			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
+			funcInfo.parameterNames.push_back(varName);
+		}
+
+		p_currentFunction = &funcInfo;
+
+		// parse body content
+		defFuncExp->body.push_back(PStatement(lexNode->children.back()));
+
+		p_currentFunction = nullptr;
+
+		// check for final return expression
+		if (funcInfo.returnTypeName == "void" &&
+			(defFuncExp->body.size() == 0 || bodyContent.back()->type != LexNode::Type::Return))
+		{
+			// add a return statement if function has void return type and no return statement exists at end
+			// of function
+			defFuncExp->body.push_back(std::make_shared<EReturn>(0));
+		}
+		else
+		{
+			Affirm(
+				defFuncExp->body.size() > 0 && bodyContent.back()->type == LexNode::Type::Return,
+				"missing 'return' in function '%s' at line %i",
+				funcName.c_str(), lexNode->token.line
+			);
+		}
+
+		return defFuncExp;
+	}
+
+	Parser::SharedExp Parser::POperatorDefinition(const SharedNode& lexNode) 
+	{
+		const std::string& returnTypeName = lexNode->token.text;
+		Affirm(
+			typeNameToSize.count(returnTypeName) != 0,
+			"undefined type '%s' at line %i",
+			returnTypeName.c_str(), lexNode->token.line
+		);
+
+		std::string opName = lexNode->children[0]->token.text;
+
+		FunctionInfo funcInfo;
+		funcInfo.returnTypeName = returnTypeName;
+		Int nextVarOffset = 0;
+
+		// flatten content nodes into a single array to find all variable definitions
+		std::vector<SharedNode> bodyContent;
+		FlattenNode(lexNode->children.back(), bodyContent);
+
+		// find all local variable definitions
+		for (auto statNode : bodyContent)
+		{
+			if (statNode->type != LexNode::Type::BinaryOperation ||
+				statNode->children[0]->type != LexNode::Type::VariableDefinition)
+			{
+				continue;
+			}
+
+			const SharedNode& varDefNode = statNode->children[0];
+
+			const std::string& varTypeName = varDefNode->token.text;
+			const std::string& varName = varDefNode->children[0]->token.text;
+
+			Affirm(
+				typeNameToSize.count(varTypeName) != 0,
+				"undefined type '%s' at line %i",
+				varTypeName.c_str(), statNode->token.line
+			);
+
+			Affirm(
+				funcInfo.varNameToVarInfo.count(varName) == 0,
+				"variable '%s' at line %i is already defined",
+				varName.c_str(), varDefNode->token.line
+			);
+
+			Int varSize = typeNameToSize[varTypeName];
+			nextVarOffset += varSize;
+			funcInfo.localsSize += varSize;
+			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
+		}
+
+		// find all parameters and determine operand type from first parameter
+		std::string operandTypeName;
+
+		for (size_t i = 1; i + 2 < lexNode->children.size(); i += 2)
+		{
+			const std::string& varTypeName = lexNode->children[i]->token.text;
+			const std::string& varName = lexNode->children[i + 1]->token.text;
+
+			if (i == 1)
+				operandTypeName = varTypeName;
+
+			Affirm(
+				funcInfo.varNameToVarInfo.count(varName) == 0,
+				"variable '%s' at line %i is already defined",
+				varName.c_str(), lexNode->children[i + 1]->token.line
+			);
+
+			Int varSize = typeNameToSize[varTypeName];
+			nextVarOffset += varSize;
+			funcInfo.parametersSize += varSize;
+			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
+			funcInfo.parameterNames.push_back(varName);
+		}
+
+		if (opName == "-" && funcInfo.parameterNames.size() == 1)
+			opName = "negate";
+
+		DataTypeOperatorFunctions& opFunctions = typeNameToOpFuncs[operandTypeName];
+		Affirm(
+			opFunctions.count(opName) == 0 &&
+			(typeNameToNativeOpFuncs.count(operandTypeName) == 0 || 
+			typeNameToNativeOpFuncs[operandTypeName].count(opName) == 0),
+			"operator '%s' for type '%s' at line %i is already defined",
+			opName.c_str(), operandTypeName.c_str(), lexNode->token.line
+		);
+		opFunctions[opName] = funcInfo;
+
+		auto defFuncExp = std::make_shared<EDefineFunction>(operandTypeName + opName);
+
+		p_currentFunction = &funcInfo;
+
+		// parse body content
+		defFuncExp->body.push_back(PStatement(lexNode->children.back()));
+
+		p_currentFunction = nullptr;
+
+		// check for final return expression
+		Affirm(
+			defFuncExp->body.size() > 0 && bodyContent.back()->type == LexNode::Type::Return,
+			"operator function at line %i does not return a value",
+			lexNode->token.line
+		);
+
+		return defFuncExp;
+	}
+
+	// statements
+	Parser::SharedExp Parser::PStatement(const SharedNode& lexNode) 
+	{
+		switch (lexNode->type)
+		{
+		case LexNode::Type::Break:
+			return std::make_shared<EBreak>();
+		case LexNode::Type::Continue:
+			return std::make_shared<EContinue>();
+		case LexNode::Type::Scope:
+			return PScope(lexNode);
+		case LexNode::Type::Return:
+			return PReturn(lexNode);
+		case LexNode::Type::IfSingle:
+			return PIfSingle(lexNode);
+		case LexNode::Type::IfChain:
+			return PIfChain(lexNode);
+		case LexNode::Type::ElseIfSingle:
+			return PElseIfSingle(lexNode);
+		case LexNode::Type::ElseIfChain:
+			return PElseIfChain(lexNode);
+		case LexNode::Type::Else:
+			return PElse(lexNode);
+		case LexNode::Type::While:
+			return PWhile(lexNode);
+		}
+
+		return PExpression(lexNode);
+	}
+
+	Parser::SharedExp Parser::PScope(const SharedNode& lexNode)
+	{
+		auto scopeExp = std::make_shared<EScope>();
+		
+		for (const SharedNode& statNode : lexNode->children)
+			scopeExp->statements.push_back(PStatement(statNode));
+
+		return scopeExp;
+	}
+
+	Parser::SharedExp Parser::PReturn(const SharedNode& lexNode) 
+	{
+		auto retExp = std::make_shared<EReturn>(typeNameToSize[p_currentFunction->returnTypeName]);
+
+		if (lexNode->children.size() == 0)
+		{
+			Affirm(
+				p_currentFunction->returnTypeName == "void",
+				"missing value expression after 'return' keyword at line %i",
+				lexNode->token.line
+			);
+		}
+		else
+		{
+			currentExpectedReturnType = p_currentFunction->returnTypeName;
+			retExp->retValLoad = PReadableValue(lexNode->children[0]);
+			currentExpectedReturnType = "void";
+		}
+
+		return retExp;
+	}
+
+	Parser::SharedExp Parser::PIfSingle(const SharedNode& lexNode) 
+	{
+		auto ifExp = std::make_shared<EIfSingle>();
+
+		currentExpectedReturnType = "char";
+		ifExp->conditionLoad = PReadableValue(lexNode->children[0]);
 		currentExpectedReturnType = "void";
 
-		return p_write;
+		ifExp->body.push_back(PStatement(lexNode->children[1]));
+
+		return ifExp;
 	}
 
-	Expression* Parser::ParsePropertyLoad(LexNode* p_lexNode)
+	Parser::SharedExp Parser::PIfChain(const SharedNode& lexNode) 
 	{
-		const std::string& varName = p_lexNode->token.text;
+		auto ifChainExp = std::make_shared<EIfChain>();
 
-		Affirm(
-			currentFunction->varNameToVarInfo.count(varName) != 0,
-			"undefined name '%s' at line %i",
-			varName.c_str(), p_lexNode->token.line
-		);
+		currentExpectedReturnType = "char";
+		ifChainExp->conditionLoad = PReadableValue(lexNode->children[0]);
+		currentExpectedReturnType = "void";
 
-		VariableInfo currentVarInfo = currentFunction->varNameToVarInfo[varName];
-		Int propOffset = currentVarInfo.offset;
+		ifChainExp->body.push_back(PStatement(lexNode->children[1]));
+		ifChainExp->chain = PStatement(lexNode->children[2]);
 
-		for (size_t i = 0; i < p_lexNode->children.size(); i++)
+		return ifChainExp;
+	}
+
+	Parser::SharedExp Parser::PElseIfSingle(const SharedNode& lexNode) 
+	{
+		auto elifExp = std::make_shared<EElseIfSingle>();
+
+		currentExpectedReturnType = "char";
+		elifExp->conditionLoad = PReadableValue(lexNode->children[0]);
+		currentExpectedReturnType = "void";
+
+		elifExp->body.push_back(PStatement(lexNode->children[1]));
+
+		return elifExp;
+	}
+
+	Parser::SharedExp Parser::PElseIfChain(const SharedNode& lexNode) 
+	{
+		auto elifExp = std::make_shared<EElseIfChain>();
+
+		currentExpectedReturnType = "char";
+		elifExp->conditionLoad = PReadableValue(lexNode->children[0]);
+		currentExpectedReturnType = "void";
+
+		elifExp->body.push_back(PStatement(lexNode->children[1]));
+		elifExp->chain = PStatement(lexNode->children[2]);
+
+		return elifExp;
+	}
+
+	Parser::SharedExp Parser::PElse(const SharedNode& lexNode) 
+	{
+		auto elseExp = std::make_shared<EElse>();
+
+		elseExp->body.push_back(PStatement(lexNode->children[0]));
+
+		return elseExp;
+	}
+
+	Parser::SharedExp Parser::PWhile(const SharedNode& lexNode) 
+	{
+		auto whileExp = std::make_shared<EWhile>();
+
+		currentExpectedReturnType = "char";
+		whileExp->conditionLoad = PReadableValue(lexNode->children[0]);
+		currentExpectedReturnType = "void";
+
+		whileExp->body.push_back(PStatement(lexNode->children[1]));
+
+		return whileExp;
+	}
+
+	// expressions
+	Parser::SharedExp Parser::PExpression(const SharedNode& lexNode)
+	{
+		if (lexNode->type == LexNode::Type::BinaryOperation)
+			return PBinaryOp(lexNode);
+
+		return PReadableValue(lexNode);
+	}
+
+	Parser::SharedExp Parser::PBinaryOp(const SharedNode& lexNode) 
+	{
+		switch (lexNode->token.type)
 		{
-			const std::string& propName = p_lexNode->children[i]->token.text;
+		case Token::Type::EqualSign:
+			return PAssign(lexNode);
+		case Token::Type::Plus:
+		case Token::Type::Minus:
+		case Token::Type::Asterisk:
+		case Token::Type::ForwardSlash:
+		case Token::Type::Ampersand:
+		case Token::Type::VerticalBar:
+		case Token::Type::Caret:
+		case Token::Type::DoubleLeftArrow:
+		case Token::Type::DoubleRightArrow:
+			return PBinaryMathOp(lexNode);
+		}
 
-			Affirm(
-				typeNameToStructInfo.count(currentVarInfo.typeName) != 0,
-				"cannot get property '%s' at line %i because preceeding expression is not a struct",
-				propName.c_str(), p_lexNode->children[i]->token.line
-			);
+		return PBinaryCompareOp(lexNode);
+	}
 
-			StructInfo& structInfo = typeNameToStructInfo[currentVarInfo.typeName];
+	Parser::SharedExp Parser::PAssign(const SharedNode& lexNode) 
+	{
+		auto writeBytesExp = std::make_shared<EWriteBytesTo>();
 
-			Affirm(structInfo.memberNameToVarInfo.count(propName) != 0,
-				"cannot access property '%s' at line %i because the struct '%s' does not contain it",
-				propName.c_str(), p_lexNode->children[0]->token.line, currentVarInfo.typeName.c_str()
-			);
+		std::string expectedWriteType;
+		writeBytesExp->writePtrLoad = PWritablePtr(lexNode->children[0], expectedWriteType);
 
-			VariableInfo& propInfo = structInfo.memberNameToVarInfo[propName];
-			propOffset -= propInfo.offset;
+		currentExpectedReturnType = expectedWriteType;
+		writeBytesExp->dataLoad = PReadableValue(lexNode->children[1]);
+		currentExpectedReturnType = "void";
 
-			currentVarInfo = propInfo;
+		Int byteSize = typeNameToSize.at(writeBytesExp->dataLoad->GetDataType());
+		writeBytesExp->bytesSizeLoad = std::make_shared<ELoadConstInt>(byteSize);
+
+		return writeBytesExp;
+	}
+
+	Parser::SharedExp Parser::PWritablePtr(const SharedNode& lexNode, std::string& outWriteDataType)
+	{
+		switch (lexNode->type)
+		{
+		case LexNode::Type::VariableDefinition:
+			return PVariablePtr(lexNode->children[0], outWriteDataType);
+		case LexNode::Type::Identifier:
+			return PVariablePtr(lexNode, outWriteDataType);
+		case LexNode::Type::MemberVariableAccess:
+			return PMemberAccessPtr(lexNode, outWriteDataType);
+		}
+
+		if (lexNode->type == LexNode::Type::UnaryOperation && lexNode->token.type == Token::Type::Asterisk)
+		{
+			outWriteDataType = ANY_VALUE_TYPE;
+			return PDereferencePtr(lexNode);
 		}
 
 		Affirm(
-			currentVarInfo.typeName == currentExpectedReturnType || currentExpectedReturnType == ANY_VALUE_TYPE,
-			"expected expression of type '%s' at line %i",
-			currentExpectedReturnType.c_str(), p_lexNode->token.line
+			false, 
+			"left hand side of assignment was not a writable pointer at line %i", 
+			lexNode->token.line
 		);
-		
-		return new ELoadVariable(propOffset, typeNameToSize[currentVarInfo.typeName], currentVarInfo.typeName);
+
+		return nullptr;
 	}
 
-	Expression* Parser::ParsePropertyWrite(LexNode* p_lexNode)
+	Parser::SharedExp Parser::PVariablePtr(const SharedNode& lexNode, std::string& outWriteDataType)
 	{
-		const std::string& varName = p_lexNode->token.text;
+		const std::string& varName = lexNode->token.text;
 
 		Affirm(
-			currentFunction->varNameToVarInfo.count(varName) != 0,
-			"undefined name '%s' at line %i",
-			varName.c_str(), p_lexNode->token.line
+			p_currentFunction->varNameToVarInfo.count(varName) != 0,
+			"undefined variable '%s' at line %i",
+			varName.c_str(), lexNode->token.line
 		);
 
-		VariableInfo currentVarInfo = currentFunction->varNameToVarInfo[varName];
+		const VariableInfo& varInfo = p_currentFunction->varNameToVarInfo.at(varName);
+		outWriteDataType = varInfo.typeName;
+
+		return std::make_shared<ELoadVariablePtr>(varInfo.offset);
+	}
+
+	Parser::SharedExp Parser::PMemberAccessPtr(const SharedNode& lexNode, std::string& outWriteDataType)
+	{
+		const std::string& varName = lexNode->token.text;
+
+		Affirm(
+			p_currentFunction->varNameToVarInfo.count(varName) != 0,
+			"undefined variable '%s' at line %i",
+			varName.c_str(), lexNode->token.line
+		);
+
+		VariableInfo currentVarInfo = p_currentFunction->varNameToVarInfo[varName];
 		Int memberOffset = currentVarInfo.offset;
 
-		for (size_t i = 0; i+1 < p_lexNode->children.size(); i++)
+		for (const SharedNode& membNode : lexNode->children)
 		{
-			const std::string& memberName = p_lexNode->children[i]->token.text;
+			const std::string& memberName = membNode->token.text;
 
 			Affirm(
 				typeNameToStructInfo.count(currentVarInfo.typeName) != 0,
 				"cannot get property '%s' at line %i because preceeding expression is not a struct",
-				memberName.c_str(), p_lexNode->children[i]->token.line
+				memberName.c_str(), membNode->token.line
 			);
 
 			StructInfo& structInfo = typeNameToStructInfo[currentVarInfo.typeName];
 
 			Affirm(structInfo.memberNameToVarInfo.count(memberName) != 0,
 				"cannot access property '%s' at line %i because the struct '%s' does not contain it",
-				memberName.c_str(), p_lexNode->children[0]->token.line, currentVarInfo.typeName.c_str()
+				memberName.c_str(), membNode->token.line, currentVarInfo.typeName.c_str()
 			);
 
-			VariableInfo& memberInfo = structInfo.memberNameToVarInfo[memberName];
+			const VariableInfo& memberInfo = structInfo.memberNameToVarInfo[memberName];
 			memberOffset -= memberInfo.offset;
 
 			currentVarInfo = memberInfo;
 		}
 
-		EWriteBytesTo* p_write = new EWriteBytesTo();
-		p_write->p_bytesSizeLoad = new ELoadConstInt(typeNameToSize[currentVarInfo.typeName]);
-		p_write->p_writePtrLoad = new ELoadVariablePtr(memberOffset);
+		auto loadPtrExp = std::make_shared<ELoadVariablePtr>(memberOffset);
+		outWriteDataType = typeNameToSize[currentVarInfo.typeName];
 
-		currentExpectedReturnType = currentVarInfo.typeName;
-
-		p_write->p_dataLoad = ParseNextExpression(p_lexNode->children.back());
-
-		currentExpectedReturnType = "void";
-
-		return p_write;
+		return loadPtrExp;
 	}
 
-	Expression* Parser::ParseReturn(LexNode* p_lexNode)
+	Parser::SharedExp Parser::PDereferencePtr(const SharedNode& lexNode) 
 	{
-		EReturn* p_ret = new EReturn(typeNameToSize[currentFunction->returnTypeName]);
+		currentExpectedReturnType = "ptr";
+		return PReadableValue(lexNode->children[0]);
+		currentExpectedReturnType = "void";
+	}
 
-		if (p_lexNode->children.size() == 0)
+	Parser::SharedExp Parser::PReadableValue(const SharedNode& lexNode) 
+	{
+		switch (lexNode->type)
 		{
+		case LexNode::Type::Parenthesis:
+			return PReadableValue(lexNode->children[0]);
+		case LexNode::Type::LiteralConstant:
+			return PLiteralConstantValue(lexNode);
+		case LexNode::Type::Identifier:
+			return PVariableValue(lexNode);
+		case LexNode::Type::MemberVariableAccess:
+			return PMemberAccessValue(lexNode);
+		case LexNode::Type::BinaryOperation:
+			return PBinaryOp(lexNode);
+		case LexNode::Type::UnaryOperation:
+			return PUnaryOp(lexNode);
+		case LexNode::Type::FunctionCall:
+			return PFunctionCall(lexNode);
+		}
+
+		Affirm(
+			false,
+			"expected value expression at line %i",
+			lexNode->token.line
+		);
+
+		return nullptr;
+	}
+
+	Parser::SharedExp Parser::PLiteralConstantValue(const SharedNode& lexNode) 
+	{
+		if (lexNode->token.type == Token::Type::ConstChar)
+		{
+			AffirmCurrentType("char", lexNode->token.line);
+
+			Char value = lexNode->token.text[0];
+			return std::make_shared<ELoadConstChar>(value);
+		}
+		if (lexNode->token.type == Token::Type::ConstInt)
+		{
+			AffirmCurrentType("int", lexNode->token.line);
+
+			Int value = std::stoi(lexNode->token.text);
+			return std::make_shared<ELoadConstInt>(value);
+		}
+		if (lexNode->token.type == Token::Type::ConstFloat)
+		{
+			AffirmCurrentType("float", lexNode->token.line);
+
+			Float value = std::stof(lexNode->token.text);
+			return std::make_shared<ELoadConstFloat>(value);
+		}
+		if (lexNode->token.type == Token::Type::ConstString)
+		{
+			AffirmCurrentType("ptr", lexNode->token.line);
+
+			const std::string& value = lexNode->token.text;
+			return std::make_shared<ELoadConstString>(value);
+		}
+
+		return nullptr;
+	}
+
+	Parser::SharedExp Parser::PVariableValue(const SharedNode& lexNode) 
+	{
+		const std::string& varName = lexNode->token.text;
+
+		Affirm(
+			p_currentFunction->varNameToVarInfo.count(varName) != 0,
+			"undefined variable '%s' at line %i",
+			varName.c_str(), lexNode->token.line
+		);
+
+		const VariableInfo& info = p_currentFunction->varNameToVarInfo[varName];
+
+		AffirmCurrentType(info.typeName, lexNode->token.line);
+
+		return std::make_shared<ELoadVariable>(info.offset, typeNameToSize[info.typeName], info.typeName);
+	}
+
+	Parser::SharedExp Parser::PMemberAccessValue(const SharedNode& lexNode) 
+	{
+		const std::string& varName = lexNode->token.text;
+
+		Affirm(
+			p_currentFunction->varNameToVarInfo.count(varName) != 0,
+			"undefined variable '%s' at line %i",
+			varName.c_str(), lexNode->token.line
+		);
+
+		VariableInfo currentVarInfo = p_currentFunction->varNameToVarInfo[varName];
+		Int memberOffset = currentVarInfo.offset;
+
+		for (const SharedNode& membNode : lexNode->children)
+		{
+			const std::string& memberName = membNode->token.text;
+
 			Affirm(
-				currentFunction->returnTypeName == "void",
-				"missing value expression after 'return' keyword at line %i", 
-				p_lexNode->token.line
+				typeNameToStructInfo.count(currentVarInfo.typeName) != 0,
+				"cannot get property '%s' at line %i because preceeding expression is not a struct",
+				memberName.c_str(), membNode->token.line
 			);
-		}
-		else
-		{
-			currentExpectedReturnType = currentFunction->returnTypeName;
-			p_ret->p_retValLoad = ParseNextExpression(p_lexNode->children[0]);
-			currentExpectedReturnType = "void";
+
+			StructInfo& structInfo = typeNameToStructInfo[currentVarInfo.typeName];
+
+			Affirm(structInfo.memberNameToVarInfo.count(memberName) != 0,
+				"cannot access property '%s' at line %i because the struct '%s' does not contain it",
+				memberName.c_str(), membNode->token.line, currentVarInfo.typeName.c_str()
+			);
+
+			const VariableInfo& memberInfo = structInfo.memberNameToVarInfo[memberName];
+			memberOffset -= memberInfo.offset;
+
+			currentVarInfo = memberInfo;
 		}
 
-		return p_ret;
+		return std::make_shared<ELoadVariable>(memberOffset, typeNameToSize[currentVarInfo.typeName], currentVarInfo.typeName);
 	}
 
-
-	Expression* Parser::ParseIfSingle(LexNode* p_lexNode)
-	{
-		EIfSingle* p_if = new EIfSingle();
-
-		currentExpectedReturnType = "char";
-		p_if->p_conditionLoad = ParseNextExpression(p_lexNode->children[0]);
-		currentExpectedReturnType = "void";
-
-		for (size_t i = 1; i < p_lexNode->children.size(); i++)
-		{
-			p_if->body.push_back(ParseNextExpression(p_lexNode->children[i]));
-		}
-
-		return p_if;
-	}
-
-	Expression* Parser::ParseIfChain(LexNode* p_lexNode)
-	{
-		EIfChain* p_if = new EIfChain();
-
-		currentExpectedReturnType = "char";
-		p_if->p_conditionLoad = ParseNextExpression(p_lexNode->children[0]);
-		currentExpectedReturnType = "void";
-
-		for (size_t i = 1; i+1 < p_lexNode->children.size(); i++)
-		{
-			p_if->body.push_back(ParseNextExpression(p_lexNode->children[i]));
-		}
-
-		p_if->p_chain = ParseNextExpression(p_lexNode->children.back());
-
-		return p_if;
-	}
-
-	Expression* Parser::ParseElseIfSingle(LexNode* p_lexNode)
-	{
-		EElseIfSingle* p_elif = new EElseIfSingle();
-
-		currentExpectedReturnType = "char";
-		p_elif->p_conditionLoad = ParseNextExpression(p_lexNode->children[0]);
-		currentExpectedReturnType = "void";
-
-		for (size_t i = 1; i < p_lexNode->children.size(); i++)
-		{
-			p_elif->body.push_back(ParseNextExpression(p_lexNode->children[i]));
-		}
-
-		return p_elif;
-	}
-
-	Expression* Parser::ParseElseIfChain(LexNode* p_lexNode)
-	{
-		EElseIfChain* p_elif = new EElseIfChain();
-
-		currentExpectedReturnType = "char";
-		p_elif->p_conditionLoad = ParseNextExpression(p_lexNode->children[0]);
-		currentExpectedReturnType = "void";
-
-		for (size_t i = 1; i + 1 < p_lexNode->children.size(); i++)
-		{
-			p_elif->body.push_back(ParseNextExpression(p_lexNode->children[i]));
-		}
-
-		p_elif->p_chain = ParseNextExpression(p_lexNode->children.back());
-
-		return p_elif;
-	}
-
-	Expression* Parser::ParseElse(LexNode* p_lexNode)
-	{
-		EElse* p_else = new EElse();
-
-		for (size_t i = 0; i < p_lexNode->children.size(); i++)
-		{
-			p_else->body.push_back(ParseNextExpression(p_lexNode->children[i]));
-		}
-
-		return p_else;
-	}
-
-	Expression* Parser::ParseWhile(LexNode* p_lexNode)
-	{
-		EWhile* p_while = new EWhile();
-
-		currentExpectedReturnType = "char";
-		p_while->p_conditionLoad = ParseNextExpression(p_lexNode->children[0]);
-		currentExpectedReturnType = "void";
-
-		for (size_t i = 1; i < p_lexNode->children.size(); i++)
-		{
-			p_while->body.push_back(ParseNextExpression(p_lexNode->children[i]));
-		}
-
-		return p_while;
-	}
-
-	Expression* Parser::ParseBinaryMathOp(LexNode* p_lexNode)
+	Parser::SharedExp Parser::PBinaryMathOp(const SharedNode& lexNode) 
 	{
 		static std::map<Token::Type, size_t> opTypeToOpIndex
 		{
@@ -511,89 +887,85 @@ namespace Tolo
 			{Token::Type::DoubleRightArrow, 8}
 		};
 
-		Expression* p_lhs = ParseNextExpression(p_lexNode->children[0]);
+		auto lhsExp = PReadableValue(lexNode->children[0]);
 
 		if (currentExpectedReturnType == ANY_VALUE_TYPE)
-			currentExpectedReturnType = p_lhs->GetDataType();
+			currentExpectedReturnType = lhsExp->GetDataType();
 
-		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 && 
-			typeNameToOpFuncs[currentExpectedReturnType].count(p_lexNode->token.text) != 0)
+		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 &&
+			typeNameToOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
 		{
-			DataTypeOperatorFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
-			const std::string& opName = p_lexNode->token.text;
+			const DataTypeOperatorFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
+			const std::string& opName = lexNode->token.text;
 
-			FunctionInfo& funcInfo = opFunctions[opName];
+			const FunctionInfo& funcInfo = opFunctions.at(opName);
 
-			ECallFunction* p_callOp = new ECallFunction(funcInfo.parametersSize, funcInfo.localsSize, funcInfo.returnTypeName);
-			p_callOp->argumentLoads.push_back(p_lhs);
+			auto callOpExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize, funcInfo.returnTypeName);
+			callOpExp->argumentLoads.push_back(lhsExp);
 
 			std::string oldRetType = currentExpectedReturnType;
 			currentExpectedReturnType = ANY_VALUE_TYPE;
-			p_callOp->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[1]));
+			callOpExp->argumentLoads.push_back(PReadableValue(lexNode->children[1]));
 			currentExpectedReturnType = oldRetType;
 
-			p_callOp->p_functionIpLoad = new ELoadConstPtrToLabel(currentExpectedReturnType + opName);
+			callOpExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(currentExpectedReturnType + opName);
 
-			return p_callOp;
+			return callOpExp;
 		}
-		else if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 &&
-			typeNameToNativeOpFuncs[currentExpectedReturnType].count(p_lexNode->token.text) != 0)
+		if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 &&
+			typeNameToNativeOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
 		{
-			DataTypeNativeOpFuncs& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
-			std::string opName = p_lexNode->token.text;
+			const DataTypeNativeOpFuncs& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
+			const std::string& opName = lexNode->token.text;
 
-			NativeFunctionInfo& funcInfo = opFunctions[opName];
+			const NativeFunctionInfo& funcInfo = opFunctions.at(opName);
 
-			ECallNativeFunction* p_callNativeOp = new ECallNativeFunction(funcInfo.returnTypeName);
-			p_callNativeOp->argumentLoads.push_back(p_lhs);
+			auto callNativeOpExp = std::make_shared<ECallNativeFunction>(funcInfo.returnTypeName);
+			callNativeOpExp->argumentLoads.push_back(lhsExp);
 
 			std::string oldRetType = currentExpectedReturnType;
 			currentExpectedReturnType = ANY_VALUE_TYPE;
-			p_callNativeOp->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[1]));
+			callNativeOpExp->argumentLoads.push_back(PReadableValue(lexNode->children[1]));
 			currentExpectedReturnType = oldRetType;
 
-			p_callNativeOp->p_functionPtrLoad = new ELoadConstPtr(funcInfo.p_functionPtr);
+			callNativeOpExp->functionPtrLoad = std::make_shared<ELoadConstPtr>(funcInfo.p_functionPtr);
 
-			return p_callNativeOp;
+			return callNativeOpExp;
 		}
-		else
+
+		Affirm(
+			typeNameOperators.count(currentExpectedReturnType) != 0,
+			"cannot perform binary math operation '%s' on operand of type '%s' at line %i",
+			lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), lexNode->token.line
+		);
+
+		OpCode opCode = typeNameOperators[currentExpectedReturnType][opTypeToOpIndex[lexNode->token.type]];
+
+		Affirm(
+			opCode != OpCode::INVALID,
+			"cannot perform binary math operation '%s' on operand of type '%s' at line %i",
+			lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), lexNode->token.line
+		);
+
+		auto binMathOpExp = std::make_shared<EBinaryOp>(opCode);
+		binMathOpExp->lhsLoad = lhsExp;
+
+		std::string oldRetType = currentExpectedReturnType;
+		if (currentExpectedReturnType == "ptr" ||
+			lexNode->token.type == Token::Type::DoubleLeftArrow ||
+			lexNode->token.type == Token::Type::DoubleRightArrow)
 		{
-			Affirm(
-				typeNameOperators.count(currentExpectedReturnType) != 0,
-				"cannot perform binary math operation '%s' on operand of type '%s' at line %i",
-				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
-			);
-
-			OpCode opCode = typeNameOperators[currentExpectedReturnType][opTypeToOpIndex[p_lexNode->token.type]];
-
-			Affirm(
-				opCode != OpCode::INVALID,
-				"cannot perform binary math operation '%s' on operand of type '%s' at line %i",
-				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
-			);
-
-			EBinaryOp* p_binMathOp = new EBinaryOp(opCode);
-			p_binMathOp->p_lhsLoad = p_lhs;
-
-			std::string oldRetType = currentExpectedReturnType;
-			if (currentExpectedReturnType == "ptr" ||
-				p_lexNode->token.type == Token::Type::DoubleLeftArrow ||
-				p_lexNode->token.type == Token::Type::DoubleRightArrow)
-			{
-				currentExpectedReturnType = "int";
-			}
-
-			p_binMathOp->p_rhsLoad = ParseNextExpression(p_lexNode->children[1]);
-
-			currentExpectedReturnType = oldRetType;
-
-			return p_binMathOp;
+			currentExpectedReturnType = "int";
 		}
 
-		return nullptr;
+		binMathOpExp->rhsLoad = PReadableValue(lexNode->children[1]);
+
+		currentExpectedReturnType = oldRetType;
+
+		return binMathOpExp;
 	}
 
-	Expression* Parser::ParseBinaryCompareOp(LexNode* p_lexNode)
+	Parser::SharedExp Parser::PBinaryCompareOp(const SharedNode& lexNode) 
 	{
 		static std::map<Token::Type, size_t> opTypeToOpIndex
 		{
@@ -607,829 +979,311 @@ namespace Tolo
 			{Token::Type::DoubleVerticalBar, 16}
 		};
 
-		if (currentExpectedReturnType != "char" && currentExpectedReturnType != ANY_VALUE_TYPE)
-			Affirm(false, "expected expression of type '%s' at line %i", currentExpectedReturnType.c_str(), p_lexNode->token.line);
-
+		AffirmCurrentType("char", lexNode->token.line);
 
 		// determine operand data type
 		currentExpectedReturnType = ANY_VALUE_TYPE;
 
-		Expression* p_lhs = ParseNextExpression(p_lexNode->children[0]);
+		auto lhsExp = PReadableValue(lexNode->children[0]);
 
-		currentExpectedReturnType = p_lhs->GetDataType();
+		currentExpectedReturnType = lhsExp->GetDataType();
 
-		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 && 
-			typeNameToOpFuncs[currentExpectedReturnType].count(p_lexNode->token.text) != 0)
+		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 &&
+			typeNameToOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
 		{
-			DataTypeOperatorFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
-			const std::string& opName = p_lexNode->token.text;
+			const DataTypeOperatorFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
+			const std::string& opName = lexNode->token.text;
 
-			FunctionInfo& funcInfo = opFunctions[opName];
+			const FunctionInfo& funcInfo = opFunctions.at(opName);
 
-			ECallFunction* p_callOp = new ECallFunction(funcInfo.parametersSize, funcInfo.localsSize, funcInfo.returnTypeName);
-			p_callOp->argumentLoads.push_back(p_lhs);
-			p_callOp->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[1]));
-			p_callOp->p_functionIpLoad = new ELoadConstPtrToLabel(currentExpectedReturnType + opName);
+			auto callOpExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize, funcInfo.returnTypeName);
+			callOpExp->argumentLoads.push_back(lhsExp);
+			callOpExp->argumentLoads.push_back(PReadableValue(lexNode->children[1]));
+			callOpExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(currentExpectedReturnType + opName);
 
 			currentExpectedReturnType = "char";
 
-			return p_callOp;
+			return callOpExp;
 		}
-		else if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 && 
-			typeNameToNativeOpFuncs[currentExpectedReturnType].count(p_lexNode->token.text) != 0)
+		if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 &&
+			typeNameToNativeOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
 		{
-			DataTypeNativeOpFuncs& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
-			std::string opName = p_lexNode->token.text;
+			const DataTypeNativeOpFuncs& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
+			const std::string& opName = lexNode->token.text;
 
-			NativeFunctionInfo& funcInfo = opFunctions[opName];
+			const NativeFunctionInfo& funcInfo = opFunctions.at(opName);
 
-			ECallNativeFunction* p_callNativeOp = new ECallNativeFunction(funcInfo.returnTypeName);
-			p_callNativeOp->argumentLoads.push_back(p_lhs);
-			p_callNativeOp->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[1]));
-			p_callNativeOp->p_functionPtrLoad = new ELoadConstPtr(funcInfo.p_functionPtr);
+			auto callNativeOpExp = std::make_shared<ECallNativeFunction>(funcInfo.returnTypeName);
+			callNativeOpExp->argumentLoads.push_back(lhsExp);
+			callNativeOpExp->argumentLoads.push_back(PReadableValue(lexNode->children[1]));
+			callNativeOpExp->functionPtrLoad = std::make_shared<ELoadConstPtr>(funcInfo.p_functionPtr);
 
 			currentExpectedReturnType = "char";
 
-			return p_callNativeOp;
+			return callNativeOpExp;
 		}
-		else
+
+		Affirm(
+			typeNameOperators.count(currentExpectedReturnType) != 0,
+			"cannot perform binary compare operation '%s' on operand of type '%s' at line %i",
+			lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), lexNode->token.line
+		);
+
+		OpCode opCode = typeNameOperators[currentExpectedReturnType][opTypeToOpIndex[lexNode->token.type]];
+
+		Affirm(
+			opCode != OpCode::INVALID,
+			"cannot perform binary compare operation '%s' on operand of type '%s' at line %i",
+			lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), lexNode->token.line
+		);
+
+		auto binCompOpExp = std::make_shared<EBinaryOp>(opCode);
+		binCompOpExp->lhsLoad = lhsExp;
+
+		binCompOpExp->rhsLoad = PReadableValue(lexNode->children[1]);
+
+		currentExpectedReturnType = "char";
+
+		return binCompOpExp;
+	}
+
+	Parser::SharedExp Parser::PUnaryOp(const SharedNode& lexNode) 
+	{
+		switch (lexNode->token.type)
 		{
-			Affirm(
-				typeNameOperators.count(currentExpectedReturnType) != 0,
-				"cannot perform binary compare operation '%s' on operand of type '%s' at line %i",
-				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
-			);
-
-			OpCode opCode = typeNameOperators[currentExpectedReturnType][opTypeToOpIndex[p_lexNode->token.type]];
-
-			Affirm(
-				opCode != OpCode::INVALID,
-				"cannot perform binary compare operation '%s' on operand of type '%s' at line %i",
-				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
-			);
-
-			EBinaryOp* p_binCompOp = new EBinaryOp(opCode);
-			p_binCompOp->p_lhsLoad = p_lhs;
-
-			p_binCompOp->p_rhsLoad = ParseNextExpression(p_lexNode->children[1]);
-
-			currentExpectedReturnType = "char";
-
-			return p_binCompOp;
+		case Token::Type::Ampersand:
+			return PReferenceValue(lexNode);
+		case Token::Type::Asterisk:
+			return PDereferenceValue(lexNode);
+		case Token::Type::Minus:
+			return PNegate(lexNode);
+		case Token::Type::ExclamationMark:
+			return PNot(lexNode);
 		}
 
 		return nullptr;
 	}
 
-	Expression* Parser::ParseBinaryOp(LexNode* p_lexNode)
+	Parser::SharedExp Parser::PReferenceValue(const SharedNode& lexNode)
 	{
-		switch (p_lexNode->token.type)
+		if (lexNode->children[0]->type == LexNode::Type::Identifier)
 		{
-		case Token::Type::Plus:
-		case Token::Type::Minus:
-		case Token::Type::Asterisk:
-		case Token::Type::ForwardSlash:
-		case Token::Type::Ampersand:
-		case Token::Type::VerticalBar:
-		case Token::Type::Caret:
-		case Token::Type::DoubleLeftArrow:
-		case Token::Type::DoubleRightArrow:
-			return ParseBinaryMathOp(p_lexNode);
+			std::string dataType;
+			return PVariablePtr(lexNode->children[0], dataType);
 		}
-		
-		return ParseBinaryCompareOp(p_lexNode);
+		if (lexNode->children[0]->type == LexNode::Type::MemberVariableAccess)
+		{
+			std::string dataType;
+			return PMemberAccessPtr(lexNode->children[0], dataType);
+		}
+
+		Affirm(
+			false,
+			"cannot get the pointer of a potentially temporary value at line %i",
+			lexNode->token.line
+		);
+
+		return nullptr;
 	}
 
-	Expression* Parser::ParseUnaryNegate(LexNode* p_lexNode)
+	Parser::SharedExp Parser::PDereferenceValue(const SharedNode& lexNode)
+	{
+		Affirm(
+			currentExpectedReturnType != ANY_VALUE_TYPE,
+			"cannot dereference pointer when the expected value type is unknown at line %i",
+			lexNode->token.line
+		);
+
+		auto loadBytes = std::make_shared<ELoadBytesFromPtr>(
+			currentExpectedReturnType,
+			typeNameToSize[currentExpectedReturnType]
+			);
+
+		std::string oldType = currentExpectedReturnType;
+		currentExpectedReturnType = "ptr";
+		loadBytes->ptrLoad = PReadableValue(lexNode->children[0]);
+		currentExpectedReturnType = oldType;
+
+		return loadBytes;
+	}
+
+	Parser::SharedExp Parser::PNegate(const SharedNode& lexNode) 
 	{
 		const size_t opIndex = 17;
 		const std::string opName = "negate";
 
-		Expression* p_val = ParseNextExpression(p_lexNode->children[0]);
+		auto valExp = PReadableValue(lexNode->children[0]);
 
 		if (currentExpectedReturnType == ANY_VALUE_TYPE)
-			currentExpectedReturnType = p_val->GetDataType();
+			currentExpectedReturnType = valExp->GetDataType();
 
 		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 &&
 			typeNameToOpFuncs[currentExpectedReturnType].count(opName) != 0)
 		{
-			DataTypeOperatorFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
+			const DataTypeOperatorFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
 
-			FunctionInfo& funcInfo = opFunctions[opName];
+			const FunctionInfo& funcInfo = opFunctions.at(opName);
 
-			ECallFunction* p_callOp = new ECallFunction(funcInfo.parametersSize, funcInfo.localsSize, funcInfo.returnTypeName);
-			p_callOp->argumentLoads.push_back(p_val);
-			p_callOp->p_functionIpLoad = new ELoadConstPtrToLabel(currentExpectedReturnType + opName);
+			auto callOpExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize, funcInfo.returnTypeName);
+			callOpExp->argumentLoads.push_back(valExp);
+			callOpExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(currentExpectedReturnType + opName);
 
-			return p_callOp;
+			return callOpExp;
 		}
-		else if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 && 
+		if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 &&
 			typeNameToNativeOpFuncs[currentExpectedReturnType].count(opName) != 0)
 		{
-			DataTypeNativeOpFuncs& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
+			const DataTypeNativeOpFuncs& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
 
-			NativeFunctionInfo& funcInfo = opFunctions[opName];
+			const NativeFunctionInfo& funcInfo = opFunctions.at(opName);
 
-			ECallNativeFunction* p_callNativeOp = new ECallNativeFunction(funcInfo.returnTypeName);
-			p_callNativeOp->argumentLoads.push_back(p_val);
-			p_callNativeOp->p_functionPtrLoad = new ELoadConstPtr(funcInfo.p_functionPtr);
+			auto callNativeOpExp = std::make_shared<ECallNativeFunction>(funcInfo.returnTypeName);
+			callNativeOpExp->argumentLoads.push_back(valExp);
+			callNativeOpExp->functionPtrLoad = std::make_shared<ELoadConstPtr>(funcInfo.p_functionPtr);
 
-			return p_callNativeOp;
+			return callNativeOpExp;
 		}
-		else
-		{
-			Affirm(
-				typeNameOperators.count(currentExpectedReturnType) != 0,
-				"cannot perform unary 'negate' on operand of type '%s' at line %i",
-				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
-			);
 
-			OpCode opCode = typeNameOperators[currentExpectedReturnType][opIndex];
+		Affirm(
+			typeNameOperators.count(currentExpectedReturnType) != 0,
+			"cannot perform unary 'negate' on operand of type '%s' at line %i",
+			lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), lexNode->token.line
+		);
 
-			Affirm(
-				opCode != OpCode::INVALID,
-				"cannot perform unary 'negate' on operand of type '%s' at line %i",
-				p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
-			);
-
-			EUnaryOp* p_unaryOp = new EUnaryOp(opCode);
-			p_unaryOp->p_valLoad = p_val;
-
-			return p_unaryOp;
-		}
-		
-		return nullptr;
-	}
-
-	Expression* Parser::ParseUnaryNot(LexNode* p_lexNode)
-	{
-		const size_t opIndex = 18;
-
-		if (currentExpectedReturnType != "char" && currentExpectedReturnType != ANY_VALUE_TYPE)
-			Affirm(false, "expected expression of type '%s' at line %i", currentExpectedReturnType.c_str(), p_lexNode->token.line);
-
-		currentExpectedReturnType = "char";
-		Expression* p_val = ParseNextExpression(p_lexNode->children[0]);
 		OpCode opCode = typeNameOperators[currentExpectedReturnType][opIndex];
 
 		Affirm(
 			opCode != OpCode::INVALID,
-			"cannot perform unary 'not' on operand of type '%s' at line %i",
-			p_lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), p_lexNode->token.line
+			"cannot perform unary 'negate' on operand of type '%s' at line %i",
+			lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), lexNode->token.line
 		);
 
-		EUnaryOp* p_unaryNot = new EUnaryOp(opCode);
-		p_unaryNot->p_valLoad = p_val;
+		auto unaryOpExp = std::make_shared<EUnaryOp>(opCode);
+		unaryOpExp->valLoad = valExp;
 
-		return p_unaryNot;
+		return unaryOpExp;
 	}
 
-	Expression* Parser::ParseUnaryReference(LexNode* p_lexNode)
+	Parser::SharedExp Parser::PNot(const SharedNode& lexNode) 
 	{
-		Affirm(
-			currentExpectedReturnType == "ptr",
-			"expected expression of type '%s', but got 'ptr' at line %i",
-			currentExpectedReturnType.c_str(), p_lexNode->token.line
-		);
+		AffirmCurrentType("char", lexNode->token.line);
 
-		if (p_lexNode->children[0]->type == LexNode::Type::VariableLoad)
-		{
-			const std::string& varName = p_lexNode->children[0]->token.text;
-			
-			Affirm(
-				currentFunction->varNameToVarInfo.count(varName) != 0,
-				"undefined variable '%s' at line %i",
-				varName.c_str(), p_lexNode->children[0]->token.line
-			);
+		auto unaryNotExp = std::make_shared<EUnaryOp>(OpCode::Not);
+		unaryNotExp->valLoad = PReadableValue(lexNode->children[0]);
 
-			VariableInfo& info = currentFunction->varNameToVarInfo[varName];
-			
-			return new ELoadVariablePtr(info.offset);
-		}
-		else if (p_lexNode->children[0]->type == LexNode::Type::PropertyLoad)
-		{
-			const std::string& varName = p_lexNode->children[0]->token.text;
+		return unaryNotExp;
+	}
 
-			Affirm(
-				currentFunction->varNameToVarInfo.count(varName) != 0,
-				"undefined name '%s' at line %i",
-				varName.c_str(), p_lexNode->token.line
-			);
+	Parser::SharedExp Parser::PFunctionCall(const SharedNode& lexNode) 
+	{
+		const std::string& funcName = lexNode->token.text;
 
-			VariableInfo currentVarInfo = currentFunction->varNameToVarInfo[varName];
-			Int memberOffset = currentVarInfo.offset;
+		if (userFunctions.count(funcName) != 0)
+			return PUserFunctionCall(lexNode);
 
-			for (size_t i = 0; i + 1 < p_lexNode->children.size(); i++)
-			{
-				const std::string& memberName = p_lexNode->children[i]->token.text;
+		if (nativeFunctions.count(funcName) != 0)
+			return PNativeFunctionCall(lexNode);
 
-				Affirm(
-					typeNameToStructInfo.count(currentVarInfo.typeName) != 0,
-					"cannot get member '%s' at line %i because preceeding expression is not a struct",
-					memberName.c_str(), p_lexNode->children[i]->token.line
-				);
+		if (typeNameToStructInfo.count(funcName) != 0)
+			return PStructInitialization(lexNode);
 
-				StructInfo& structInfo = typeNameToStructInfo[currentVarInfo.typeName];
-
-				Affirm(structInfo.memberNameToVarInfo.count(memberName) != 0,
-					"cannot access member '%s' at line %i because the struct '%s' does not contain it",
-					memberName.c_str(), p_lexNode->children[0]->token.line, currentVarInfo.typeName.c_str()
-				);
-				
-				VariableInfo& memberInfo = structInfo.memberNameToVarInfo[memberName];
-				memberOffset -= memberInfo.offset;
-
-				currentVarInfo = memberInfo;
-			}
-
-			return new ELoadVariablePtr(memberOffset);
-		}
-		
 		Affirm(
 			false,
-			"expected variable or struct member at line '%i'",
-			p_lexNode->children[0]->token.line
+			"undefined function '%s' at line %i",
+			funcName.c_str(), lexNode->token.line
 		);
 
 		return nullptr;
 	}
 
-	Expression* Parser::ParseUnaryDereference(LexNode* p_lexNode)
+	Parser::SharedExp Parser::PUserFunctionCall(const SharedNode& lexNode)
 	{
-		Affirm(
-			currentExpectedReturnType != "void",
-			"unexpected value expression at line %i",
-			p_lexNode->token.line
-		);
+		const std::string& funcName = lexNode->token.text;
+		const FunctionInfo& info = userFunctions[funcName];
+		
+		AffirmCurrentType(info.returnTypeName, lexNode->token.line);
 
-		Affirm(
-			currentExpectedReturnType != ANY_VALUE_TYPE,
-			"undetermined type for dereferencing pointer at line %i",
-			p_lexNode->token.line
-		);
+		auto callExp = std::make_shared<ECallFunction>(info.parametersSize, info.localsSize, info.returnTypeName);
+		callExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(funcName);
 
 		Affirm(
-			typeNameToSize.count(currentExpectedReturnType) != 0,
-			"undefined type '%s' at line %i",
-			currentExpectedReturnType.c_str(), p_lexNode->token.line
+			info.parameterNames.size() == lexNode->children.size(),
+			"argument count in function call att line %i does not match parameter count",
+			lexNode->token.line
 		);
-
-		ELoadBytesFromPtr* p_loadBytes = new ELoadBytesFromPtr(
-			currentExpectedReturnType, 
-			typeNameToSize[currentExpectedReturnType]
-		);
-
-		std::string oldType = currentExpectedReturnType;
-		currentExpectedReturnType = "ptr";
-
-		p_loadBytes->p_ptrLoad = ParseNextExpression(p_lexNode->children[0]);
-
-		currentExpectedReturnType = oldType;
-
-		return p_loadBytes;
-	}
-
-	Expression* Parser::ParseUnaryOp(LexNode* p_lexNode)
-	{
-		switch (p_lexNode->token.type)
-		{
-		case Token::Type::Minus:
-			return ParseUnaryNegate(p_lexNode);
-		case Token::Type::ExclamationMark:
-			return ParseUnaryNot(p_lexNode);
-		case Token::Type::Ampersand:
-			return ParseUnaryReference(p_lexNode);
-		}
-
-		return ParseUnaryDereference(p_lexNode);
-	}
-
-	Expression* Parser::ParseStructInitialization(LexNode* p_lexNode)
-	{
-		const std::string& funcName = p_lexNode->token.text;
 
 		std::string oldRetType = currentExpectedReturnType;
-		Affirm(
-			oldRetType == funcName || oldRetType == ANY_VALUE_TYPE,
-			"expected expression of type '%s' at line %i but got '%s'",
-			oldRetType.c_str(), p_lexNode->token.line, funcName.c_str()
-		);
 
-		StructInfo& structInfo = typeNameToStructInfo[funcName];
-
-		size_t callArgCount = p_lexNode->children.size();
-		if (p_lexNode->children.size() > 0 &&
-			p_lexNode->children.back()->type == LexNode::Type::Semicolon)
+		for (size_t i = 0; i < info.parameterNames.size(); i++)
 		{
-			callArgCount--;
+			const VariableInfo& varInfo = info.varNameToVarInfo.at(info.parameterNames[i]);
+			currentExpectedReturnType = varInfo.typeName;
+
+			callExp->argumentLoads.push_back(PReadableValue(lexNode->children[i]));
 		}
 
+		currentExpectedReturnType = oldRetType;
+
+		return callExp;
+	}
+
+	Parser::SharedExp Parser::PNativeFunctionCall(const SharedNode& lexNode)
+	{
+		const std::string& funcName = lexNode->token.text;
+		const NativeFunctionInfo& info = nativeFunctions[funcName];
+
+		AffirmCurrentType(info.returnTypeName, lexNode->token.line);
+
+		auto callExp = std::make_shared<ECallNativeFunction>(info.returnTypeName);
+		callExp->functionPtrLoad = std::make_shared<ELoadConstPtr>(info.p_functionPtr);
+
 		Affirm(
-			structInfo.memberNameToVarInfo.size() == callArgCount,
-			"number of arguments provided to struct initializer '%s' at line %i does not match number of properties",
-			funcName.c_str(), p_lexNode->token.line
+			info.parameterTypeNames.size() == lexNode->children.size(),
+			"argument count in function call att line %i does not match parameter count",
+			lexNode->token.line
 		);
 
-		ELoadMulti* p_loadMulti = new ELoadMulti(funcName);
+		std::string oldRetType = currentExpectedReturnType;
 
+		for (size_t i = 0; i < info.parameterTypeNames.size(); i++)
+		{
+			currentExpectedReturnType = info.parameterTypeNames[i];
+			callExp->argumentLoads.push_back(PReadableValue(lexNode->children[i]));
+		}
+
+		currentExpectedReturnType = oldRetType;
+
+		return callExp;
+	}
+
+	Parser::SharedExp Parser::PStructInitialization(const SharedNode& lexNode) 
+	{
+		const std::string& funcName = lexNode->token.text;
+
+		AffirmCurrentType(funcName, lexNode->token.line);
+
+		const StructInfo& structInfo = typeNameToStructInfo[funcName];
+
+		Affirm(
+			structInfo.memberNameToVarInfo.size() == lexNode->children.size(),
+			"number of arguments provided to struct initializer '%s' at line %i does not match number of properties",
+			funcName.c_str(), lexNode->token.line
+		);
+
+		auto loadMultiExp = std::make_shared<ELoadMulti>(funcName);
+
+		std::string oldRetType = currentExpectedReturnType;
 		size_t argIndex = 0;
+
 		for (const std::string& propName : structInfo.memberNames)
 		{
-			currentExpectedReturnType = structInfo.memberNameToVarInfo[propName].typeName;
-			p_loadMulti->loaders.push_back(ParseNextExpression(p_lexNode->children[argIndex]));
+			currentExpectedReturnType = structInfo.memberNameToVarInfo.at(propName).typeName;
+			loadMultiExp->loaders.push_back(PReadableValue(lexNode->children[argIndex]));
 			argIndex++;
 		}
 
 		currentExpectedReturnType = oldRetType;
 
-		return p_loadMulti;
-	}
-
-	Expression* Parser::ParseUserFunctionCall(LexNode* p_lexNode)
-	{
-		const std::string& funcName = p_lexNode->token.text;
-
-		// handle struct initialization
-		if (typeNameToStructInfo.count(funcName) != 0)
-			return ParseStructInitialization(p_lexNode);
-
-		Affirm(
-			userFunctions.count(funcName) != 0,
-			"name '%s' at line %i is not a function",
-			funcName.c_str(), p_lexNode->token.line
-		);
-
-		FunctionInfo& info = userFunctions[funcName];
-
-		size_t callArgCount = p_lexNode->children.size();
-		if (p_lexNode->children.size() > 0 && 
-			p_lexNode->children.back()->type == LexNode::Type::Semicolon)
-		{
-			callArgCount--;
-		}
-
-		if (info.returnTypeName == "void")
-		{
-			Affirm(
-				p_lexNode->children.size() > 0 && 
-				p_lexNode->children.back()->type == LexNode::Type::Semicolon,
-				"missing ';' at line %i", p_lexNode->token.line
-			);
-		}
-
-		ECallFunction* p_call = new ECallFunction(info.parametersSize, info.localsSize, info.returnTypeName);
-		p_call->p_functionIpLoad = new ELoadConstPtrToLabel(funcName);
-
-		std::string oldRetType = currentExpectedReturnType;
-		Affirm(
-			oldRetType == info.returnTypeName || oldRetType == ANY_VALUE_TYPE,
-			"expected expression of type '%s' at line %i but got '%s'",
-			oldRetType.c_str(), p_lexNode->token.line, info.returnTypeName.c_str()
-		);
-
-		Affirm(
-			info.parameterNames.size() == callArgCount,
-			"argument count in function call att line %i does not match parameter count",
-			p_lexNode->token.line
-		);
-
-		for (size_t i = 0; i < info.parameterNames.size(); i++)
-		{
-			const VariableInfo& varInfo = info.varNameToVarInfo[info.parameterNames[i]];
-			currentExpectedReturnType = varInfo.typeName;
-
-			p_call->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[i]));
-		}
-
-		currentExpectedReturnType = oldRetType;
-
-		return p_call;
-	}
-
-	Expression* Parser::ParseNativeFunctionCall(LexNode* p_lexNode)
-	{
-		const std::string& funcName = p_lexNode->token.text;
-
-		// handle struct initialization
-		if (typeNameToStructInfo.count(funcName) != 0)
-				return ParseStructInitialization(p_lexNode);
-
-		Affirm(
-			nativeFunctions.count(funcName) != 0, 
-			"native function '%s' at line %i is not defined", 
-			funcName.c_str(), p_lexNode->token.line
-		);
-
-		NativeFunctionInfo& info = nativeFunctions[funcName];
-
-		ECallNativeFunction* p_call = new ECallNativeFunction(info.returnTypeName);
-		p_call->p_functionPtrLoad = new ELoadConstPtr(info.p_functionPtr);
-
-		std::string oldRetType = currentExpectedReturnType;
-		Affirm(
-			oldRetType == info.returnTypeName || oldRetType == ANY_VALUE_TYPE,
-			"expected expression of type '%s' at line %i but got '%s'",
-			oldRetType.c_str(), p_lexNode->token.line, info.returnTypeName.c_str()
-		);
-
-		size_t callArgCount = p_lexNode->children.size();
-		if (p_lexNode->children.size() > 0 &&
-			p_lexNode->children.back()->type == LexNode::Type::Semicolon)
-		{
-			callArgCount--;
-		}
-
-		if (info.returnTypeName == "void")
-		{
-			Affirm(
-				p_lexNode->children.size() > 0 &&
-				p_lexNode->children.back()->type == LexNode::Type::Semicolon,
-				"missing ';' at line %i", p_lexNode->token.line
-			);
-		}
-
-		Affirm(
-			info.parameterTypeNames.size() == callArgCount,
-			"argument count in function call att line %i does not match parameter count",
-			p_lexNode->token.line
-		);
-
-		for (size_t i = 0; i < info.parameterTypeNames.size(); i++)
-		{
-			currentExpectedReturnType = info.parameterTypeNames[i];
-			p_call->argumentLoads.push_back(ParseNextExpression(p_lexNode->children[i]));
-		}
-
-		currentExpectedReturnType = oldRetType;
-
-		return p_call;
-	}
-
-	Expression* Parser::ParseVariableDefinition(LexNode* p_lexNode)
-	{
-		const std::string& varTypeName = p_lexNode->token.text;
-		const std::string& varName = p_lexNode->children[0]->token.text;
-
-		Affirm(
-			currentFunction->varNameToVarInfo.count(varName) != 0,
-			"undefined name '%s' at line %i",
-			varName.c_str(), p_lexNode->token.line
-		);
-
-		const VariableInfo& info = currentFunction->varNameToVarInfo[varName];
-
-		EWriteBytesTo* p_write = new EWriteBytesTo();
-		p_write->p_bytesSizeLoad = new ELoadConstInt(typeNameToSize[info.typeName]);
-		p_write->p_writePtrLoad = new ELoadVariablePtr(info.offset);
-
-		currentExpectedReturnType = info.typeName;
-
-		p_write->p_dataLoad = ParseNextExpression(p_lexNode->children[1]);
-
-		currentExpectedReturnType = "void";
-
-		return p_write;
-	}
-
-	Expression* Parser::ParseFunctionDefinition(LexNode* p_lexNode)
-	{
-		const std::string& returnTypeName = p_lexNode->token.text;
-		Affirm(
-			typeNameToSize.count(returnTypeName) != 0,
-			"undefined type '%s' at line %i",
-			returnTypeName.c_str(), p_lexNode->token.line
-		);
-
-		const std::string& funcName = p_lexNode->children[0]->token.text;
-
-		Affirm(
-			userFunctions.count(funcName) == 0 && nativeFunctions.count(funcName) == 0,
-			"name '%s' at line %i is already a defined function",
-			funcName.c_str(), p_lexNode->children[0]->token.line
-		);
-
-		EDefineFunction* p_defFunc = new EDefineFunction(funcName);
-		FunctionInfo& funcInfo = userFunctions[funcName];
-		funcInfo.returnTypeName = returnTypeName;
-		Int nextVarOffset = 0;
-
-		// find body start
-		size_t bodyStartIndex = 1;
-		for (; bodyStartIndex < p_lexNode->children.size(); bodyStartIndex++)
-		{
-			if (p_lexNode->children[bodyStartIndex]->type != LexNode::Type::Identifier)
-				break;
-		}
-
-		// flatten content nodes into a single array to find all variable definitions
-		std::vector<LexNode*> bodyContent;
-		for (size_t i = bodyStartIndex; i < p_lexNode->children.size(); i++)
-		{
-			FlattenNode(p_lexNode->children[i], bodyContent);
-		}
-
-		// find all local variable definitions
-		for (auto p_bodyNode : bodyContent)
-		{
-			if (p_bodyNode->type != LexNode::Type::VariableDefinition)
-				continue;
-
-			const std::string& varTypeName = p_bodyNode->token.text;
-			const std::string& varName = p_bodyNode->children[0]->token.text;
-
-			Affirm(
-				typeNameToSize.count(varTypeName) != 0,
-				"undefined type '%s' at line %i",
-				varTypeName.c_str(), p_bodyNode->token.line
-			);
-
-			Affirm(
-				funcInfo.varNameToVarInfo.count(varName) == 0,
-				"variable '%s' at line %i is already defined",
-				varName.c_str(), p_bodyNode->children[0]->token.line
-			);
-
-			Int varSize = typeNameToSize[varTypeName];
-			nextVarOffset += varSize;
-			funcInfo.localsSize += varSize;
-			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
-		}
-
-		// find all parameters
-		for (size_t i = 1; i + 1 < bodyStartIndex; i += 2)
-		{
-			const std::string& varTypeName = p_lexNode->children[i]->token.text;
-			const std::string& varName = p_lexNode->children[i + 1]->token.text;
-
-			Affirm(
-				typeNameToSize.count(varTypeName) != 0,
-				"undefined type '%s' at line %i",
-				varTypeName.c_str(), p_lexNode->children[i]->token.line
-			);
-
-			Affirm(
-				funcInfo.varNameToVarInfo.count(varName) == 0,
-				"variable '%s' at line %i is already defined",
-				varName.c_str(), p_lexNode->children[i + 1]->token.line
-			);
-
-			Int varSize = typeNameToSize[varTypeName];
-			nextVarOffset += varSize;
-			funcInfo.parametersSize += varSize;
-			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
-			funcInfo.parameterNames.push_back(varName);
-		}
-
-		currentFunction = &funcInfo;
-
-		// parse body content
-		for (size_t i = bodyStartIndex; i < p_lexNode->children.size(); i++)
-			p_defFunc->body.push_back(ParseNextExpression(p_lexNode->children[i]));
-
-		currentFunction = nullptr;
-
-		// check for final return expression
-		if (funcInfo.returnTypeName == "void" && 
-			(p_defFunc->body.size() == 0 || p_lexNode->children.back()->type != LexNode::Type::Return))
-		{
-			// add a return statement if function has void return type and no return statement exists at end
-			// of function
-			p_defFunc->body.push_back(new EReturn(0));
-		}
-		else
-		{
-			Affirm(
-				p_defFunc->body.size() > 0 && p_lexNode->children.back()->type == LexNode::Type::Return,
-				"missing 'return'-statement in function '%s' at line %i",
-				funcName.c_str(), p_lexNode->token.line
-			);
-		}
-
-		return p_defFunc;
-	}
-
-	Expression* Parser::ParseOperatorDefinition(LexNode* p_lexNode)
-	{
-		const std::string& returnTypeName = p_lexNode->token.text;
-		Affirm(
-			typeNameToSize.count(returnTypeName) != 0,
-			"undefined type '%s' at line %i",
-			returnTypeName.c_str(), p_lexNode->token.line
-		);
-
-		std::string opName = p_lexNode->children[0]->token.text;
-		
-		FunctionInfo funcInfo;
-		funcInfo.returnTypeName = returnTypeName;
-		Int nextVarOffset = 0;
-
-		// find body start
-		size_t bodyStartIndex = 1;
-		for (; bodyStartIndex < p_lexNode->children.size(); bodyStartIndex++)
-		{
-			if (p_lexNode->children[bodyStartIndex]->type != LexNode::Type::Identifier)
-				break;
-		}
-
-		// flatten content nodes into a single array to find all variable definitions
-		std::vector<LexNode*> bodyContent;
-		for (size_t i = bodyStartIndex; i < p_lexNode->children.size(); i++)
-		{
-			FlattenNode(p_lexNode->children[i], bodyContent);
-		}
-
-		// find all local variable definitions
-		for (auto p_bodyNode : bodyContent)
-		{
-			if (p_bodyNode->type != LexNode::Type::VariableDefinition)
-				continue;
-
-			const std::string& varTypeName = p_bodyNode->token.text;
-			const std::string& varName = p_bodyNode->children[0]->token.text;
-
-			Affirm(
-				typeNameToSize.count(varTypeName) != 0,
-				"undefined type '%s' at line %i",
-				varTypeName.c_str(), p_bodyNode->token.line
-			);
-
-			Affirm(
-				funcInfo.varNameToVarInfo.count(varName) == 0,
-				"variable '%s' at line %i is already defined",
-				varName.c_str(), p_bodyNode->children[0]->token.line
-			);
-
-			Int varSize = typeNameToSize[varTypeName];
-			nextVarOffset += varSize;
-			funcInfo.localsSize += varSize;
-			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
-		}
-
-		// find all parameters and determine operand type from first parameter
-		std::string operandTypeName;
-
-		for (size_t i = 1; i + 1 < bodyStartIndex; i += 2)
-		{
-			const std::string& varTypeName = p_lexNode->children[i]->token.text;
-			const std::string& varName = p_lexNode->children[i + 1]->token.text;
-
-			if (i == 1)
-				operandTypeName = varTypeName;
-
-			Affirm(
-				funcInfo.varNameToVarInfo.count(varName) == 0,
-				"variable '%s' at line %i is already defined",
-				varName.c_str(), p_lexNode->children[i + 1]->token.line
-			);
-
-			Int varSize = typeNameToSize[varTypeName];
-			nextVarOffset += varSize;
-			funcInfo.parametersSize += varSize;
-			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
-			funcInfo.parameterNames.push_back(varName);
-		}
-
-		if (opName == "-" && funcInfo.parameterNames.size() == 1)
-		{
-			opName = "negate";
-		}
-
-		DataTypeOperatorFunctions& opFunctions = typeNameToOpFuncs[operandTypeName];
-		Affirm(
-			opFunctions.count(opName) == 0 && 
-			(typeNameToNativeOpFuncs.count(operandTypeName) == 0 || typeNameToNativeOpFuncs[operandTypeName].count(opName) == 0),
-			"operator '%s' for type '%s' at line %i is already defined",
-			opName.c_str(), operandTypeName.c_str(), p_lexNode->token.line
-		);
-		opFunctions[opName] = funcInfo;
-
-		EDefineFunction* p_defFunc = new EDefineFunction(operandTypeName + opName);
-
-		currentFunction = &funcInfo;
-
-		// parse body content
-		for (size_t i = bodyStartIndex; i < p_lexNode->children.size(); i++)
-			p_defFunc->body.push_back(ParseNextExpression(p_lexNode->children[i]));
-
-		currentFunction = nullptr;
-
-		// check for final return expression
-		Affirm(
-			p_defFunc->body.size() > 0 && p_lexNode->children.back()->type == LexNode::Type::Return, 
-			"operator function at line %i does not return a value", 
-			p_lexNode->token.line
-		);
-
-		return p_defFunc;
-	}
-
-	Expression* Parser::ParseStructDefinition(LexNode* p_lexNode)
-	{
-		const std::string& structName = p_lexNode->children[0]->token.text;
-
-		Affirm(
-			typeNameToSize.contains(structName) == 0,
-			"type name '%s' at line %i is already defined", 
-			structName.c_str(), p_lexNode->children[0]->token.line
-		);
-
-		StructInfo& structInfo = typeNameToStructInfo[structName];
-
-		Int propertyOffset = 0;
-		for (size_t i = 1; i + 1 < p_lexNode->children.size(); i += 2)
-		{
-			const std::string& propTypeName = p_lexNode->children[i]->token.text;
-			const std::string& propName = p_lexNode->children[i + 1]->token.text;
-
-			Affirm(
-				propTypeName != structName,
-				"struct cannot contain itself, line %i",
-				p_lexNode->children[i]->token.line
-			);
-
-			Affirm(
-				typeNameToSize.count(propTypeName) != 0,
-				"type name '%s' at line %i is not defined",
-				propTypeName.c_str(), p_lexNode->children[i]->token.line
-			);
-
-			Affirm(
-				structInfo.memberNameToVarInfo.count(propName) == 0,
-				"property '%s' at line %i is already defined in struct '%s'",
-				propName.c_str(), p_lexNode->children[i + 1]->token.line, structName.c_str()
-			);
-
-			structInfo.memberNameToVarInfo[propName] = VariableInfo(propTypeName, propertyOffset);
-			structInfo.memberNames.push_back(propName);
-			propertyOffset += typeNameToSize[propTypeName];
-		}
-
-		typeNameToSize[structName] = propertyOffset;
-
-		return new EEmpty();
-	}
-
-	Expression* Parser::ParseNextExpression(LexNode* p_lexNode)
-	{
-		switch (p_lexNode->type)
-		{
-		case LexNode::Type::LiteralConstant:
-			return ParseLiteralConstant(p_lexNode);
-		case LexNode::Type::VariableLoad:
-			return ParseVariableLoad(p_lexNode);
-		case LexNode::Type::VariableWrite:
-			return ParseVariableWrite(p_lexNode);
-		case LexNode::Type::PropertyLoad:
-			return ParsePropertyLoad(p_lexNode);
-		case LexNode::Type::PropertyWrite:
-			return ParsePropertyWrite(p_lexNode);
-		case LexNode::Type::VariableDefinition:
-			return ParseVariableDefinition(p_lexNode);
-		case LexNode::Type::FunctionDefinition:
-			return ParseFunctionDefinition(p_lexNode);
-		case LexNode::Type::OperatorDefinition:
-			return ParseOperatorDefinition(p_lexNode);
-		case LexNode::Type::StructDefinition:
-			return ParseStructDefinition(p_lexNode);
-		case LexNode::Type::UserFunctionCall:
-			return ParseUserFunctionCall(p_lexNode);
-		case LexNode::Type::NativeFunctionCall:
-			return ParseNativeFunctionCall(p_lexNode);
-		case LexNode::Type::BinaryOperation:
-			return ParseBinaryOp(p_lexNode);
-		case LexNode::Type::UnaryOperation:
-			return ParseUnaryOp(p_lexNode);
-		case LexNode::Type::Parenthesis:
-			return ParseNextExpression(p_lexNode->children[0]);
-		case LexNode::Type::Return:
-			return ParseReturn(p_lexNode);
-		case LexNode::Type::IfSingle:
-			return ParseIfSingle(p_lexNode);
-		case LexNode::Type::IfChain:
-			return ParseIfChain(p_lexNode);
-		case LexNode::Type::ElseIfSingle:
-			return ParseElseIfSingle(p_lexNode);
-		case LexNode::Type::ElseIfChain:
-			return ParseElseIfChain(p_lexNode);
-		case LexNode::Type::Else:
-			return ParseElse(p_lexNode);
-		case LexNode::Type::While:
-			return ParseWhile(p_lexNode);
-		case LexNode::Type::Break:
-			return new EBreak();
-		case LexNode::Type::Continue:
-			return new EContinue();
-		default:
-			Affirm(false, "unexpected expression '%s' at line %i", p_lexNode->token.text.c_str(), p_lexNode->token.line);
-			break;
-		}
-
-		return nullptr;
-	}
-
-	void Parser::Parse(std::vector<LexNode*>& lexNodes, std::vector<Expression*>& expressions)
-	{
-		for (auto e : lexNodes)
-			expressions.push_back(ParseNextExpression(e));
+		return loadMultiExp;
 	}
 }

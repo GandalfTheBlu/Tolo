@@ -59,75 +59,97 @@ namespace Tolo
 		std::map<std::string, Int> typeNameToSize;
 		std::map<std::string, FunctionInfo> userFunctions;
 		std::map<std::string, NativeFunctionInfo> nativeFunctions;
-		FunctionInfo* currentFunction;
+		FunctionInfo* p_currentFunction;
 		std::string currentExpectedReturnType;
 		std::map<std::string, DataTypeOperators> typeNameOperators;
 		std::map<std::string, DataTypeOperatorFunctions> typeNameToOpFuncs;
 		std::map<std::string, DataTypeNativeOpFuncs> typeNameToNativeOpFuncs;
 		std::map<std::string, StructInfo> typeNameToStructInfo;
 
+		using SharedExp = std::shared_ptr<Expression>;
+		using SharedNode = std::shared_ptr<LexNode>;
+
 		Parser();
 
-		bool HasBody(LexNode* p_lexNode, Int& outBodyStartIndex, Int& outBodyEndIndex);
+		void AffirmCurrentType(const std::string& typeName, int line, bool canBeAnyValueType = true);
 
-		void FlattenNode(LexNode* p_lexNode, std::vector<LexNode*>& outNodes);
+		bool HasBody(const SharedNode& lexNode, size_t& outContentStartIndex, size_t& outContentCount);
 
-		Expression* ParseLiteralConstant(LexNode* p_lexNode);
+		void FlattenNode(const SharedNode& lexNode, std::vector<SharedNode>& outNodes);
 
-		Expression* ParseVariableLoad(LexNode* p_lexNode);
+		void Parse(const std::vector<SharedNode>& lexNodes, std::vector<SharedExp>& expressions);
 
-		Expression* ParseVariableWrite(LexNode* p_lexNode);
+		// global structures
+		SharedExp PGlobalStructure(const SharedNode& lexNode);
 
-		Expression* ParsePropertyLoad(LexNode* p_lexNode);
+		SharedExp PStructDefinition(const SharedNode& lexNode);
 
-		Expression* ParsePropertyWrite(LexNode* p_lexNode);
+		SharedExp PFunctionDefinition(const SharedNode& lexNode);
 
-		Expression* ParseReturn(LexNode* p_lexNode);
+		SharedExp POperatorDefinition(const SharedNode& lexNode);
 
-		Expression* ParseIfSingle(LexNode* p_lexNode);
+		// statements
+		SharedExp PStatement(const SharedNode& lexNode);
 
-		Expression* ParseIfChain(LexNode* p_lexNode);
+		SharedExp PScope(const SharedNode& lexNode);
 
-		Expression* ParseElseIfSingle(LexNode* p_lexNode);
+		SharedExp PReturn(const SharedNode& lexNode);
 
-		Expression* ParseElseIfChain(LexNode* p_lexNode);
+		SharedExp PIfSingle(const SharedNode& lexNode);
 
-		Expression* ParseElse(LexNode* p_lexNode);
+		SharedExp PIfChain(const SharedNode& lexNode);
 
-		Expression* ParseWhile(LexNode* p_lexNode);
+		SharedExp PElseIfSingle(const SharedNode& lexNode);
 
-		Expression* ParseBinaryMathOp(LexNode* p_lexNode);
+		SharedExp PElseIfChain(const SharedNode& lexNode);
 
-		Expression* ParseBinaryCompareOp(LexNode* p_lexNode);
+		SharedExp PElse(const SharedNode& lexNode);
 
-		Expression* ParseBinaryOp(LexNode* p_lexNode);
+		SharedExp PWhile(const SharedNode& lexNode);
 
-		Expression* ParseUnaryNegate(LexNode* p_lexNode);
+		// expressions
+		SharedExp PExpression(const SharedNode& lexNode);
 
-		Expression* ParseUnaryNot(LexNode* p_lexNode);
+		SharedExp PBinaryOp(const SharedNode& lexNode);
 
-		Expression* ParseUnaryReference(LexNode* p_lexNode);
+		SharedExp PAssign(const SharedNode& lexNode);
 
-		Expression* ParseUnaryDereference(LexNode* p_lexNode);
+		SharedExp PWritablePtr(const SharedNode& lexNode, std::string& outWriteDataType);
 
-		Expression* ParseUnaryOp(LexNode* p_lexNode);
+		SharedExp PVariablePtr(const SharedNode& lexNode, std::string& outWriteDataType);
 
-		Expression* ParseStructInitialization(LexNode* p_lexNode);
+		SharedExp PMemberAccessPtr(const SharedNode& lexNode, std::string& outWriteDataType);
 
-		Expression* ParseUserFunctionCall(LexNode* p_lexNode);
+		SharedExp PDereferencePtr(const SharedNode& lexNode);
 
-		Expression* ParseNativeFunctionCall(LexNode* p_lexNode);
+		SharedExp PReadableValue(const SharedNode& lexNode);
 
-		Expression* ParseVariableDefinition(LexNode* p_lexNode);
+		SharedExp PLiteralConstantValue(const SharedNode& lexNode);
 
-		Expression* ParseFunctionDefinition(LexNode* p_lexNode);
+		SharedExp PVariableValue(const SharedNode& lexNode);
 
-		Expression* ParseOperatorDefinition(LexNode* p_lexNode);
+		SharedExp PMemberAccessValue(const SharedNode& lexNode);
 
-		Expression* ParseStructDefinition(LexNode* p_lexNode);
+		SharedExp PBinaryMathOp(const SharedNode& lexNode);
 
-		Expression* ParseNextExpression(LexNode* p_lexNode);
+		SharedExp PBinaryCompareOp(const SharedNode& lexNode);
 
-		void Parse(std::vector<LexNode*>& lexNodes, std::vector<Expression*>& expressions);
+		SharedExp PUnaryOp(const SharedNode& lexNode);
+
+		SharedExp PReferenceValue(const SharedNode& lexNode);
+
+		SharedExp PDereferenceValue(const SharedNode& lexNode);
+
+		SharedExp PNegate(const SharedNode& lexNode);
+
+		SharedExp PNot(const SharedNode& lexNode);
+
+		SharedExp PFunctionCall(const SharedNode& lexNode);
+
+		SharedExp PUserFunctionCall(const SharedNode& lexNode);
+
+		SharedExp PNativeFunctionCall(const SharedNode& lexNode);
+
+		SharedExp PStructInitialization(const SharedNode& lexNode);
 	};
 }

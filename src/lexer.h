@@ -1,56 +1,87 @@
 #pragma once
 #include "lex_node.h"
-#include <set>
+#include <memory>
 
 namespace Tolo
 {
 	struct Lexer
 	{
-		std::set<std::string> nativeFunctions;
+		const std::vector<Token>* p_tokens;
+		size_t tokenIndex;
 		bool isInsideWhile;
+
+		using SharedNode = std::shared_ptr<LexNode>;
 
 		Lexer();
 
-		bool IsOverloadableOperator(const Token& token);
+		void AffirmTokensLeft();
 
-		LexNode* GetBreakNode(const std::vector<Token>& tokens, size_t& i);
+		void ConsumeCurrentToken(Token::Type affirmType);
 
-		LexNode* GetContinueNode(const std::vector<Token>& tokens, size_t& i);
-
-		LexNode* GetReturnNode(const std::vector<Token>& tokens, size_t& i);
-
-		LexNode* GetIfNode(const std::vector<Token>& tokens, size_t& i);
+		void ConsumeNextToken(Token::Type affirmType);
 		
-		LexNode* GetElseNode(const std::vector<Token>& tokens, size_t& i);
+		const Token& CurrentToken();
 
-		LexNode* GetWhileNode(const std::vector<Token>& tokens, size_t& i);
+		const Token& CurrentToken(Token::Type affirmType);
 
-		LexNode* GetFunctionCallNode(const std::vector<Token>& tokens, size_t& i);
+		const Token& NextToken(Token::Type affirmType);
 
-		LexNode* GetPropertyLoadOrWriteNode(const std::vector<Token>& tokens, size_t& i);
+		bool TryCompareCurrentToken(Token::Type compareType);
 
-		LexNode* GetVariableWriteNode(const std::vector<Token>& tokens, size_t& i);
+		bool TryCompareNextToken(Token::Type compareType);
 
-		LexNode* GetVariableLoadNode(const std::vector<Token>& tokens, size_t& i);
+		int BinaryOpPrecedence(Token::Type tokenType);
 
-		LexNode* GetVariableDefinitionNode(const std::vector<Token>& tokens, size_t& i);
-		
-		LexNode* GetFunctionDefinitionNode(const std::vector<Token>& tokens, size_t& i);
+		int UnaryOpPrecedence(Token::Type tokenType);
 
-		LexNode* GetStructDefinitionNode(const std::vector<Token>& tokens, size_t& i);
+		// root lexer
+		void Lex(const std::vector<Token>& tokens, std::vector<SharedNode>& lexNodes);
 
-		LexNode* GetOperatorDefinitionNode(const std::vector<Token>& tokens, size_t& i);
+		// global structures
+		SharedNode LGlobalStructure();
 
-		int GetBinaryOpPrecedence(Token::Type tokenType);
+		SharedNode LStructDefinition();
 
-		int GetUnaryOpPrecedence(Token::Type tokenType);
+		SharedNode LFunctionDefinition();
 
-		LexNode* GetPrefix(const std::vector<Token>& tokens, size_t& i);
+		SharedNode LOperatorDefinition();
 
-		LexNode* GetInfix(const std::vector<Token>& tokens, size_t& i, LexNode* p_lhs);
+		// statements
+		SharedNode LStatement();
 
-		LexNode* GetNextNode(const std::vector<Token>& tokens, size_t& i, int precedence = 0);
-		
-		void Lex(const std::vector<Token>& tokens, std::vector<LexNode*>& lexNodes);
+		SharedNode LScope();
+
+		SharedNode LIfStatement();
+
+		SharedNode LElseStatement();
+
+		SharedNode LWhileStatement();
+
+		SharedNode LBreakStatement();
+
+		SharedNode LContinueStatement();
+
+		SharedNode LReturnStatement();
+
+		// expressions
+		SharedNode LExpression(int precedence);
+
+		SharedNode LPrefix();
+
+		SharedNode LInfix(const SharedNode& lhsNode);
+
+		SharedNode LVariableDefinition();
+
+		SharedNode LIdentifier();
+
+		SharedNode LMemberAccess();
+
+		SharedNode LLiteral();
+
+		SharedNode LUnaryOp();
+
+		SharedNode LParenthesis();
+
+		SharedNode LFunctionCall();
 	};
 }

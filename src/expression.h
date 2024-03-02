@@ -1,10 +1,13 @@
 #pragma once
 #include "code_builder.h"
+#include <memory>
 
 namespace Tolo
 {
 	struct Expression
 	{
+		using SharedExp = std::shared_ptr<Expression>;
+
 		Expression();
 
 		virtual ~Expression();
@@ -96,11 +99,9 @@ namespace Tolo
 	{
 		std::string dataTypeName;
 		Int bytesSize;
-		Expression* p_ptrLoad;
+		SharedExp ptrLoad;
 
 		ELoadBytesFromPtr(const std::string& _dataTypeName, Int _bytesSize);
-
-		~ELoadBytesFromPtr();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -110,11 +111,9 @@ namespace Tolo
 	struct EDefineFunction : public Expression
 	{
 		std::string functionName;
-		std::vector<Expression*> body;
+		std::vector<SharedExp> body;
 
 		EDefineFunction(const std::string& _functionName);
-
-		~EDefineFunction();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -147,13 +146,11 @@ namespace Tolo
 
 	struct EWriteBytesTo : public Expression
 	{
-		Expression* p_bytesSizeLoad;
-		Expression* p_writePtrLoad;
-		Expression* p_dataLoad;
+		SharedExp bytesSizeLoad;
+		SharedExp writePtrLoad;
+		SharedExp dataLoad;
 
 		EWriteBytesTo();
-
-		~EWriteBytesTo();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -164,13 +161,11 @@ namespace Tolo
 	{
 		Int paramsSize;
 		Int localsSize;
-		std::vector<Expression*> argumentLoads;
-		Expression* p_functionIpLoad;
+		std::vector<SharedExp> argumentLoads;
+		SharedExp functionIpLoad;
 		std::string returnTypeName;
 
 		ECallFunction(Int _paramsSize, Int _localsSize, const std::string& _returnTypeName);
-
-		~ECallFunction();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -179,13 +174,11 @@ namespace Tolo
 
 	struct ECallNativeFunction : public Expression
 	{
-		std::vector<Expression*> argumentLoads;
-		Expression* p_functionPtrLoad;
+		std::vector<SharedExp> argumentLoads;
+		SharedExp functionPtrLoad;
 		std::string returnTypeName;
 
 		ECallNativeFunction(const std::string& _returnTypeName);
-
-		~ECallNativeFunction();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -195,12 +188,10 @@ namespace Tolo
 	struct EBinaryOp : public Expression
 	{
 		OpCode op;
-		Expression* p_lhsLoad;
-		Expression* p_rhsLoad;
+		SharedExp lhsLoad;
+		SharedExp rhsLoad;
 
 		EBinaryOp(OpCode _op);
-
-		~EBinaryOp();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -210,11 +201,20 @@ namespace Tolo
 	struct EUnaryOp : public Expression
 	{
 		OpCode op;
-		Expression* p_valLoad;
+		SharedExp valLoad;
 
 		EUnaryOp(OpCode _op);
 
-		~EUnaryOp();
+		virtual void Evaluate(CodeBuilder& cb) override;
+
+		virtual std::string GetDataType() override;
+	};
+
+	struct EScope : public Expression
+	{
+		std::vector<SharedExp> statements;
+
+		EScope();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -224,11 +224,9 @@ namespace Tolo
 	struct EReturn : public Expression
 	{
 		Int retValSize;
-		Expression* p_retValLoad;
+		SharedExp retValLoad;
 
 		EReturn(Int _retValSize);
-
-		~EReturn();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -237,12 +235,10 @@ namespace Tolo
 
 	struct EIfSingle : public Expression
 	{
-		Expression* p_conditionLoad;
-		std::vector<Expression*> body;
+		SharedExp conditionLoad;
+		std::vector<SharedExp> body;
 
 		EIfSingle();
-
-		~EIfSingle();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -252,13 +248,11 @@ namespace Tolo
 
 	struct EIfChain : public Expression
 	{
-		Expression* p_conditionLoad;
-		std::vector<Expression*> body;
-		Expression* p_chain;
+		SharedExp conditionLoad;
+		std::vector<SharedExp> body;
+		SharedExp chain;
 
 		EIfChain();
-
-		~EIfChain();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -267,12 +261,10 @@ namespace Tolo
 
 	struct EElseIfSingle : public Expression
 	{
-		Expression* p_conditionLoad;
-		std::vector<Expression*> body;
+		SharedExp conditionLoad;
+		std::vector<SharedExp> body;
 
 		EElseIfSingle();
-
-		~EElseIfSingle();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -281,13 +273,11 @@ namespace Tolo
 
 	struct EElseIfChain : public Expression
 	{
-		Expression* p_conditionLoad;
-		std::vector<Expression*> body;
-		Expression* p_chain;
+		SharedExp conditionLoad;
+		std::vector<SharedExp> body;
+		SharedExp chain;
 
 		EElseIfChain();
-
-		~EElseIfChain();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -296,11 +286,9 @@ namespace Tolo
 
 	struct EElse : public Expression
 	{
-		std::vector<Expression*> body;
+		std::vector<SharedExp> body;
 
 		EElse();
-
-		~EElse();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -309,12 +297,10 @@ namespace Tolo
 
 	struct EWhile : public Expression
 	{
-		Expression* p_conditionLoad;
-		std::vector<Expression*> body;
+		SharedExp conditionLoad;
+		std::vector<SharedExp> body;
 
 		EWhile();
-
-		~EWhile();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 
@@ -350,12 +336,10 @@ namespace Tolo
 
 	struct ELoadMulti : public Expression
 	{
-		std::vector<Expression*> loaders;
+		std::vector<SharedExp> loaders;
 		std::string dataTypeName;
 
 		ELoadMulti(const std::string& _dataTypeName);
-
-		~ELoadMulti();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 

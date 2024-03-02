@@ -1,6 +1,7 @@
 #pragma once
 #include "token.h"
 #include <vector>
+#include <memory>
 
 namespace Tolo
 {
@@ -9,6 +10,8 @@ namespace Tolo
 		enum class Type
 		{
 			INVALID,
+
+			// statements
 			Return,
 			IfSingle,// ifSingle{cond, body[...]}
 			IfChain,// ifChain{cond, body[...], elseIfSingle | elseIfChain | else}
@@ -18,36 +21,28 @@ namespace Tolo
 			While,
 			Break,
 			Continue,
-			BinaryOperation,
+			Scope,
+
+			// values
+			LiteralConstant,
+			Identifier,
 			UnaryOperation,
+			BinaryOperation,
 			Parenthesis,
-			NativeFunctionCall,
-			UserFunctionCall,
-			VariableWrite,
-			VariableLoad,
-			PropertyLoad,
-			PropertyWrite,
+			FunctionCall,
+			MemberVariableAccess,
+
+			// definitions
 			StructDefinition,
 			VariableDefinition,
 			FunctionDefinition,
-			OperatorDefinition,
-			Identifier,
-			LiteralConstant,
-			EndCurly,
-			EndPar,
-			Semicolon
+			OperatorDefinition
 		};
 
 		Type type;
 		Token token;
-		std::vector<LexNode*> children;
+		std::vector<std::shared_ptr<LexNode>> children;
 
 		LexNode(Type _type, const Token& _token);
-
-		~LexNode();
-
-		bool IsValueExpression();
-
-		bool IsValidExpressionInScope();
 	};
 }

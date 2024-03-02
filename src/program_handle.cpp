@@ -4,6 +4,7 @@
 #include "lexer.h"
 #include "file_io.h"
 #include "standard_toolkit.h"
+#include <set>
 
 namespace Tolo
 {
@@ -238,10 +239,7 @@ namespace Tolo
 		Tokenize(outCode, tokens);
 
 		Lexer lexer;
-		for (auto& e : nativeFunctions)
-			lexer.nativeFunctions.insert(e.first);
-
-		std::vector<LexNode*> lexNodes;
+		std::vector<std::shared_ptr<LexNode>> lexNodes;
 		lexer.Lex(tokens, lexNodes);
 
 		Parser parser;
@@ -251,11 +249,9 @@ namespace Tolo
 
 		// transfer struct type sizes
 		for (auto& e : typeNameToStructInfo)
-		{
 			parser.typeNameToSize[e.first] = typeNameToSize[e.first];
-		}
 
-		std::vector<Expression*> expressions;
+		std::vector<std::shared_ptr<Expression>> expressions;
 		parser.Parse(lexNodes, expressions);
 
 		Affirm(
@@ -283,8 +279,8 @@ namespace Tolo
 
 		ECallFunction mainCall(mainParamsSize, mainInfo.localsSize, mainInfo.returnTypeName);
 		// tell the main function to load arguments from the beginning of the stack, where the user will write them
-		mainCall.argumentLoads = { new ELoadConstBytes(mainParamsSize, 0) };
-		mainCall.p_functionIpLoad = new ELoadConstPtrToLabel(mainFunctionName);
+		mainCall.argumentLoads = { std::make_shared<ELoadConstBytes>(mainParamsSize, p_stack) };
+		mainCall.functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(mainFunctionName);
 		mainCall.Evaluate(cb);
 		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel("__program_end__");
 		cb.Op(OpCode::Write_IP);
@@ -294,12 +290,6 @@ namespace Tolo
 
 		cb.DefineLabel("__program_end__");
 		cb.RemoveLabel("__program_end__");
-
-		for (auto e : lexNodes)
-			delete e;
-
-		for (auto e : expressions)
-			delete e;
 
 		codeEnd = cb.codeLength;
 	}
