@@ -325,7 +325,7 @@ namespace Tolo
 
 				if (TryCompareNextToken(Token::Type::EndPar))
 				{
-					tokenIndex++;
+					tokenIndex += 2;
 					break;
 				}
 

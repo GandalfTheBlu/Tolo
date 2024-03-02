@@ -11,9 +11,16 @@ int Obj::sum()
     return *a + *b;
 }
 
+void Obj::increment(int val)
+{
+    *a = val + *a;
+    *b = val + *b;
+}
+
 void main()
 {
-    Obj o = Obj(11, 33);
+    Obj o = Obj(1, 2);
+    o.increment(1);
     int sum = o.sum();
 
     print_int(sum);
