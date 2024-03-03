@@ -5,6 +5,12 @@ struct thing
     int a;
 };
 
+int thing::func(int val)
+{
+    this.a = this.a + val;
+    return this.a;
+}
+
 struct Obj
 {
     int a;
@@ -17,8 +23,7 @@ void main()
     thing t = thing(33);
     Obj o = Obj(11, 22, thing::ptr(&t));
 
-    o.p.a = 13;
-    int a = o.p.a;
+    int a = o.p.func(11);
 
     print_int(a);
 }

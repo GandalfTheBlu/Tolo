@@ -1511,7 +1511,119 @@ namespace Tolo
 
 	Parser::SharedExp Parser::PMemberFunctionCall(const SharedNode& lexNode, std::string& outReadDataType)
 	{
-		Affirm(false, "not implemented!");
-		return nullptr;
+		Affirm(
+			p_currentFunction->varNameToVarInfo.count(lexNode->token.text) != 0,
+			"undefined variable '%s' at line %i",
+			lexNode->token.text.c_str(), lexNode->token.line
+		);
+
+		const VariableInfo& varInfo = p_currentFunction->varNameToVarInfo.at(lexNode->token.text);
+
+		auto loadCallerPtrExp = std::make_shared<ELoadMulti>();
+		std::string parentStructType = varInfo.typeName;
+
+		// load variable pointer
+		if (ptrTypeNameToStructTypeName.count(varInfo.typeName) != 0)
+		{
+			// variable is struct pointer
+			parentStructType = ptrTypeNameToStructTypeName.at(varInfo.typeName);
+			loadCallerPtrExp->loaders.push_back(std::make_shared<ELoadVariable>(varInfo.offset, static_cast<Int>(sizeof(Ptr))));
+		}
+		else
+		{
+			Affirm(
+				typeNameToStructInfo.count(varInfo.typeName) != 0,
+				"type '%s' at line %i is not a struct",
+				varInfo.typeName.c_str(), lexNode->token.line
+			);
+
+			// variable is struct value
+			loadCallerPtrExp->loaders.push_back(std::make_shared<ELoadVariablePtr>(varInfo.offset));
+		}
+
+		// traverse dot chain to next last to reach caller's pointer
+		for (size_t i=0; i+1<lexNode->children.size(); i++)
+		{
+			const SharedNode& membNode = lexNode->children[i];
+
+			Affirm(
+				typeNameToStructInfo.count(parentStructType),
+				"type '%s' at line %i is not a struct",
+				parentStructType.c_str(), membNode->token.line
+			);
+
+			const StructInfo& parentStructInfo = typeNameToStructInfo.at(parentStructType);
+
+			Affirm(
+				parentStructInfo.memberNameToVarInfo.count(membNode->token.text) != 0,
+				"'%s' at line %i is not a member of struct '%s'",
+				membNode->token.text.c_str(), membNode->token.line, parentStructType.c_str()
+			);
+
+			const VariableInfo& membInfo = parentStructInfo.memberNameToVarInfo.at(membNode->token.text);
+
+			if (ptrTypeNameToStructTypeName.count(membInfo.typeName) != 0)
+			{
+				// member is struct pointer
+				parentStructType = ptrTypeNameToStructTypeName.at(membInfo.typeName);
+
+				// push member variable address
+				loadCallerPtrExp->loaders.push_back(std::make_shared<ELoadConstInt>(membInfo.offset));
+				loadCallerPtrExp->loaders.push_back(std::make_shared<EPtrAdd>());
+				// push pointer stored in member variable
+				loadCallerPtrExp->loaders.push_back(std::make_shared<ELoadPtrFromStackTopPtr>());
+			}
+			else
+			{
+				// member is struct value
+				parentStructType = membInfo.typeName;
+
+				// push member variable address
+				loadCallerPtrExp->loaders.push_back(std::make_shared<ELoadConstInt>(membInfo.offset));
+				loadCallerPtrExp->loaders.push_back(std::make_shared<EPtrAdd>());
+			}
+		}
+
+		const SharedNode& funcNode = lexNode->children.back();
+		const std::string& funcName = funcNode->token.text;
+
+		Affirm(
+			typeNameToMemberFunctions.count(parentStructType) != 0 &&
+			typeNameToMemberFunctions.at(parentStructType).count(funcName) != 0,
+			"type '%s' at line %i does not have member function '%s'",
+			parentStructType.c_str(), funcNode->token.line, funcNode->token.text.c_str()
+		);
+
+		const FunctionInfo& funcInfo = typeNameToMemberFunctions.at(parentStructType).at(funcName);
+
+		AffirmCurrentType(funcInfo.returnTypeName, funcNode->token.line);
+		outReadDataType = funcInfo.returnTypeName;
+
+		auto callMembFuncExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize);
+		std::string funcLabel = parentStructType + "::" + funcName;
+		callMembFuncExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(funcLabel);
+
+		Affirm(
+			funcInfo.parameterNames.size() == funcNode->children.size(),
+			"argument count in member function call att line %i does not match parameter count",
+			funcNode->token.line
+		);
+
+		// add "this" struct pointer
+		callMembFuncExp->argumentLoads.push_back(loadCallerPtrExp);
+
+		std::string oldRetType = currentExpectedReturnType;
+
+		for (size_t i = 0; i < funcInfo.parameterNames.size(); i++)
+		{
+			const VariableInfo& varInfo = funcInfo.varNameToVarInfo.at(funcInfo.parameterNames[i]);
+			currentExpectedReturnType = varInfo.typeName;
+
+			callMembFuncExp->argumentLoads.push_back(PReadableValue(funcNode->children[i]));
+		}
+
+		currentExpectedReturnType = oldRetType;
+
+		return callMembFuncExp;
 	}
 }
