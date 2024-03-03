@@ -72,6 +72,8 @@ namespace Tolo
 
 		SharedNode LInfix(const SharedNode& lhsNode);
 
+		SharedNode LNameWithDoubleColon();
+
 		SharedNode LVariableDefinition();
 
 		SharedNode LIdentifier();

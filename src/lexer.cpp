@@ -180,12 +180,11 @@ namespace Tolo
 
 		while (true)
 		{
-			const Token& membTypeToken = CurrentToken(Token::Type::Name);
-			const Token& membNameToken = NextToken(Token::Type::Name);
+			structDefNode->children.push_back(LIdentifier());
+			const Token& membNameToken = CurrentToken(Token::Type::Name);
 
 			ConsumeNextToken(Token::Type::Semicolon);
 
-			structDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, membTypeToken));
 			structDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, membNameToken));
 
 			if (CurrentToken().type == Token::Type::EndCurly)
@@ -200,13 +199,13 @@ namespace Tolo
 
 	Lexer::SharedNode Lexer::LFunctionDefinition() 
 	{
-		const Token& typeToken = CurrentToken(Token::Type::Name);
-		const Token& nameToken = NextToken(Token::Type::Name);
+		auto funcDefNode = LIdentifier();
+		funcDefNode->type = LexNode::Type::FunctionDefinition;
+
+		const Token& nameToken = CurrentToken(Token::Type::Name);
+		funcDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, nameToken));
 
 		ConsumeNextToken(Token::Type::StartPar);
-
-		auto funcDefNode = std::make_shared<LexNode>(LexNode::Type::FunctionDefinition, typeToken);
-		funcDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, nameToken));
 
 		if (CurrentToken().type == Token::Type::EndPar)
 		{
@@ -216,10 +215,8 @@ namespace Tolo
 		{
 			while (true)
 			{
-				const Token& argTypeToken = CurrentToken(Token::Type::Name);
-				const Token& argNameToken = NextToken(Token::Type::Name);
-
-				funcDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, argTypeToken));
+				funcDefNode->children.push_back(LIdentifier());
+				const Token& argNameToken = CurrentToken(Token::Type::Name);
 				funcDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, argNameToken));
 
 				if (TryCompareNextToken(Token::Type::EndPar))
@@ -239,11 +236,13 @@ namespace Tolo
 
 	Lexer::SharedNode Lexer::LOperatorDefinition() 
 	{
-		const Token& typeToken = CurrentToken();
+		auto opDefNode = LIdentifier();
+		opDefNode->type = LexNode::Type::OperatorDefinition;
 
-		ConsumeNextToken(Token::Type::Name);
+		ConsumeCurrentToken(Token::Type::Name);
 
 		const Token& opToken = CurrentToken();
+		opDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, opToken));
 
 		switch (opToken.type)
 		{
@@ -265,9 +264,6 @@ namespace Tolo
 
 		ConsumeNextToken(Token::Type::StartPar);
 
-		auto opDefNode = std::make_shared<LexNode>(LexNode::Type::OperatorDefinition, typeToken);
-		opDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, opToken));
-
 		if (CurrentToken().type == Token::Type::EndPar)
 		{
 			tokenIndex++;
@@ -276,10 +272,8 @@ namespace Tolo
 		{
 			while (true)
 			{
-				const Token& argTypeToken = CurrentToken(Token::Type::Name);
-				const Token& argNameToken = NextToken(Token::Type::Name);
-
-				opDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, argTypeToken));
+				opDefNode->children.push_back(LIdentifier());
+				const Token& argNameToken = CurrentToken(Token::Type::Name);
 				opDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, argNameToken));
 
 				if (TryCompareNextToken(Token::Type::EndPar))
@@ -299,13 +293,14 @@ namespace Tolo
 
 	Lexer::SharedNode Lexer::LMemberFunctionDefinition()
 	{
-		const Token& retTypeToken = CurrentToken(Token::Type::Name);
-		const Token& structTypeToken = NextToken(Token::Type::Name);
+		auto membFuncDefNode = LIdentifier();
+		membFuncDefNode->type = LexNode::Type::MemberFunctionDefinition;
+
+		const Token& structTypeToken = CurrentToken(Token::Type::Name);
 		ConsumeNextToken(Token::Type::DoubleColon);
 		const Token& funcNameToken = CurrentToken(Token::Type::Name);
 		ConsumeNextToken(Token::Type::StartPar);
 
-		auto membFuncDefNode = std::make_shared<LexNode>(LexNode::Type::MemberFunctionDefinition, retTypeToken);
 		membFuncDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, structTypeToken));
 		membFuncDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, funcNameToken));
 
@@ -317,10 +312,9 @@ namespace Tolo
 		{
 			while (true)
 			{
-				const Token& argTypeToken = CurrentToken(Token::Type::Name);
-				const Token& argNameToken = NextToken(Token::Type::Name);
+				membFuncDefNode->children.push_back(LIdentifier());
+				const Token& argNameToken = CurrentToken(Token::Type::Name);
 
-				membFuncDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, argTypeToken));
 				membFuncDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, argNameToken));
 
 				if (TryCompareNextToken(Token::Type::EndPar))
@@ -530,12 +524,14 @@ namespace Tolo
 		}
 		if (token.type == Token::Type::Name)
 		{
+			if (TryCompareNextToken(Token::Type::DoubleColon))
+				return LNameWithDoubleColon();
+			if (TryCompareNextToken(Token::Type::Dot))
+				return LMemberAccess();
 			if (TryCompareNextToken(Token::Type::StartPar))
 				return LFunctionCall();
 			if (TryCompareNextToken(Token::Type::Name))
 				return LVariableDefinition();
-			if (TryCompareNextToken(Token::Type::Dot))
-				return LMemberAccess();
 
 			return LIdentifier();
 		}
@@ -555,6 +551,55 @@ namespace Tolo
 		return binOpNode;
 	}
 
+	Lexer::SharedNode Lexer::LNameWithDoubleColon()
+	{
+		auto idNode = LIdentifier();
+
+		const Token& token = CurrentToken();
+
+		if (token.type == Token::Type::Name)
+		{
+			idNode->type = LexNode::Type::VariableDefinition;
+			idNode->children.push_back(LIdentifier());
+			return idNode;
+		}
+		if (token.type == Token::Type::StartPar)
+		{
+			idNode->type = LexNode::Type::FunctionCall;
+			tokenIndex++;
+
+			if (CurrentToken().type == Token::Type::EndPar)
+			{
+				tokenIndex++;
+			}
+			else
+			{
+				while (true)
+				{
+					idNode->children.push_back(LExpression(0));
+
+					if (CurrentToken().type == Token::Type::EndPar)
+					{
+						tokenIndex++;
+						break;
+					}
+
+					ConsumeCurrentToken(Token::Type::Comma);
+				}
+			}
+
+			return idNode;
+		}
+
+		Affirm(
+			false,
+			"unexpected token '%s' at line %i",
+			token.text.c_str(), token.line
+		);
+
+		return nullptr;
+	}
+
 	Lexer::SharedNode Lexer::LVariableDefinition()
 	{
 		auto varDefNode = std::make_shared<LexNode>(LexNode::Type::VariableDefinition, CurrentToken());
@@ -570,6 +615,13 @@ namespace Tolo
 	Lexer::SharedNode Lexer::LIdentifier() 
 	{
 		auto idNode = std::make_shared<LexNode>(LexNode::Type::Identifier, CurrentToken());
+
+		if (TryCompareNextToken(Token::Type::DoubleColon))
+		{
+			idNode->token.text += NextToken(Token::Type::DoubleColon).text;
+			idNode->token.text += NextToken(Token::Type::Name).text;
+		}
+
 		tokenIndex++;
 
 		return idNode;

@@ -1,23 +1,33 @@
 #include <io>
 
-struct int_pair
+struct Obj
 {
     int a;
     int b;
 };
 
-int int_pair::sum()
+int Obj::sum()
 {
     return this.a + this.b;
 }
 
-void int_pair::print_sum()
+void Obj::set_a(int x)
 {
-    print_int(this.sum());
+    this.a = x;
+}
+
+int sum(Obj::ptr obj)
+{
+    return obj.a + obj.b;
 }
 
 void main()
 {
-    int_pair p = int_pair(11, 22);
-    p.print_sum();
+    Obj a = Obj(11, 22);
+
+    a.set_a(44);
+
+    print_int(a.sum());
+    print_str("\n");
+    print_int(sum(Obj::ptr(&a)));
 }

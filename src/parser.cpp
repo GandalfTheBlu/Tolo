@@ -228,7 +228,9 @@ namespace Tolo
 			structName.c_str(), lexNode->token.line
 		);
 
-		ptrTypeNameToStructTypeName[structName + "::ptr"] = structName;
+		std::string structPtrName = structName + "::ptr";
+		ptrTypeNameToStructTypeName[structPtrName] = structName;
+		typeNameToSize[structPtrName] = sizeof(Ptr);
 
 		StructInfo& structInfo = typeNameToStructInfo[structName];
 
@@ -889,15 +891,19 @@ namespace Tolo
 
 		if (varIsPointer)
 		{
-			outWriteDataType = typeNameToSize[currentTypeName];
+			outWriteDataType = currentTypeName;
 			auto loadPtrWithOffsetExp = std::make_shared<ELoadPtrWithOffset>(memberOffset);
-			loadPtrWithOffsetExp->ptrLoad = std::make_shared<ELoadVariablePtr>(varInfo.offset);
+			loadPtrWithOffsetExp->ptrLoad = std::make_shared<ELoadVariable>(
+				varInfo.offset,
+				sizeof(Ptr),
+				varInfo.typeName
+			);
 
 			return loadPtrWithOffsetExp;
 		}
 
 		auto loadPtrExp = std::make_shared<ELoadVariablePtr>(memberOffset);
-		outWriteDataType = typeNameToSize[currentTypeName];
+		outWriteDataType = currentTypeName;
 
 		return loadPtrExp;
 	}
@@ -1396,6 +1402,9 @@ namespace Tolo
 		if (typeNameToStructInfo.count(funcName) != 0)
 			return PStructInitialization(lexNode);
 
+		if (ptrTypeNameToStructTypeName.count(funcName) != 0)
+			return PStructPtrInitialization(lexNode);
+
 		Affirm(
 			false,
 			"undefined function '%s' at line %i",
@@ -1468,7 +1477,6 @@ namespace Tolo
 	Parser::SharedExp Parser::PStructInitialization(const SharedNode& lexNode) 
 	{
 		const std::string& funcName = lexNode->token.text;
-
 		AffirmCurrentType(funcName, lexNode->token.line);
 
 		const StructInfo& structInfo = typeNameToStructInfo[funcName];
@@ -1481,8 +1489,8 @@ namespace Tolo
 
 		auto loadMultiExp = std::make_shared<ELoadMulti>(funcName);
 
-		std::string oldRetType = currentExpectedReturnType;
 		size_t argIndex = 0;
+		std::string oldRetType = currentExpectedReturnType;
 
 		for (const std::string& membName : structInfo.memberNames)
 		{
@@ -1490,6 +1498,29 @@ namespace Tolo
 			loadMultiExp->loaders.push_back(PReadableValue(lexNode->children[argIndex]));
 			argIndex++;
 		}
+
+		currentExpectedReturnType = oldRetType;
+
+		return loadMultiExp;
+	}
+
+	Parser::SharedExp Parser::PStructPtrInitialization(const SharedNode& lexNode)
+	{
+		const std::string& funcName = lexNode->token.text;
+		AffirmCurrentType(funcName, lexNode->token.line);
+		
+		Affirm(
+			lexNode->children.size() == 1,
+			"expected 1 argument in struct pointer initializer '%s' at line %i",
+			funcName.c_str(), lexNode->token.line
+		);
+
+		auto loadMultiExp = std::make_shared<ELoadMulti>(funcName);
+
+		std::string oldRetType = currentExpectedReturnType;
+		currentExpectedReturnType = "ptr";
+
+		loadMultiExp->loaders.push_back(PReadableValue(lexNode->children[0]));
 
 		currentExpectedReturnType = oldRetType;
 

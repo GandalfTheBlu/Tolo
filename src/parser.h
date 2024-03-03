@@ -157,6 +157,8 @@ namespace Tolo
 
 		SharedExp PStructInitialization(const SharedNode& lexNode);
 
+		SharedExp PStructPtrInitialization(const SharedNode& lexNode);
+
 		SharedExp PMemberFunctionCall(const SharedNode& lexNode);
 	};
 }
