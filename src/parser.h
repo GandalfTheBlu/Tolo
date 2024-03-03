@@ -113,7 +113,7 @@ namespace Tolo
 		// expressions
 		SharedExp PExpression(const SharedNode& lexNode);
 
-		SharedExp PBinaryOp(const SharedNode& lexNode);
+		SharedExp PBinaryOp(const SharedNode& lexNode, std::string& outReadDataType);
 
 		SharedExp PAssign(const SharedNode& lexNode);
 
@@ -125,40 +125,42 @@ namespace Tolo
 
 		SharedExp PDereferencePtr(const SharedNode& lexNode);
 
+		SharedExp PReadableValue(const SharedNode& lexNode, std::string& outReadDataType);
+
 		SharedExp PReadableValue(const SharedNode& lexNode);
 
-		SharedExp PLiteralConstantValue(const SharedNode& lexNode);
+		SharedExp PLiteralConstantValue(const SharedNode& lexNode, std::string& outReadDataType);
 
-		SharedExp PVariableValue(const SharedNode& lexNode);
+		SharedExp PVariableValue(const SharedNode& lexNode, std::string& outReadDataType);
 
-		SharedExp PMemberAccessValue(const SharedNode& lexNode);
+		SharedExp PMemberAccessValue(const SharedNode& lexNode, std::string& outReadDataType);
 
-		SharedExp PBinaryMathOp(const SharedNode& lexNode);
+		SharedExp PBinaryMathOp(const SharedNode& lexNode, std::string& outReadDataType);
 
-		SharedExp PBinaryCompareOp(const SharedNode& lexNode);
+		SharedExp PBinaryCompareOp(const SharedNode& lexNode, std::string& outReadDataType);
 
-		SharedExp PUnaryOp(const SharedNode& lexNode);
+		SharedExp PUnaryOp(const SharedNode& lexNode, std::string& outReadDataType);
 
-		SharedExp PReferenceValue(const SharedNode& lexNode);
+		SharedExp PReferenceValue(const SharedNode& lexNode, std::string& outReadDataType);
 
-		SharedExp PDereferenceValue(const SharedNode& lexNode);
+		SharedExp PDereferenceValue(const SharedNode& lexNode, std::string& outReadDataType);
 
-		SharedExp PNegate(const SharedNode& lexNode);
+		SharedExp PNegate(const SharedNode& lexNode, std::string& outReadDataType);
 
-		SharedExp PNot(const SharedNode& lexNode);
+		SharedExp PNot(const SharedNode& lexNode, std::string& outReadDataType);
 
-		SharedExp PBitInvert(const SharedNode& lexNode);
+		SharedExp PBitInvert(const SharedNode& lexNode, std::string& outReadDataType);
 
-		SharedExp PFunctionCall(const SharedNode& lexNode);
+		SharedExp PFunctionCall(const SharedNode& lexNode, std::string& outReadDataType);
 
-		SharedExp PUserFunctionCall(const SharedNode& lexNode);
+		SharedExp PUserFunctionCall(const SharedNode& lexNode, std::string& outReadDataType);
 
-		SharedExp PNativeFunctionCall(const SharedNode& lexNode);
+		SharedExp PNativeFunctionCall(const SharedNode& lexNode, std::string& outReadDataType);
 
-		SharedExp PStructInitialization(const SharedNode& lexNode);
+		SharedExp PStructInitialization(const SharedNode& lexNode, std::string& outReadDataType);
 
-		SharedExp PStructPtrInitialization(const SharedNode& lexNode);
+		SharedExp PStructPtrInitialization(const SharedNode& lexNode, std::string& outReadDataType);
 
-		SharedExp PMemberFunctionCall(const SharedNode& lexNode);
+		SharedExp PMemberFunctionCall(const SharedNode& lexNode, std::string& outReadDataType);
 	};
 }

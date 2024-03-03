@@ -754,13 +754,15 @@ namespace Tolo
 	// expressions
 	Parser::SharedExp Parser::PExpression(const SharedNode& lexNode)
 	{
+		std::string unused;
+
 		if (lexNode->type == LexNode::Type::BinaryOperation)
-			return PBinaryOp(lexNode);
+			return PBinaryOp(lexNode, unused);
 
 		return PReadableValue(lexNode);
 	}
 
-	Parser::SharedExp Parser::PBinaryOp(const SharedNode& lexNode) 
+	Parser::SharedExp Parser::PBinaryOp(const SharedNode& lexNode, std::string& outReadDataType)
 	{
 		switch (lexNode->token.type)
 		{
@@ -775,10 +777,10 @@ namespace Tolo
 		case Token::Type::Caret:
 		case Token::Type::DoubleLeftArrow:
 		case Token::Type::DoubleRightArrow:
-			return PBinaryMathOp(lexNode);
+			return PBinaryMathOp(lexNode, outReadDataType);
 		}
 
-		return PBinaryCompareOp(lexNode);
+		return PBinaryCompareOp(lexNode, outReadDataType);
 	}
 
 	Parser::SharedExp Parser::PAssign(const SharedNode& lexNode) 
@@ -789,10 +791,11 @@ namespace Tolo
 		writeBytesExp->writePtrLoad = PWritablePtr(lexNode->children[0], expectedWriteType);
 
 		currentExpectedReturnType = expectedWriteType;
-		writeBytesExp->dataLoad = PReadableValue(lexNode->children[1]);
+		std::string readType;
+		writeBytesExp->dataLoad = PReadableValue(lexNode->children[1], readType);
 		currentExpectedReturnType = "void";
 
-		Int byteSize = typeNameToSize.at(writeBytesExp->dataLoad->GetDataType());
+		Int byteSize = typeNameToSize.at(readType);
 		writeBytesExp->bytesSizeLoad = std::make_shared<ELoadConstInt>(byteSize);
 
 		return writeBytesExp;
@@ -843,69 +846,8 @@ namespace Tolo
 
 	Parser::SharedExp Parser::PMemberAccessPtr(const SharedNode& lexNode, std::string& outWriteDataType)
 	{
-		const std::string& varName = lexNode->token.text;
-
-		Affirm(
-			p_currentFunction->varNameToVarInfo.count(varName) != 0,
-			"undefined variable '%s' at line %i",
-			varName.c_str(), lexNode->token.line
-		);
-
-		const VariableInfo& varInfo = p_currentFunction->varNameToVarInfo[varName];
-		std::string currentTypeName = varInfo.typeName;
-		bool varIsPointer = false;
-		Int memberOffset = 0;
-
-		if (ptrTypeNameToStructTypeName.count(currentTypeName) != 0)
-		{
-			varIsPointer = true;
-			currentTypeName = ptrTypeNameToStructTypeName.at(currentTypeName);
-		}
-		else
-		{
-			memberOffset = varInfo.offset;
-		}
-
-		for (const SharedNode& membNode : lexNode->children)
-		{
-			const std::string& memberName = membNode->token.text;
-
-			Affirm(
-				typeNameToStructInfo.count(currentTypeName) != 0,
-				"cannot get property '%s' at line %i because preceeding expression is not a struct",
-				memberName.c_str(), membNode->token.line
-			);
-
-			const StructInfo& structInfo = typeNameToStructInfo[currentTypeName];
-
-			Affirm(structInfo.memberNameToVarInfo.count(memberName) != 0,
-				"cannot access property '%s' at line %i because the struct '%s' does not contain it",
-				memberName.c_str(), membNode->token.line, currentTypeName.c_str()
-			);
-
-			const VariableInfo& memberInfo = structInfo.memberNameToVarInfo.at(memberName);
-			memberOffset += memberInfo.offset;
-
-			currentTypeName = memberInfo.typeName;
-		}
-
-		if (varIsPointer)
-		{
-			outWriteDataType = currentTypeName;
-			auto loadPtrWithOffsetExp = std::make_shared<ELoadPtrWithOffset>(memberOffset);
-			loadPtrWithOffsetExp->ptrLoad = std::make_shared<ELoadVariable>(
-				varInfo.offset,
-				sizeof(Ptr),
-				varInfo.typeName
-			);
-
-			return loadPtrWithOffsetExp;
-		}
-
-		auto loadPtrExp = std::make_shared<ELoadVariablePtr>(memberOffset);
-		outWriteDataType = currentTypeName;
-
-		return loadPtrExp;
+		Affirm(false, "not implemented!");
+		return nullptr;
 	}
 
 	Parser::SharedExp Parser::PDereferencePtr(const SharedNode& lexNode) 
@@ -915,26 +857,26 @@ namespace Tolo
 		currentExpectedReturnType = "void";
 	}
 
-	Parser::SharedExp Parser::PReadableValue(const SharedNode& lexNode) 
+	Parser::SharedExp Parser::PReadableValue(const SharedNode& lexNode, std::string& outReadDataType)
 	{
 		switch (lexNode->type)
 		{
 		case LexNode::Type::Parenthesis:
-			return PReadableValue(lexNode->children[0]);
+			return PReadableValue(lexNode->children[0], outReadDataType);
 		case LexNode::Type::LiteralConstant:
-			return PLiteralConstantValue(lexNode);
+			return PLiteralConstantValue(lexNode, outReadDataType);
 		case LexNode::Type::Identifier:
-			return PVariableValue(lexNode);
+			return PVariableValue(lexNode, outReadDataType);
 		case LexNode::Type::MemberVariableAccess:
-			return PMemberAccessValue(lexNode);
+			return PMemberAccessValue(lexNode, outReadDataType);
 		case LexNode::Type::BinaryOperation:
-			return PBinaryOp(lexNode);
+			return PBinaryOp(lexNode, outReadDataType);
 		case LexNode::Type::UnaryOperation:
-			return PUnaryOp(lexNode);
+			return PUnaryOp(lexNode, outReadDataType);
 		case LexNode::Type::FunctionCall:
-			return PFunctionCall(lexNode);
+			return PFunctionCall(lexNode, outReadDataType);
 		case LexNode::Type::MemberFunctionCall:
-			return PMemberFunctionCall(lexNode);
+			return PMemberFunctionCall(lexNode, outReadDataType);
 		}
 
 		Affirm(
@@ -946,11 +888,18 @@ namespace Tolo
 		return nullptr;
 	}
 
-	Parser::SharedExp Parser::PLiteralConstantValue(const SharedNode& lexNode) 
+	Parser::SharedExp Parser::PReadableValue(const SharedNode& lexNode)
+	{
+		std::string unused;
+		return PReadableValue(lexNode, unused);
+	}
+
+	Parser::SharedExp Parser::PLiteralConstantValue(const SharedNode& lexNode, std::string& outReadDataType)
 	{
 		if (lexNode->token.type == Token::Type::ConstChar)
 		{
 			AffirmCurrentType("char", lexNode->token.line);
+			outReadDataType = "char";
 
 			Char value = lexNode->token.text[0];
 			return std::make_shared<ELoadConstChar>(value);
@@ -958,6 +907,7 @@ namespace Tolo
 		if (lexNode->token.type == Token::Type::ConstInt)
 		{
 			AffirmCurrentType("int", lexNode->token.line);
+			outReadDataType = "int";
 
 			Int value = std::stoi(lexNode->token.text);
 			return std::make_shared<ELoadConstInt>(value);
@@ -965,6 +915,7 @@ namespace Tolo
 		if (lexNode->token.type == Token::Type::ConstFloat)
 		{
 			AffirmCurrentType("float", lexNode->token.line);
+			outReadDataType = "float";
 
 			Float value = std::stof(lexNode->token.text);
 			return std::make_shared<ELoadConstFloat>(value);
@@ -972,6 +923,7 @@ namespace Tolo
 		if (lexNode->token.type == Token::Type::ConstString)
 		{
 			AffirmCurrentType("ptr", lexNode->token.line);
+			outReadDataType = "ptr";
 
 			const std::string& value = lexNode->token.text;
 			return std::make_shared<ELoadConstString>(value);
@@ -980,7 +932,7 @@ namespace Tolo
 		return nullptr;
 	}
 
-	Parser::SharedExp Parser::PVariableValue(const SharedNode& lexNode) 
+	Parser::SharedExp Parser::PVariableValue(const SharedNode& lexNode, std::string& outReadDataType) 
 	{
 		const std::string& varName = lexNode->token.text;
 
@@ -993,78 +945,18 @@ namespace Tolo
 		const VariableInfo& info = p_currentFunction->varNameToVarInfo[varName];
 
 		AffirmCurrentType(info.typeName, lexNode->token.line);
+		outReadDataType = info.typeName;
 
-		return std::make_shared<ELoadVariable>(info.offset, typeNameToSize[info.typeName], info.typeName);
+		return std::make_shared<ELoadVariable>(info.offset, typeNameToSize[info.typeName]);
 	}
 
-	Parser::SharedExp Parser::PMemberAccessValue(const SharedNode& lexNode) 
+	Parser::SharedExp Parser::PMemberAccessValue(const SharedNode& lexNode, std::string& outReadDataType)
 	{
-		const std::string& varName = lexNode->token.text;
-
-		Affirm(
-			p_currentFunction->varNameToVarInfo.count(varName) != 0,
-			"undefined variable '%s' at line %i",
-			varName.c_str(), lexNode->token.line
-		);
-
-		const VariableInfo& varInfo = p_currentFunction->varNameToVarInfo[varName];
-		std::string currentTypeName = varInfo.typeName;
-		bool varIsPointer = false;
-		Int memberOffset = 0;
-
-		if (ptrTypeNameToStructTypeName.count(currentTypeName) != 0)
-		{
-			varIsPointer = true;
-			currentTypeName = ptrTypeNameToStructTypeName.at(currentTypeName);
-		}
-		else
-		{
-			memberOffset = varInfo.offset;
-		}
-
-		for (const SharedNode& membNode : lexNode->children)
-		{
-			const std::string& memberName = membNode->token.text;
-
-			Affirm(
-				typeNameToStructInfo.count(currentTypeName) != 0,
-				"cannot get property '%s' at line %i because preceeding expression is not a struct",
-				memberName.c_str(), membNode->token.line
-			);
-
-			const StructInfo& structInfo = typeNameToStructInfo[currentTypeName];
-
-			Affirm(structInfo.memberNameToVarInfo.count(memberName) != 0,
-				"cannot access property '%s' at line %i because the struct '%s' does not contain it",
-				memberName.c_str(), membNode->token.line, currentTypeName.c_str()
-			);
-
-			const VariableInfo& memberInfo = structInfo.memberNameToVarInfo.at(memberName);
-			memberOffset += memberInfo.offset;
-
-			currentTypeName = memberInfo.typeName;
-		}
-
-		if (varIsPointer)
-		{
-			auto loadPtrWithOffsetExp = std::make_shared<ELoadPtrWithOffset>(memberOffset);
-			loadPtrWithOffsetExp->ptrLoad = std::make_shared<ELoadVariable>(
-				varInfo.offset, 
-				sizeof(Ptr), 
-				varInfo.typeName
-			);
-
-			Int membSize = typeNameToSize.at(currentTypeName);
-			auto loadMembFromPtrExp = std::make_shared<ELoadBytesFromPtr>(currentTypeName, membSize);
-			loadMembFromPtrExp->ptrLoad = loadPtrWithOffsetExp;
-
-			return loadMembFromPtrExp;
-		}
-
-		return std::make_shared<ELoadVariable>(memberOffset, typeNameToSize.at(currentTypeName), currentTypeName);
+		Affirm(false, "not implemented!");
+		return nullptr;
 	}
 
-	Parser::SharedExp Parser::PBinaryMathOp(const SharedNode& lexNode) 
+	Parser::SharedExp Parser::PBinaryMathOp(const SharedNode& lexNode, std::string& outReadDataType)
 	{
 		static std::map<Token::Type, size_t> opTypeToOpIndex
 		{
@@ -1079,10 +971,13 @@ namespace Tolo
 			{Token::Type::DoubleRightArrow, 8}
 		};
 
-		auto lhsExp = PReadableValue(lexNode->children[0]);
+		std::string readType;
+		auto lhsExp = PReadableValue(lexNode->children[0], readType);
 
 		if (currentExpectedReturnType == ANY_VALUE_TYPE)
-			currentExpectedReturnType = lhsExp->GetDataType();
+			currentExpectedReturnType = readType;
+
+		outReadDataType = currentExpectedReturnType;
 
 		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 &&
 			typeNameToOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
@@ -1092,7 +987,7 @@ namespace Tolo
 
 			const FunctionInfo& funcInfo = opFunctions.at(opName);
 
-			auto callOpExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize, funcInfo.returnTypeName);
+			auto callOpExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize);
 			callOpExp->argumentLoads.push_back(lhsExp);
 
 			std::string oldRetType = currentExpectedReturnType;
@@ -1112,7 +1007,7 @@ namespace Tolo
 
 			const NativeFunctionInfo& funcInfo = opFunctions.at(opName);
 
-			auto callNativeOpExp = std::make_shared<ECallNativeFunction>(funcInfo.returnTypeName);
+			auto callNativeOpExp = std::make_shared<ECallNativeFunction>();
 			callNativeOpExp->argumentLoads.push_back(lhsExp);
 
 			std::string oldRetType = currentExpectedReturnType;
@@ -1157,7 +1052,7 @@ namespace Tolo
 		return binMathOpExp;
 	}
 
-	Parser::SharedExp Parser::PBinaryCompareOp(const SharedNode& lexNode) 
+	Parser::SharedExp Parser::PBinaryCompareOp(const SharedNode& lexNode, std::string& outReadDataType) 
 	{
 		static std::map<Token::Type, size_t> opTypeToOpIndex
 		{
@@ -1172,13 +1067,15 @@ namespace Tolo
 		};
 
 		AffirmCurrentType("char", lexNode->token.line);
+		outReadDataType = "char";
 
 		// determine operand data type
 		currentExpectedReturnType = ANY_VALUE_TYPE;
 
-		auto lhsExp = PReadableValue(lexNode->children[0]);
+		std::string readType;
+		auto lhsExp = PReadableValue(lexNode->children[0], readType);
 
-		currentExpectedReturnType = lhsExp->GetDataType();
+		currentExpectedReturnType = readType;
 
 		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 &&
 			typeNameToOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
@@ -1188,7 +1085,7 @@ namespace Tolo
 
 			const FunctionInfo& funcInfo = opFunctions.at(opName);
 
-			auto callOpExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize, funcInfo.returnTypeName);
+			auto callOpExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize);
 			callOpExp->argumentLoads.push_back(lhsExp);
 			callOpExp->argumentLoads.push_back(PReadableValue(lexNode->children[1]));
 			callOpExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(currentExpectedReturnType + opName);
@@ -1205,7 +1102,7 @@ namespace Tolo
 
 			const NativeFunctionInfo& funcInfo = opFunctions.at(opName);
 
-			auto callNativeOpExp = std::make_shared<ECallNativeFunction>(funcInfo.returnTypeName);
+			auto callNativeOpExp = std::make_shared<ECallNativeFunction>();
 			callNativeOpExp->argumentLoads.push_back(lhsExp);
 			callNativeOpExp->argumentLoads.push_back(PReadableValue(lexNode->children[1]));
 			callNativeOpExp->functionPtrLoad = std::make_shared<ELoadConstPtr>(funcInfo.p_functionPtr);
@@ -1239,27 +1136,29 @@ namespace Tolo
 		return binCompOpExp;
 	}
 
-	Parser::SharedExp Parser::PUnaryOp(const SharedNode& lexNode) 
+	Parser::SharedExp Parser::PUnaryOp(const SharedNode& lexNode, std::string& outReadDataType)
 	{
 		switch (lexNode->token.type)
 		{
 		case Token::Type::Ampersand:
-			return PReferenceValue(lexNode);
+			return PReferenceValue(lexNode, outReadDataType);
 		case Token::Type::Asterisk:
-			return PDereferenceValue(lexNode);
+			return PDereferenceValue(lexNode, outReadDataType);
 		case Token::Type::Minus:
-			return PNegate(lexNode);
+			return PNegate(lexNode, outReadDataType);
 		case Token::Type::ExclamationMark:
-			return PNot(lexNode);
+			return PNot(lexNode, outReadDataType);
 		case Token::Type::Tilde:
-			return PBitInvert(lexNode);
+			return PBitInvert(lexNode, outReadDataType);
 		}
 
 		return nullptr;
 	}
 
-	Parser::SharedExp Parser::PReferenceValue(const SharedNode& lexNode)
+	Parser::SharedExp Parser::PReferenceValue(const SharedNode& lexNode, std::string& outReadDataType)
 	{
+		outReadDataType = "ptr";
+
 		if (lexNode->children[0]->type == LexNode::Type::Identifier)
 		{
 			std::string dataType;
@@ -1280,7 +1179,7 @@ namespace Tolo
 		return nullptr;
 	}
 
-	Parser::SharedExp Parser::PDereferenceValue(const SharedNode& lexNode)
+	Parser::SharedExp Parser::PDereferenceValue(const SharedNode& lexNode, std::string& outReadDataType)
 	{
 		Affirm(
 			currentExpectedReturnType != ANY_VALUE_TYPE,
@@ -1288,10 +1187,9 @@ namespace Tolo
 			lexNode->token.line
 		);
 
-		auto loadBytes = std::make_shared<ELoadBytesFromPtr>(
-			currentExpectedReturnType,
-			typeNameToSize[currentExpectedReturnType]
-			);
+		outReadDataType = currentExpectedReturnType;
+
+		auto loadBytes = std::make_shared<ELoadBytesFromPtr>(typeNameToSize[currentExpectedReturnType]);
 
 		std::string oldType = currentExpectedReturnType;
 		currentExpectedReturnType = "ptr";
@@ -1301,15 +1199,18 @@ namespace Tolo
 		return loadBytes;
 	}
 
-	Parser::SharedExp Parser::PNegate(const SharedNode& lexNode) 
+	Parser::SharedExp Parser::PNegate(const SharedNode& lexNode, std::string& outReadDataType)
 	{
 		const size_t opIndex = 17;
 		const std::string opName = "negate";
 
-		auto valExp = PReadableValue(lexNode->children[0]);
+		std::string readType;
+		auto valExp = PReadableValue(lexNode->children[0], readType);
 
 		if (currentExpectedReturnType == ANY_VALUE_TYPE)
-			currentExpectedReturnType = valExp->GetDataType();
+			currentExpectedReturnType = readType;
+
+		outReadDataType = currentExpectedReturnType;
 
 		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 &&
 			typeNameToOpFuncs[currentExpectedReturnType].count(opName) != 0)
@@ -1318,7 +1219,7 @@ namespace Tolo
 
 			const FunctionInfo& funcInfo = opFunctions.at(opName);
 
-			auto callOpExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize, funcInfo.returnTypeName);
+			auto callOpExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize);
 			callOpExp->argumentLoads.push_back(valExp);
 			callOpExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(currentExpectedReturnType + opName);
 
@@ -1331,7 +1232,7 @@ namespace Tolo
 
 			const NativeFunctionInfo& funcInfo = opFunctions.at(opName);
 
-			auto callNativeOpExp = std::make_shared<ECallNativeFunction>(funcInfo.returnTypeName);
+			auto callNativeOpExp = std::make_shared<ECallNativeFunction>();
 			callNativeOpExp->argumentLoads.push_back(valExp);
 			callNativeOpExp->functionPtrLoad = std::make_shared<ELoadConstPtr>(funcInfo.p_functionPtr);
 
@@ -1358,9 +1259,10 @@ namespace Tolo
 		return unaryOpExp;
 	}
 
-	Parser::SharedExp Parser::PNot(const SharedNode& lexNode) 
+	Parser::SharedExp Parser::PNot(const SharedNode& lexNode, std::string& outReadDataType)
 	{
 		AffirmCurrentType("char", lexNode->token.line);
+		outReadDataType = "char";
 
 		auto unaryNotExp = std::make_shared<EUnaryOp>(OpCode::Not);
 		unaryNotExp->valLoad = PReadableValue(lexNode->children[0]);
@@ -1368,11 +1270,12 @@ namespace Tolo
 		return unaryNotExp;
 	}
 
-	Parser::SharedExp Parser::PBitInvert(const SharedNode& lexNode)
+	Parser::SharedExp Parser::PBitInvert(const SharedNode& lexNode, std::string& outReadDataType)
 	{
 		const size_t opIndex = 18;
 
 		const std::string& retType = currentExpectedReturnType;
+		outReadDataType = retType;
 
 		Affirm(
 			typeNameOperators.count(retType) != 0 &&
@@ -1389,21 +1292,21 @@ namespace Tolo
 		return bitInvExp;
 	}
 
-	Parser::SharedExp Parser::PFunctionCall(const SharedNode& lexNode) 
+	Parser::SharedExp Parser::PFunctionCall(const SharedNode& lexNode, std::string& outReadDataType)
 	{
 		const std::string& funcName = lexNode->token.text;
 
 		if (userFunctions.count(funcName) != 0)
-			return PUserFunctionCall(lexNode);
+			return PUserFunctionCall(lexNode, outReadDataType);
 
 		if (nativeFunctions.count(funcName) != 0)
-			return PNativeFunctionCall(lexNode);
+			return PNativeFunctionCall(lexNode, outReadDataType);
 
 		if (typeNameToStructInfo.count(funcName) != 0)
-			return PStructInitialization(lexNode);
+			return PStructInitialization(lexNode, outReadDataType);
 
 		if (ptrTypeNameToStructTypeName.count(funcName) != 0)
-			return PStructPtrInitialization(lexNode);
+			return PStructPtrInitialization(lexNode, outReadDataType);
 
 		Affirm(
 			false,
@@ -1414,14 +1317,15 @@ namespace Tolo
 		return nullptr;
 	}
 
-	Parser::SharedExp Parser::PUserFunctionCall(const SharedNode& lexNode)
+	Parser::SharedExp Parser::PUserFunctionCall(const SharedNode& lexNode, std::string& outReadDataType)
 	{
 		const std::string& funcName = lexNode->token.text;
 		const FunctionInfo& info = userFunctions[funcName];
 		
 		AffirmCurrentType(info.returnTypeName, lexNode->token.line);
+		outReadDataType = info.returnTypeName;
 
-		auto callExp = std::make_shared<ECallFunction>(info.parametersSize, info.localsSize, info.returnTypeName);
+		auto callExp = std::make_shared<ECallFunction>(info.parametersSize, info.localsSize);
 		callExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(funcName);
 
 		Affirm(
@@ -1445,14 +1349,15 @@ namespace Tolo
 		return callExp;
 	}
 
-	Parser::SharedExp Parser::PNativeFunctionCall(const SharedNode& lexNode)
+	Parser::SharedExp Parser::PNativeFunctionCall(const SharedNode& lexNode, std::string& outReadDataType)
 	{
 		const std::string& funcName = lexNode->token.text;
 		const NativeFunctionInfo& info = nativeFunctions[funcName];
 
 		AffirmCurrentType(info.returnTypeName, lexNode->token.line);
+		outReadDataType = info.returnTypeName;
 
-		auto callExp = std::make_shared<ECallNativeFunction>(info.returnTypeName);
+		auto callExp = std::make_shared<ECallNativeFunction>();
 		callExp->functionPtrLoad = std::make_shared<ELoadConstPtr>(info.p_functionPtr);
 
 		Affirm(
@@ -1474,10 +1379,11 @@ namespace Tolo
 		return callExp;
 	}
 
-	Parser::SharedExp Parser::PStructInitialization(const SharedNode& lexNode) 
+	Parser::SharedExp Parser::PStructInitialization(const SharedNode& lexNode, std::string& outReadDataType)
 	{
 		const std::string& funcName = lexNode->token.text;
 		AffirmCurrentType(funcName, lexNode->token.line);
+		outReadDataType = funcName;
 
 		const StructInfo& structInfo = typeNameToStructInfo[funcName];
 
@@ -1487,7 +1393,7 @@ namespace Tolo
 			funcName.c_str(), lexNode->token.line
 		);
 
-		auto loadMultiExp = std::make_shared<ELoadMulti>(funcName);
+		auto loadMultiExp = std::make_shared<ELoadMulti>();
 
 		size_t argIndex = 0;
 		std::string oldRetType = currentExpectedReturnType;
@@ -1504,18 +1410,19 @@ namespace Tolo
 		return loadMultiExp;
 	}
 
-	Parser::SharedExp Parser::PStructPtrInitialization(const SharedNode& lexNode)
+	Parser::SharedExp Parser::PStructPtrInitialization(const SharedNode& lexNode, std::string& outReadDataType)
 	{
 		const std::string& funcName = lexNode->token.text;
 		AffirmCurrentType(funcName, lexNode->token.line);
-		
+		outReadDataType = funcName;
+
 		Affirm(
 			lexNode->children.size() == 1,
 			"expected 1 argument in struct pointer initializer '%s' at line %i",
 			funcName.c_str(), lexNode->token.line
 		);
 
-		auto loadMultiExp = std::make_shared<ELoadMulti>(funcName);
+		auto loadMultiExp = std::make_shared<ELoadMulti>();
 
 		std::string oldRetType = currentExpectedReturnType;
 		currentExpectedReturnType = "ptr";
@@ -1527,113 +1434,9 @@ namespace Tolo
 		return loadMultiExp;
 	}
 
-	Parser::SharedExp Parser::PMemberFunctionCall(const SharedNode& lexNode)
+	Parser::SharedExp Parser::PMemberFunctionCall(const SharedNode& lexNode, std::string& outReadDataType)
 	{
-		const std::string& varName = lexNode->token.text;
-
-		Affirm(
-			p_currentFunction->varNameToVarInfo.count(varName) != 0,
-			"undefined variable '%s' at line %i",
-			varName.c_str(), lexNode->token.line
-		);
-
-		const VariableInfo& varInfo = p_currentFunction->varNameToVarInfo[varName];
-		std::string currentTypeName = varInfo.typeName;
-		bool callerIsPointer = false;
-
-		if (ptrTypeNameToStructTypeName.count(currentTypeName) != 0)
-		{
-			callerIsPointer = true;
-			currentTypeName = ptrTypeNameToStructTypeName.at(currentTypeName);
-		}
-
-		// traverse member access chain go get function name
-		for (size_t i=0; i+1<lexNode->children.size(); i++)
-		{
-			callerIsPointer = false;
-
-			const SharedNode& membNode = lexNode->children[i];
-			const std::string& memberName = membNode->token.text;
-
-			Affirm(
-				typeNameToStructInfo.count(currentTypeName) != 0,
-				"cannot get property '%s' at line %i because preceeding expression is not a struct",
-				memberName.c_str(), membNode->token.line
-			);
-
-			const StructInfo& structInfo = typeNameToStructInfo[currentTypeName];
-
-			Affirm(structInfo.memberNameToVarInfo.count(memberName) != 0,
-				"cannot access property '%s' at line %i because the struct '%s' does not contain it",
-				memberName.c_str(), membNode->token.line, currentTypeName.c_str()
-			);
-
-			const VariableInfo& memberInfo = structInfo.memberNameToVarInfo.at(memberName);
-			currentTypeName = memberInfo.typeName;
-		}
-
-		// get the member function info
-		const std::string& structTypeName = currentTypeName;
-		const SharedNode& funcNode = lexNode->children.back();
-		const std::string& funcName = funcNode->token.text;
-
-		Affirm(
-			typeNameToStructInfo.count(structTypeName) != 0,
-			"'%s' at line %i is not a struct",
-			structTypeName.c_str(), funcNode->token.line
-		);
-
-		Affirm(
-			typeNameToMemberFunctions.count(structTypeName) != 0 &&
-			typeNameToMemberFunctions.at(structTypeName).count(funcName) != 0,
-			"'%s' at line %i is not a member function of struct '%s'",
-			funcName.c_str(), funcNode->token.line, structTypeName.c_str()
-		);
-
-		const StructInfo& structInfo = typeNameToStructInfo.at(structTypeName);
-		const DataTypeFunctions& structFuncs = typeNameToMemberFunctions.at(structTypeName);
-		const FunctionInfo& funcInfo = structFuncs.at(funcName);
-
-		AffirmCurrentType(funcInfo.returnTypeName, lexNode->token.line);
-
-		auto membCallExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize, funcInfo.returnTypeName);
-		membCallExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(structTypeName + "::" + funcName);
-
-		// add this ptr
-		if (callerIsPointer)
-		{
-			membCallExp->argumentLoads.push_back(std::make_shared<ELoadVariable>(
-				varInfo.offset,
-				sizeof(Ptr),
-				varInfo.typeName
-			));
-		}
-		else
-		{
-			membCallExp->argumentLoads.push_back(std::make_shared<ELoadVariablePtr>(
-				varInfo.offset
-			));
-		}
-
-		Affirm(
-			funcInfo.parameterNames.size() == funcNode->children.size(),
-			"argument count in function call att line %i does not match parameter count",
-			funcNode->token.line
-		);
-
-		// add parameters
-		std::string oldRetType = currentExpectedReturnType;
-
-		for (size_t i = 0; i < funcInfo.parameterNames.size(); i++)
-		{
-			const VariableInfo& varInfo = funcInfo.varNameToVarInfo.at(funcInfo.parameterNames[i]);
-			currentExpectedReturnType = varInfo.typeName;
-
-			membCallExp->argumentLoads.push_back(PReadableValue(funcNode->children[i]));
-		}
-
-		currentExpectedReturnType = oldRetType;
-
-		return membCallExp;
+		Affirm(false, "not implemented!");
+		return nullptr;
 	}
 }

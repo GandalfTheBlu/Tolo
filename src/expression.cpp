@@ -19,11 +19,6 @@ namespace Tolo
 		cb.ConstChar(value);
 	}
 
-	std::string ELoadConstChar::GetDataType()
-	{
-		return "char";
-	}
-
 
 	ELoadConstInt::ELoadConstInt(Int _value) :
 		value(_value)
@@ -33,11 +28,6 @@ namespace Tolo
 	{
 		cb.Op(OpCode::Load_Const_Int);
 		cb.ConstInt(value);
-	}
-
-	std::string ELoadConstInt::GetDataType()
-	{
-		return "int";
 	}
 
 
@@ -51,11 +41,6 @@ namespace Tolo
 		cb.ConstFloat(value);
 	}
 
-	std::string ELoadConstFloat::GetDataType()
-	{
-		return "float";
-	}
-
 
 	ELoadConstString::ELoadConstString(const std::string& _value) :
 		value(_value)
@@ -65,11 +50,6 @@ namespace Tolo
 	{
 		cb.Op(OpCode::Load_Const_Ptr);
 		cb.ConstStringPtr(value);
-	}
-
-	std::string ELoadConstString::GetDataType()
-	{
-		return "ptr";
 	}
 
 
@@ -83,11 +63,6 @@ namespace Tolo
 		cb.ConstPtr(p_value);
 	}
 
-	std::string ELoadConstPtr::GetDataType()
-	{
-		return "ptr";
-	}
-
 
 	ELoadConstPtrToLabel::ELoadConstPtrToLabel(const std::string& _labelName) :
 		labelName(_labelName)
@@ -97,11 +72,6 @@ namespace Tolo
 	{
 		cb.Op(OpCode::Load_Const_Ptr);
 		cb.ConstPtrToLabel(labelName);
-	}
-
-	std::string ELoadConstPtrToLabel::GetDataType()
-	{
-		return "ptr";
 	}
 
 
@@ -117,14 +87,8 @@ namespace Tolo
 		cb.Op(OpCode::Load_Bytes_From);
 	}
 
-	std::string ELoadConstBytes::GetDataType()
-	{
-		return "_";// this expression is never used in the parser
-	}
 
-
-	ELoadBytesFromPtr::ELoadBytesFromPtr(const std::string& _dataTypeName, Int _bytesSize) :
-		dataTypeName(_dataTypeName),
+	ELoadBytesFromPtr::ELoadBytesFromPtr(Int _bytesSize) :
 		bytesSize(_bytesSize)
 	{}
 
@@ -133,11 +97,6 @@ namespace Tolo
 		ptrLoad->Evaluate(cb);
 		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(bytesSize);
 		cb.Op(OpCode::Load_Bytes_From);
-	}
-
-	std::string ELoadBytesFromPtr::GetDataType()
-	{
-		return dataTypeName;
 	}
 
 
@@ -152,20 +111,10 @@ namespace Tolo
 		cb.Op(OpCode::Ptr_Add);
 	}
 
-	std::string ELoadPtrWithOffset::GetDataType()
-	{
-		return "ptr";
-	}
-
 
 	EDefineFunction::EDefineFunction(const std::string& _functionName) :
 		functionName(_functionName)
 	{}
-
-	std::string EDefineFunction::GetDataType()
-	{
-		return "void";
-	}
 
 
 	void EDefineFunction::Evaluate(CodeBuilder& cb) 
@@ -176,10 +125,9 @@ namespace Tolo
 			e->Evaluate(cb);
 	}
 
-	ELoadVariable::ELoadVariable(Int _varOffset, Int _varSize, const std::string& _varTypeName) :
+	ELoadVariable::ELoadVariable(Int _varOffset, Int _varSize) :
 		varOffset(_varOffset),
-		varSize(_varSize),
-		varTypeName(_varTypeName)
+		varSize(_varSize)
 	{}
 
 	void ELoadVariable::Evaluate(CodeBuilder& cb) 
@@ -189,11 +137,6 @@ namespace Tolo
 		cb.Op(OpCode::Ptr_Add);
 		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(varSize);
 		cb.Op(OpCode::Load_Bytes_From);
-	}
-
-	std::string ELoadVariable::GetDataType()
-	{
-		return varTypeName;
 	}
 
 
@@ -208,11 +151,6 @@ namespace Tolo
 		cb.Op(OpCode::Ptr_Add);
 	}
 
-	std::string ELoadVariablePtr::GetDataType()
-	{
-		return "ptr";
-	}
-
 
 	EWriteBytesTo::EWriteBytesTo()
 	{}
@@ -225,16 +163,10 @@ namespace Tolo
 		cb.Op(OpCode::Write_Bytes_To);
 	}
 
-	std::string EWriteBytesTo::GetDataType()
-	{
-		return "void";
-	}
 
-
-	ECallFunction::ECallFunction(Int _paramsSize, Int _localsSize, const std::string& _returnTypeName) :
+	ECallFunction::ECallFunction(Int _paramsSize, Int _localsSize) :
 		paramsSize(_paramsSize),
-		localsSize(_localsSize),
-		returnTypeName(_returnTypeName)
+		localsSize(_localsSize)
 	{}
 
 	void ECallFunction::Evaluate(CodeBuilder& cb)
@@ -249,14 +181,8 @@ namespace Tolo
 		cb.ConstInt(localsSize);
 	}
 
-	std::string ECallFunction::GetDataType()
-	{
-		return returnTypeName;
-	}
 
-
-	ECallNativeFunction::ECallNativeFunction(const std::string& _returnTypeName) :
-		returnTypeName(_returnTypeName)
+	ECallNativeFunction::ECallNativeFunction()
 	{}
 
 	void ECallNativeFunction::Evaluate(CodeBuilder& cb)
@@ -267,11 +193,6 @@ namespace Tolo
 		functionPtrLoad->Evaluate(cb);
 
 		cb.Op(OpCode::Call_Native);
-	}
-
-	std::string ECallNativeFunction::GetDataType()
-	{
-		return returnTypeName;
 	}
 
 
@@ -286,27 +207,6 @@ namespace Tolo
 		cb.Op(op);
 	}
 
-	std::string EBinaryOp::GetDataType()
-	{
-		switch (op)
-		{
-		case Tolo::OpCode::Int_Add:
-		case Tolo::OpCode::Int_Sub:
-		case Tolo::OpCode::Int_Mul:
-		case Tolo::OpCode::Int_Div:
-			return "int";
-		case Tolo::OpCode::Float_Add:
-		case Tolo::OpCode::Float_Sub:
-		case Tolo::OpCode::Float_Mul:
-		case Tolo::OpCode::Float_Div:
-			return "float";
-		case Tolo::OpCode::Ptr_Add:
-			return "ptr";
-		}
-
-		return "char";
-	}
-
 
 	EUnaryOp::EUnaryOp(OpCode _op) :
 		op(_op)
@@ -318,11 +218,6 @@ namespace Tolo
 		cb.Op(op);
 	}
 
-	std::string EUnaryOp::GetDataType()
-	{
-		return valLoad->GetDataType();
-	}
-
 
 	EScope::EScope()
 	{}
@@ -331,11 +226,6 @@ namespace Tolo
 	{
 		for (auto e : statements)
 			e->Evaluate(cb);
-	}
-
-	std::string EScope::GetDataType()
-	{
-		return "void";
 	}
 
 
@@ -353,14 +243,6 @@ namespace Tolo
 		cb.ConstInt(retValSize);
 	}
 
-	std::string EReturn::GetDataType()
-	{
-		if (retValLoad == nullptr)
-			return "void";
-		else
-			return retValLoad->GetDataType();
-	}
-
 
 	EWhile::EWhile()
 	{}
@@ -370,29 +252,24 @@ namespace Tolo
 		cb.currentWhileDepth++;
 		std::string depthId = std::to_string(cb.currentWhileDepth);
 
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__while_condition__");
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "while_condition");
 		cb.Op(OpCode::Write_IP);
 
-		cb.DefineLabel(depthId + "__while_body__");
+		cb.DefineLabel(depthId + "while_body");
 		for (auto e : body)
 			e->Evaluate(cb);
 
-		cb.DefineLabel(depthId + "__while_condition__");
-		cb.RemoveLabel(depthId + "__while_condition__");
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__while_body__");
-		cb.RemoveLabel(depthId + "__while_body__");
+		cb.DefineLabel(depthId + "while_condition");
+		cb.RemoveLabel(depthId + "while_condition");
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "while_body");
+		cb.RemoveLabel(depthId + "while_body");
 		conditionLoad->Evaluate(cb);
 		cb.Op(OpCode::Write_IP_If);
 
-		cb.DefineLabel(depthId + "__while_end__");
-		cb.RemoveLabel(depthId + "__while_end__");
+		cb.DefineLabel(depthId + "while_end");
+		cb.RemoveLabel(depthId + "while_end");
 
 		cb.currentWhileDepth--;
-	}
-
-	std::string EWhile::GetDataType()
-	{
-		return "void";
 	}
 
 
@@ -404,28 +281,23 @@ namespace Tolo
 		cb.currentBranchDepth++;
 		std::string depthId = std::to_string(cb.currentBranchDepth);
 
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_body__");
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "if_body");
 		conditionLoad->Evaluate(cb);
 		cb.Op(OpCode::Write_IP_If);
 
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_end__");
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "if_end");
 		cb.Op(OpCode::Write_IP);
 
-		cb.DefineLabel(depthId + "__if_body__");
-		cb.RemoveLabel(depthId + "__if_body__");
+		cb.DefineLabel(depthId + "if_body");
+		cb.RemoveLabel(depthId + "if_body");
 
 		for (auto e : body)
 			e->Evaluate(cb);
 
-		cb.DefineLabel(depthId + "__if_end__");
-		cb.RemoveLabel(depthId + "__if_end__");
+		cb.DefineLabel(depthId + "if_end");
+		cb.RemoveLabel(depthId + "if_end");
 
 		cb.currentBranchDepth--;
-	}
-
-	std::string EIfSingle::GetDataType()
-	{
-		return "void";
 	}
 
 
@@ -437,36 +309,31 @@ namespace Tolo
 		cb.currentBranchDepth++;
 		std::string depthId = std::to_string(cb.currentBranchDepth);
 
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_body__");
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "if_body");
 		conditionLoad->Evaluate(cb);
 		cb.Op(OpCode::Write_IP_If);
 
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_end__");
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "if_end");
 		cb.Op(OpCode::Write_IP);
 
-		cb.DefineLabel(depthId + "__if_body__");
-		cb.RemoveLabel(depthId + "__if_body__");
+		cb.DefineLabel(depthId + "if_body");
+		cb.RemoveLabel(depthId + "if_body");
 
 		for (auto e : body)
 			e->Evaluate(cb);
 
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__chain_end__");
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "chain_end");
 		cb.Op(OpCode::Write_IP);
 
-		cb.DefineLabel(depthId + "__if_end__");
-		cb.RemoveLabel(depthId + "__if_end__");
+		cb.DefineLabel(depthId + "if_end");
+		cb.RemoveLabel(depthId + "if_end");
 
 		chain->Evaluate(cb);
 
-		cb.DefineLabel(depthId + "__chain_end__");
-		cb.RemoveLabel(depthId + "__chain_end__");
+		cb.DefineLabel(depthId + "chain_end");
+		cb.RemoveLabel(depthId + "chain_end");
 
 		cb.currentBranchDepth--;
-	}
-
-	std::string EIfChain::GetDataType()
-	{
-		return "void";
 	}
 
 
@@ -477,26 +344,21 @@ namespace Tolo
 	{
 		std::string depthId = std::to_string(cb.currentBranchDepth);
 
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_body__");
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "if_body");
 		conditionLoad->Evaluate(cb);
 		cb.Op(OpCode::Write_IP_If);
 
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_end__");
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "if_end");
 		cb.Op(OpCode::Write_IP);
 
-		cb.DefineLabel(depthId + "__if_body__");
-		cb.RemoveLabel(depthId + "__if_body__");
+		cb.DefineLabel(depthId + "if_body");
+		cb.RemoveLabel(depthId + "if_body");
 
 		for (auto e : body)
 			e->Evaluate(cb);
 
-		cb.DefineLabel(depthId + "__if_end__");
-		cb.RemoveLabel(depthId + "__if_end__");
-	}
-
-	std::string EElseIfSingle::GetDataType()
-	{
-		return "void";
+		cb.DefineLabel(depthId + "if_end");
+		cb.RemoveLabel(depthId + "if_end");
 	}
 
 
@@ -507,31 +369,26 @@ namespace Tolo
 	{
 		std::string depthId = std::to_string(cb.currentBranchDepth);
 
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_body__");
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "if_body");
 		conditionLoad->Evaluate(cb);
 		cb.Op(OpCode::Write_IP_If);
 
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__if_end__");
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "if_end");
 		cb.Op(OpCode::Write_IP);
 
-		cb.DefineLabel(depthId + "__if_body__");
-		cb.RemoveLabel(depthId + "__if_body__");
+		cb.DefineLabel(depthId + "if_body");
+		cb.RemoveLabel(depthId + "if_body");
 
 		for (auto e : body)
 			e->Evaluate(cb);
 
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__chain_end__");
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "chain_end");
 		cb.Op(OpCode::Write_IP);
 
-		cb.DefineLabel(depthId + "__if_end__");
-		cb.RemoveLabel(depthId + "__if_end__");
+		cb.DefineLabel(depthId + "if_end");
+		cb.RemoveLabel(depthId + "if_end");
 
 		chain->Evaluate(cb);
-	}
-
-	std::string EElseIfChain::GetDataType()
-	{
-		return "void";
 	}
 
 
@@ -544,11 +401,6 @@ namespace Tolo
 			e->Evaluate(cb);
 	}
 
-	std::string EElse::GetDataType()
-	{
-		return "void";
-	}
-
 	
 	EBreak::EBreak()
 	{}
@@ -556,13 +408,8 @@ namespace Tolo
 	void EBreak::Evaluate(CodeBuilder& cb)
 	{
 		std::string depthId = std::to_string(cb.currentWhileDepth);
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__while_end__");
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "while_end");
 		cb.Op(OpCode::Write_IP);
-	}
-
-	std::string EBreak::GetDataType()
-	{
-		return "void";
 	}
 
 
@@ -572,13 +419,8 @@ namespace Tolo
 	void EContinue::Evaluate(CodeBuilder& cb)
 	{
 		std::string depthId = std::to_string(cb.currentWhileDepth);
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "__while_condition__");
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "while_condition");
 		cb.Op(OpCode::Write_IP);
-	}
-
-	std::string EContinue::GetDataType()
-	{
-		return "void";
 	}
 
 
@@ -588,24 +430,13 @@ namespace Tolo
 	void EEmpty::Evaluate(CodeBuilder& cb)
 	{}
 
-	std::string EEmpty::GetDataType()
-	{
-		return "void";
-	}
 
-
-	ELoadMulti::ELoadMulti(const std::string& _dataTypeName) :
-		dataTypeName(_dataTypeName)
+	ELoadMulti::ELoadMulti()
 	{}
 
 	void ELoadMulti::Evaluate(CodeBuilder& cb)
 	{
 		for (auto e : loaders)
 			e->Evaluate(cb);
-	}
-
-	std::string ELoadMulti::GetDataType()
-	{
-		return dataTypeName;
 	}
 }

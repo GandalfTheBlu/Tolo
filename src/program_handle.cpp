@@ -278,19 +278,19 @@ namespace Tolo
 		codeStart = cb.codeLength;
 		mainReturnValueSize = parser.typeNameToSize[mainInfo.returnTypeName];
 
-		ECallFunction mainCall(mainParamsSize, mainInfo.localsSize, mainInfo.returnTypeName);
+		ECallFunction mainCall(mainParamsSize, mainInfo.localsSize);
 		// tell the main function to load arguments from the beginning of the stack, where the user will write them
 		mainCall.argumentLoads = { std::make_shared<ELoadConstBytes>(mainParamsSize, p_stack) };
 		mainCall.functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(mainFunctionName);
 		mainCall.Evaluate(cb);
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel("__program_end__");
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel("0program_end");
 		cb.Op(OpCode::Write_IP);
 
 		for (auto e : expressions)
 			e->Evaluate(cb);
 
-		cb.DefineLabel("__program_end__");
-		cb.RemoveLabel("__program_end__");
+		cb.DefineLabel("0program_end");
+		cb.RemoveLabel("0program_end");
 
 		codeEnd = cb.codeLength;
 	}

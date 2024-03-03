@@ -13,8 +13,6 @@ namespace Tolo
 		virtual ~Expression();
 
 		virtual void Evaluate(CodeBuilder& cb) = 0;
-
-		virtual std::string GetDataType() = 0;
 	};
 
 	struct ELoadConstChar : public Expression
@@ -24,8 +22,6 @@ namespace Tolo
 		ELoadConstChar(Char _value);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct ELoadConstInt : public Expression
@@ -35,8 +31,6 @@ namespace Tolo
 		ELoadConstInt(Int _value);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct ELoadConstFloat : public Expression
@@ -46,8 +40,6 @@ namespace Tolo
 		ELoadConstFloat(Float _value);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct ELoadConstString : public Expression
@@ -57,8 +49,6 @@ namespace Tolo
 		ELoadConstString(const std::string& _value);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct ELoadConstPtr : public Expression
@@ -68,8 +58,6 @@ namespace Tolo
 		ELoadConstPtr(Ptr _p_value);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct ELoadConstPtrToLabel : public Expression
@@ -79,8 +67,6 @@ namespace Tolo
 		ELoadConstPtrToLabel(const std::string& _labelName);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct ELoadConstBytes : public Expression
@@ -91,21 +77,16 @@ namespace Tolo
 		ELoadConstBytes(Int _bytesSize, Ptr _p_bytesPtr);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct ELoadBytesFromPtr : public Expression
 	{
-		std::string dataTypeName;
 		Int bytesSize;
 		SharedExp ptrLoad;
 
-		ELoadBytesFromPtr(const std::string& _dataTypeName, Int _bytesSize);
+		ELoadBytesFromPtr(Int _bytesSize);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct ELoadPtrWithOffset : public Expression
@@ -116,8 +97,6 @@ namespace Tolo
 		ELoadPtrWithOffset(Int _ptrOffset);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct EDefineFunction : public Expression
@@ -128,21 +107,16 @@ namespace Tolo
 		EDefineFunction(const std::string& _functionName);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct ELoadVariable : public Expression
 	{
 		Int varOffset;
 		Int varSize;
-		std::string varTypeName;
 
-		ELoadVariable(Int _varOffset, Int _varSize, const std::string& _varTypeName);
+		ELoadVariable(Int _varOffset, Int _varSize);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct ELoadVariablePtr : public Expression
@@ -152,8 +126,6 @@ namespace Tolo
 		ELoadVariablePtr(Int _varOffset);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct EWriteBytesTo : public Expression
@@ -165,8 +137,6 @@ namespace Tolo
 		EWriteBytesTo();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct ECallFunction : public Expression
@@ -175,26 +145,20 @@ namespace Tolo
 		Int localsSize;
 		std::vector<SharedExp> argumentLoads;
 		SharedExp functionIpLoad;
-		std::string returnTypeName;
 
-		ECallFunction(Int _paramsSize, Int _localsSize, const std::string& _returnTypeName);
+		ECallFunction(Int _paramsSize, Int _localsSize);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct ECallNativeFunction : public Expression
 	{
 		std::vector<SharedExp> argumentLoads;
 		SharedExp functionPtrLoad;
-		std::string returnTypeName;
 
-		ECallNativeFunction(const std::string& _returnTypeName);
+		ECallNativeFunction();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct EBinaryOp : public Expression
@@ -206,8 +170,6 @@ namespace Tolo
 		EBinaryOp(OpCode _op);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct EUnaryOp : public Expression
@@ -218,8 +180,6 @@ namespace Tolo
 		EUnaryOp(OpCode _op);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct EScope : public Expression
@@ -229,8 +189,6 @@ namespace Tolo
 		EScope();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct EReturn : public Expression
@@ -241,8 +199,6 @@ namespace Tolo
 		EReturn(Int _retValSize);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct EIfSingle : public Expression
@@ -253,8 +209,6 @@ namespace Tolo
 		EIfSingle();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 
@@ -267,8 +221,6 @@ namespace Tolo
 		EIfChain();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct EElseIfSingle : public Expression
@@ -279,8 +231,6 @@ namespace Tolo
 		EElseIfSingle();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct EElseIfChain : public Expression
@@ -292,8 +242,6 @@ namespace Tolo
 		EElseIfChain();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct EElse : public Expression
@@ -303,8 +251,6 @@ namespace Tolo
 		EElse();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct EWhile : public Expression
@@ -315,8 +261,6 @@ namespace Tolo
 		EWhile();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct EBreak : public Expression
@@ -324,8 +268,6 @@ namespace Tolo
 		EBreak();
 		
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct EContinue : public Expression
@@ -333,8 +275,6 @@ namespace Tolo
 		EContinue();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct EEmpty : public Expression
@@ -342,19 +282,14 @@ namespace Tolo
 		EEmpty();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 
 	struct ELoadMulti : public Expression
 	{
 		std::vector<SharedExp> loaders;
-		std::string dataTypeName;
 
-		ELoadMulti(const std::string& _dataTypeName);
+		ELoadMulti();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
-
-		virtual std::string GetDataType() override;
 	};
 }
