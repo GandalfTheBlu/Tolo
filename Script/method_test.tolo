@@ -1,11 +1,25 @@
 #include <io>
 
+struct thing
+{
+    int a;
+};
 
+struct Obj
+{
+    int a;
+    int b;
+    thing::ptr p;
+};
 
 void main()
 {
-    int a = 13;
-    ptr p = &a;
-    int b = *p;
-    print_int(b);
+    thing t = thing(33);
+    Obj o = Obj(11, 22, thing::ptr(&t));
+
+    o.p.a = 13;
+    ptr pp = &t;
+    int a = *pp;
+
+    print_int(a);
 }

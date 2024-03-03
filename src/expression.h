@@ -89,16 +89,6 @@ namespace Tolo
 		virtual void Evaluate(CodeBuilder& cb) override;
 	};
 
-	struct ELoadPtrWithOffset : public Expression
-	{
-		Int ptrOffset;
-		SharedExp ptrLoad;
-
-		ELoadPtrWithOffset(Int _ptrOffset);
-
-		virtual void Evaluate(CodeBuilder& cb) override;
-	};
-
 	struct EDefineFunction : public Expression
 	{
 		std::string functionName;
@@ -124,6 +114,20 @@ namespace Tolo
 		Int varOffset;
 
 		ELoadVariablePtr(Int _varOffset);
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+	};
+
+	struct EPtrAdd : public Expression
+	{
+		EPtrAdd();
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+	};
+
+	struct ELoadPtrFromStackTopPtr : public Expression
+	{
+		ELoadPtrFromStackTopPtr();
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 	};

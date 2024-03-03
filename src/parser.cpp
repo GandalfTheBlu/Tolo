@@ -846,8 +846,80 @@ namespace Tolo
 
 	Parser::SharedExp Parser::PMemberAccessPtr(const SharedNode& lexNode, std::string& outWriteDataType)
 	{
-		Affirm(false, "not implemented!");
-		return nullptr;
+		Affirm(
+			p_currentFunction->varNameToVarInfo.count(lexNode->token.text) != 0,
+			"undefined variable '%s' at line %i",
+			lexNode->token.text.c_str(), lexNode->token.line
+		);
+
+		const VariableInfo& varInfo = p_currentFunction->varNameToVarInfo.at(lexNode->token.text);
+
+		auto loadMembPtrExp = std::make_shared<ELoadMulti>();
+		std::string parentStructType = varInfo.typeName;
+
+		// load variable pointer
+		if (ptrTypeNameToStructTypeName.count(varInfo.typeName) != 0)
+		{
+			// variable is struct pointer
+			parentStructType = ptrTypeNameToStructTypeName.at(varInfo.typeName);
+			loadMembPtrExp->loaders.push_back(std::make_shared<ELoadVariable>(varInfo.offset, static_cast<Int>(sizeof(Ptr))));
+		}
+		else
+		{
+			Affirm(
+				typeNameToStructInfo.count(varInfo.typeName) != 0,
+				"type '%s' at line %i is not a struct",
+				varInfo.typeName.c_str(), lexNode->token.line
+			);
+
+			// variable is struct value
+			loadMembPtrExp->loaders.push_back(std::make_shared<ELoadVariablePtr>(varInfo.offset));
+		}
+
+		// traverse dot chain to reach final pointer
+		for (const SharedNode& membNode : lexNode->children)
+		{
+			Affirm(
+				typeNameToStructInfo.count(parentStructType),
+				"type '%s' at line %i is not a struct",
+				parentStructType.c_str(), membNode->token.line
+			);
+
+			const StructInfo& parentStructInfo = typeNameToStructInfo.at(parentStructType);
+
+			Affirm(
+				parentStructInfo.memberNameToVarInfo.count(membNode->token.text) != 0,
+				"'%s' at line %i is not a member of struct '%s'",
+				membNode->token.text.c_str(), membNode->token.line, parentStructType.c_str()
+			);
+
+			const VariableInfo& membInfo = parentStructInfo.memberNameToVarInfo.at(membNode->token.text);
+
+			if (ptrTypeNameToStructTypeName.count(membInfo.typeName) != 0)
+			{
+				// member is struct pointer
+				parentStructType = ptrTypeNameToStructTypeName.at(membInfo.typeName);
+
+				// push member variable address
+				loadMembPtrExp->loaders.push_back(std::make_shared<ELoadConstInt>(membInfo.offset));
+				loadMembPtrExp->loaders.push_back(std::make_shared<EPtrAdd>());
+				// push pointer stored in member variable
+				loadMembPtrExp->loaders.push_back(std::make_shared<ELoadPtrFromStackTopPtr>());
+			}
+			else
+			{
+				// member is struct value
+				parentStructType = membInfo.typeName;
+
+				// push member variable address
+				loadMembPtrExp->loaders.push_back(std::make_shared<ELoadConstInt>(membInfo.offset));
+				loadMembPtrExp->loaders.push_back(std::make_shared<EPtrAdd>());
+			}
+		}
+
+		outWriteDataType = parentStructType;
+
+		return loadMembPtrExp;
 	}
 
 	Parser::SharedExp Parser::PDereferencePtr(const SharedNode& lexNode) 

@@ -100,18 +100,6 @@ namespace Tolo
 	}
 
 
-	ELoadPtrWithOffset::ELoadPtrWithOffset(Int _ptrOffset) :
-		ptrOffset(_ptrOffset)
-	{}
-
-	void ELoadPtrWithOffset::Evaluate(CodeBuilder& cb)
-	{
-		ptrLoad->Evaluate(cb);
-		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(ptrOffset);
-		cb.Op(OpCode::Ptr_Add);
-	}
-
-
 	EDefineFunction::EDefineFunction(const std::string& _functionName) :
 		functionName(_functionName)
 	{}
@@ -132,7 +120,7 @@ namespace Tolo
 
 	void ELoadVariable::Evaluate(CodeBuilder& cb) 
 	{
-		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(-(Int)(sizeof(Ptr) + sizeof(Ptr) + sizeof(Int)) + varOffset);
+		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(-static_cast<Int>(sizeof(Ptr) + sizeof(Ptr) + sizeof(Int)) + varOffset);
 		cb.Op(OpCode::Load_FP);
 		cb.Op(OpCode::Ptr_Add);
 		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(varSize);
@@ -146,9 +134,28 @@ namespace Tolo
 
 	void ELoadVariablePtr::Evaluate(CodeBuilder& cb) 
 	{
-		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(-(Int)(sizeof(Ptr) + sizeof(Ptr) + sizeof(Int)) + varOffset);
+		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(-static_cast<Int>(sizeof(Ptr) + sizeof(Ptr) + sizeof(Int)) + varOffset);
 		cb.Op(OpCode::Load_FP);
 		cb.Op(OpCode::Ptr_Add);
+	}
+
+
+	EPtrAdd::EPtrAdd()
+	{}
+
+	void EPtrAdd::Evaluate(CodeBuilder& cb)
+	{
+		cb.Op(OpCode::Ptr_Add);
+	}
+
+
+	ELoadPtrFromStackTopPtr::ELoadPtrFromStackTopPtr()
+	{}
+
+	void ELoadPtrFromStackTopPtr::Evaluate(CodeBuilder& cb)
+	{
+		cb.Op(OpCode::Load_Const_Int); cb.ConstInt(static_cast<Int>(sizeof(Ptr)));
+		cb.Op(OpCode::Load_Bytes_From);
 	}
 
 
