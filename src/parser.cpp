@@ -1024,8 +1024,11 @@ namespace Tolo
 
 	Parser::SharedExp Parser::PMemberAccessValue(const SharedNode& lexNode, std::string& outReadDataType)
 	{
-		Affirm(false, "not implemented!");
-		return nullptr;
+		auto membPtrLoadExp = PMemberAccessPtr(lexNode, outReadDataType);
+		auto membValLoadExp = std::make_shared<ELoadBytesFromPtr>(typeNameToSize.at(outReadDataType));
+		membValLoadExp->ptrLoad = membPtrLoadExp;
+
+		return membValLoadExp;
 	}
 
 	Parser::SharedExp Parser::PBinaryMathOp(const SharedNode& lexNode, std::string& outReadDataType)

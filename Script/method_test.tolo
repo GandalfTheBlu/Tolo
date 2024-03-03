@@ -18,8 +18,7 @@ void main()
     Obj o = Obj(11, 22, thing::ptr(&t));
 
     o.p.a = 13;
-    ptr pp = &t;
-    int a = *pp;
+    int a = o.p.a;
 
     print_int(a);
 }
