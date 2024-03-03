@@ -144,7 +144,7 @@ namespace Tolo
 
 	void Parser::AffirmCurrentType(const std::string& typeName, int line, bool canBeAnyValueType)
 	{
-		if (canBeAnyValueType && typeName != "void")
+		if (canBeAnyValueType && typeName != "void" && currentExpectedReturnType == ANY_VALUE_TYPE)
 			return;
 
 		Affirm(
