@@ -26,4 +26,6 @@ void main()
     int a = o.p.func(11);
 
     print_int(a);
+    print_str("\n");
+    print_int(sizeof(Obj));
 }

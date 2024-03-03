@@ -1371,6 +1371,26 @@ namespace Tolo
 	{
 		const std::string& funcName = lexNode->token.text;
 
+		if (funcName == "sizeof")
+		{
+			Affirm(
+				lexNode->children.size() == 1 &&
+				lexNode->children[0]->type == LexNode::Type::Identifier,
+				"'sizeof' at line %i expects 1 typename as argument",
+				lexNode->children[0]->token.line
+			);
+
+			const std::string& typeName = lexNode->children[0]->token.text;
+
+			Affirm(
+				typeNameToSize.count(typeName) != 0,
+				"'%s' at line %i is not a type name",
+				typeName.c_str(), lexNode->children[0]->token.line
+			);
+
+			return std::make_shared<ELoadConstInt>(typeNameToSize.at(typeName));
+		}
+
 		if (userFunctions.count(funcName) != 0)
 			return PUserFunctionCall(lexNode, outReadDataType);
 
