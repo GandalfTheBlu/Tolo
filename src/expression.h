@@ -108,6 +108,18 @@ namespace Tolo
 		virtual std::string GetDataType() override;
 	};
 
+	struct ELoadPtrWithOffset : public Expression
+	{
+		Int ptrOffset;
+		SharedExp ptrLoad;
+
+		ELoadPtrWithOffset(Int _ptrOffset);
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+
+		virtual std::string GetDataType() override;
+	};
+
 	struct EDefineFunction : public Expression
 	{
 		std::string functionName;

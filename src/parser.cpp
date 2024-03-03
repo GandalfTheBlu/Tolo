@@ -228,6 +228,8 @@ namespace Tolo
 			structName.c_str(), lexNode->token.line
 		);
 
+		ptrTypeNameToStructTypeName[structName + "::ptr"] = structName;
+
 		StructInfo& structInfo = typeNameToStructInfo[structName];
 
 		Int propertyOffset = 0;
@@ -318,7 +320,7 @@ namespace Tolo
 			);
 
 			Int varSize = typeNameToSize[varTypeName];
-			nextVarOffset += varSize;
+			nextVarOffset -= varSize;
 			funcInfo.localsSize += varSize;
 			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
 		}
@@ -342,7 +344,7 @@ namespace Tolo
 			);
 
 			Int varSize = typeNameToSize[varTypeName];
-			nextVarOffset += varSize;
+			nextVarOffset -= varSize;
 			funcInfo.parametersSize += varSize;
 			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
 			funcInfo.parameterNames.push_back(varName);
@@ -421,7 +423,7 @@ namespace Tolo
 			);
 
 			Int varSize = typeNameToSize[varTypeName];
-			nextVarOffset += varSize;
+			nextVarOffset -= varSize;
 			funcInfo.localsSize += varSize;
 			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
 		}
@@ -444,7 +446,7 @@ namespace Tolo
 			);
 
 			Int varSize = typeNameToSize[varTypeName];
-			nextVarOffset += varSize;
+			nextVarOffset -= varSize;
 			funcInfo.parametersSize += varSize;
 			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
 			funcInfo.parameterNames.push_back(varName);
@@ -544,19 +546,17 @@ namespace Tolo
 			);
 
 			Int varSize = typeNameToSize[varTypeName];
-			nextVarOffset += varSize;
+			nextVarOffset -= varSize;
 			funcInfo.localsSize += varSize;
 			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
 		}
 
-		// add struct members as pointer variables (hidden parameters)
-		const StructInfo& structInfo = typeNameToStructInfo.at(structTypeName);
-		for (const std::string& membName : structInfo.memberNames)
+		// add this ptr
 		{
 			Int varSize = sizeof(Ptr);
-			nextVarOffset += varSize;
+			nextVarOffset -= varSize;
 			funcInfo.parametersSize += varSize;
-			funcInfo.varNameToVarInfo[membName] = { "ptr", nextVarOffset };
+			funcInfo.varNameToVarInfo["this"] = VariableInfo(structTypeName + "::ptr", nextVarOffset);
 		}
 
 		// find all parameters
@@ -578,7 +578,7 @@ namespace Tolo
 			);
 
 			Int varSize = typeNameToSize[varTypeName];
-			nextVarOffset += varSize;
+			nextVarOffset -= varSize;
 			funcInfo.parametersSize += varSize;
 			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
 			funcInfo.parameterNames.push_back(varName);
@@ -849,34 +849,55 @@ namespace Tolo
 			varName.c_str(), lexNode->token.line
 		);
 
-		VariableInfo currentVarInfo = p_currentFunction->varNameToVarInfo[varName];
-		Int memberOffset = currentVarInfo.offset;
+		const VariableInfo& varInfo = p_currentFunction->varNameToVarInfo[varName];
+		std::string currentTypeName = varInfo.typeName;
+		bool varIsPointer = false;
+		Int memberOffset = 0;
+
+		if (ptrTypeNameToStructTypeName.count(currentTypeName) != 0)
+		{
+			varIsPointer = true;
+			currentTypeName = ptrTypeNameToStructTypeName.at(currentTypeName);
+		}
+		else
+		{
+			memberOffset = varInfo.offset;
+		}
 
 		for (const SharedNode& membNode : lexNode->children)
 		{
 			const std::string& memberName = membNode->token.text;
 
 			Affirm(
-				typeNameToStructInfo.count(currentVarInfo.typeName) != 0,
+				typeNameToStructInfo.count(currentTypeName) != 0,
 				"cannot get property '%s' at line %i because preceeding expression is not a struct",
 				memberName.c_str(), membNode->token.line
 			);
 
-			StructInfo& structInfo = typeNameToStructInfo[currentVarInfo.typeName];
+			const StructInfo& structInfo = typeNameToStructInfo[currentTypeName];
 
 			Affirm(structInfo.memberNameToVarInfo.count(memberName) != 0,
 				"cannot access property '%s' at line %i because the struct '%s' does not contain it",
-				memberName.c_str(), membNode->token.line, currentVarInfo.typeName.c_str()
+				memberName.c_str(), membNode->token.line, currentTypeName.c_str()
 			);
 
-			const VariableInfo& memberInfo = structInfo.memberNameToVarInfo[memberName];
-			memberOffset -= memberInfo.offset;
+			const VariableInfo& memberInfo = structInfo.memberNameToVarInfo.at(memberName);
+			memberOffset += memberInfo.offset;
 
-			currentVarInfo = memberInfo;
+			currentTypeName = memberInfo.typeName;
+		}
+
+		if (varIsPointer)
+		{
+			outWriteDataType = typeNameToSize[currentTypeName];
+			auto loadPtrWithOffsetExp = std::make_shared<ELoadPtrWithOffset>(memberOffset);
+			loadPtrWithOffsetExp->ptrLoad = std::make_shared<ELoadVariablePtr>(varInfo.offset);
+
+			return loadPtrWithOffsetExp;
 		}
 
 		auto loadPtrExp = std::make_shared<ELoadVariablePtr>(memberOffset);
-		outWriteDataType = typeNameToSize[currentVarInfo.typeName];
+		outWriteDataType = typeNameToSize[currentTypeName];
 
 		return loadPtrExp;
 	}
@@ -980,33 +1001,61 @@ namespace Tolo
 			varName.c_str(), lexNode->token.line
 		);
 
-		VariableInfo currentVarInfo = p_currentFunction->varNameToVarInfo[varName];
-		Int memberOffset = currentVarInfo.offset;
+		const VariableInfo& varInfo = p_currentFunction->varNameToVarInfo[varName];
+		std::string currentTypeName = varInfo.typeName;
+		bool varIsPointer = false;
+		Int memberOffset = 0;
+
+		if (ptrTypeNameToStructTypeName.count(currentTypeName) != 0)
+		{
+			varIsPointer = true;
+			currentTypeName = ptrTypeNameToStructTypeName.at(currentTypeName);
+		}
+		else
+		{
+			memberOffset = varInfo.offset;
+		}
 
 		for (const SharedNode& membNode : lexNode->children)
 		{
 			const std::string& memberName = membNode->token.text;
 
 			Affirm(
-				typeNameToStructInfo.count(currentVarInfo.typeName) != 0,
+				typeNameToStructInfo.count(currentTypeName) != 0,
 				"cannot get property '%s' at line %i because preceeding expression is not a struct",
 				memberName.c_str(), membNode->token.line
 			);
 
-			StructInfo& structInfo = typeNameToStructInfo[currentVarInfo.typeName];
+			const StructInfo& structInfo = typeNameToStructInfo[currentTypeName];
 
 			Affirm(structInfo.memberNameToVarInfo.count(memberName) != 0,
 				"cannot access property '%s' at line %i because the struct '%s' does not contain it",
-				memberName.c_str(), membNode->token.line, currentVarInfo.typeName.c_str()
+				memberName.c_str(), membNode->token.line, currentTypeName.c_str()
 			);
 
-			const VariableInfo& memberInfo = structInfo.memberNameToVarInfo[memberName];
-			memberOffset -= memberInfo.offset;
+			const VariableInfo& memberInfo = structInfo.memberNameToVarInfo.at(memberName);
+			memberOffset += memberInfo.offset;
 
-			currentVarInfo = memberInfo;
+			currentTypeName = memberInfo.typeName;
 		}
 
-		return std::make_shared<ELoadVariable>(memberOffset, typeNameToSize[currentVarInfo.typeName], currentVarInfo.typeName);
+		if (varIsPointer)
+		{
+			auto loadPtrWithOffsetExp = std::make_shared<ELoadPtrWithOffset>(memberOffset);
+			loadPtrWithOffsetExp->ptrLoad = std::make_shared<ELoadVariable>(
+				varInfo.offset, 
+				sizeof(Ptr), 
+				varInfo.typeName
+			);
+
+			Int membSize = typeNameToSize.at(currentTypeName);
+			auto loadMembFromPtrExp = std::make_shared<ELoadBytesFromPtr>(currentTypeName, membSize);
+			loadMembFromPtrExp->ptrLoad = loadPtrWithOffsetExp;
+
+			return loadMembFromPtrExp;
+		}
+
+		return std::make_shared<ELoadVariable>(memberOffset, typeNameToSize.at(currentTypeName), currentTypeName);
 	}
 
 	Parser::SharedExp Parser::PBinaryMathOp(const SharedNode& lexNode) 
@@ -1457,36 +1506,43 @@ namespace Tolo
 			varName.c_str(), lexNode->token.line
 		);
 
-		VariableInfo currentVarInfo = p_currentFunction->varNameToVarInfo[varName];
-		Int memberOffset = currentVarInfo.offset;
+		const VariableInfo& varInfo = p_currentFunction->varNameToVarInfo[varName];
+		std::string currentTypeName = varInfo.typeName;
+		bool callerIsPointer = false;
 
-		// traverse member access chain
+		if (ptrTypeNameToStructTypeName.count(currentTypeName) != 0)
+		{
+			callerIsPointer = true;
+			currentTypeName = ptrTypeNameToStructTypeName.at(currentTypeName);
+		}
+
+		// traverse member access chain go get function name
 		for (size_t i=0; i+1<lexNode->children.size(); i++)
 		{
+			callerIsPointer = false;
+
 			const SharedNode& membNode = lexNode->children[i];
 			const std::string& memberName = membNode->token.text;
 
 			Affirm(
-				typeNameToStructInfo.count(currentVarInfo.typeName) != 0,
+				typeNameToStructInfo.count(currentTypeName) != 0,
 				"cannot get property '%s' at line %i because preceeding expression is not a struct",
 				memberName.c_str(), membNode->token.line
 			);
 
-			StructInfo& structInfo = typeNameToStructInfo[currentVarInfo.typeName];
+			const StructInfo& structInfo = typeNameToStructInfo[currentTypeName];
 
 			Affirm(structInfo.memberNameToVarInfo.count(memberName) != 0,
 				"cannot access property '%s' at line %i because the struct '%s' does not contain it",
-				memberName.c_str(), membNode->token.line, currentVarInfo.typeName.c_str()
+				memberName.c_str(), membNode->token.line, currentTypeName.c_str()
 			);
 
-			const VariableInfo& memberInfo = structInfo.memberNameToVarInfo[memberName];
-			memberOffset -= memberInfo.offset;
-
-			currentVarInfo = memberInfo;
+			const VariableInfo& memberInfo = structInfo.memberNameToVarInfo.at(memberName);
+			currentTypeName = memberInfo.typeName;
 		}
 
 		// get the member function info
-		const std::string& structTypeName = currentVarInfo.typeName;
+		const std::string& structTypeName = currentTypeName;
 		const SharedNode& funcNode = lexNode->children.back();
 		const std::string& funcName = funcNode->token.text;
 
@@ -1512,11 +1568,20 @@ namespace Tolo
 		auto membCallExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize, funcInfo.returnTypeName);
 		membCallExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(structTypeName + "::" + funcName);
 
-		// add struct members as pointer variables
-		for (const std::string& membName : structInfo.memberNames)
+		// add this ptr
+		if (callerIsPointer)
 		{
-			Int offset = memberOffset - structInfo.memberNameToVarInfo.at(membName).offset;
-			membCallExp->argumentLoads.push_back(std::make_shared<ELoadVariablePtr>(offset));
+			membCallExp->argumentLoads.push_back(std::make_shared<ELoadVariable>(
+				varInfo.offset,
+				sizeof(Ptr),
+				varInfo.typeName
+			));
+		}
+		else
+		{
+			membCallExp->argumentLoads.push_back(std::make_shared<ELoadVariablePtr>(
+				varInfo.offset
+			));
 		}
 
 		Affirm(

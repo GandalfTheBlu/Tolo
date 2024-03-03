@@ -65,6 +65,7 @@ namespace Tolo
 		std::map<std::string, DataTypeNativeFunctions> typeNameToNativeOpFuncs;
 		std::map<std::string, StructInfo> typeNameToStructInfo;
 		std::map<std::string, DataTypeFunctions> typeNameToMemberFunctions;
+		std::map<std::string, std::string> ptrTypeNameToStructTypeName;
 
 		using SharedExp = std::shared_ptr<Expression>;
 		using SharedNode = std::shared_ptr<LexNode>;
