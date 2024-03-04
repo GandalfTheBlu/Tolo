@@ -135,7 +135,12 @@ namespace Tolo
 		info.parameterTypeNames = function.parameterTypeNames;
 	}
 
-	void ProgramHandle::AddFunction(const FunctionHandle& function)
+	void ProgramHandle::AddFunction(
+		const std::string& returnTypeName, 
+		const std::string& functionName, 
+		const std::vector<std::string>& parameterTypeNames,
+		native_func_t functionPtr
+	)
 	{
 		static std::set<std::string> operators
 		{
@@ -157,57 +162,63 @@ namespace Tolo
 		};
 
 		if (
-			function.functionName.size() > 8 && 
-			function.functionName.substr(0, 8) == "operator" && 
-			operators.count(function.functionName.substr(8)) != 0)
+			functionName.size() > 8 && 
+			functionName.substr(0, 8) == "operator" && 
+			operators.count(functionName.substr(8)) != 0)
 		{
-			FunctionHandle opHandle = function;
-			opHandle.functionName = function.functionName.substr(8);
+			FunctionHandle opHandle = FunctionHandle(returnTypeName, functionName, parameterTypeNames, functionPtr);
+			opHandle.functionName = functionName.substr(8);
 			AddNativeOperator(opHandle);
 		}
 		else
 		{
-			for (char c : function.functionName)
+			for (char c : functionName)
 			{
 				if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')
 					continue;
 
-				Affirm(false, "invalid character '%c' in function name '%s'", c, function.functionName.c_str());
+				Affirm(false, "invalid character '%c' in function name '%s'", c, functionName.c_str());
 			}
 
-			AddNativeFunction(function);
+			AddNativeFunction(FunctionHandle(returnTypeName, functionName, parameterTypeNames, functionPtr));
 		}
 	}
 
-	void ProgramHandle::AddStruct(const StructHandle& _struct)
+	void ProgramHandle::AddStruct(
+		const std::string& structName,
+		const std::vector<std::pair<std::string, std::string>>& members
+	)
 	{
 		Affirm(
-			typeNameToStructInfo.count(_struct.typeName) == 0,
+			typeNameToStructInfo.count(structName) == 0,
 			"struct '%s' is already defined",
-			_struct.typeName.c_str()
+			structName.c_str()
 		);
 
-		StructInfo& info = typeNameToStructInfo[_struct.typeName];
+		StructInfo& info = typeNameToStructInfo[structName];
 		
+		const std::string structPtrName = structName + "::ptr";
+		typeNameToSize[structPtrName] = static_cast<Int>(sizeof(Ptr));
+
 		Int propertyOffset = 0;
-		for (auto& prop : _struct.properties)
+		for (auto& prop : members)
 		{
 			Affirm(
-				prop.first != _struct.typeName,
+				prop.first != structName,
 				"struct '%s' cannot contain itself",
-				_struct.typeName.c_str()
+				structName.c_str()
 			);
 
 			Affirm(
 				typeNameToSize.count(prop.first) != 0,
 				"type name '%s' in struct '%s' is not defined",
-				prop.first.c_str(), _struct.typeName.c_str()
+				prop.first.c_str(), structName.c_str()
 			);
 
 			Affirm(
 				info.memberNameToVarInfo.count(prop.second) == 0,
 				"property '%s' is already defined in struct '%s'",
-				prop.second.c_str(), _struct.typeName.c_str()
+				prop.second.c_str(), structName.c_str()
 			);
 
 			info.memberNameToVarInfo[prop.second] = VariableInfo(prop.first, propertyOffset);
@@ -215,7 +226,7 @@ namespace Tolo
 			propertyOffset += typeNameToSize[prop.first];
 		}
 
-		typeNameToSize[_struct.typeName] = propertyOffset;
+		typeNameToSize[structName] = propertyOffset;
 	}
 
 	void ProgramHandle::Compile()
@@ -248,9 +259,14 @@ namespace Tolo
 		parser.typeNameToStructInfo = typeNameToStructInfo;
 		parser.typeNameToNativeOpFuncs = typeNameToNativeOpFuncs;
 
-		// transfer struct type sizes
+		// transfer struct type sizes and struct pointers
 		for (auto& e : typeNameToStructInfo)
+		{
 			parser.typeNameToSize[e.first] = typeNameToSize[e.first];
+			std::string structPtrName = e.first + "::ptr";
+			parser.typeNameToSize[structPtrName] = static_cast<Int>(sizeof(Ptr));
+			parser.ptrTypeNameToStructTypeName[structPtrName] = e.first;
+		}
 
 		std::vector<std::shared_ptr<Expression>> expressions;
 		parser.Parse(lexNodes, expressions);

@@ -73,9 +73,17 @@ namespace Tolo
 
 		~ProgramHandle();
 
-		void AddFunction(const FunctionHandle& function);
+		void AddFunction(
+			const std::string& returnTypeName,
+			const std::string& functionName,
+			const std::vector<std::string>& parameterTypeNames,
+			native_func_t functionPtr
+		);
 
-		void AddStruct(const StructHandle& _struct);
+		void AddStruct(
+			const std::string& structName, 
+			const std::vector<std::pair<std::string, std::string>>& members
+		);
 
 		void Compile();
 

@@ -6,6 +6,8 @@ int main()
 {
 	ProgramHandle program("Script/method_test.tolo", 1024, 128);
 
+	program.AddStruct("test_struct", {{"int", "memb"}});
+
 	program.Compile();
 	program.Execute<void>();
 

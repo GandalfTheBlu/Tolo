@@ -18,6 +18,11 @@ struct Obj
     thing::ptr p;
 };
 
+void print_memb(test_struct::ptr p)
+{
+    print_int(p.memb);
+}
+
 void main()
 {
     thing t = thing(33);
@@ -28,4 +33,9 @@ void main()
     print_int(a);
     print_str("\n");
     print_int(sizeof(Obj));
+    print_str("\n");
+
+    test_struct ts = test_struct(1337);
+
+    print_memb(test_struct::ptr(&ts));
 }
