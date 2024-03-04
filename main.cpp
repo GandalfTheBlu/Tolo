@@ -4,7 +4,12 @@ using namespace Tolo;
 
 int main()
 {
-	ProgramHandle program("Script/method_test.tolo", 1024, 128);
+	ProgramHandle program(
+		"Script/method_test.tolo", 
+		1024, 
+		128,
+		"void", "main", {}
+	);
 
 	program.AddStruct("test_struct", {{"int", "memb"}});
 

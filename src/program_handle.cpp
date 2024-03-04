@@ -13,25 +13,25 @@ namespace Tolo
 	{}
 
 	FunctionHandle::FunctionHandle(const std::string& _returnTypeName, const std::string& _functionName, const std::vector<std::string>& _parameterTypeNames, native_func_t _p_function) :
-		p_function(_p_function),
 		returnTypeName(_returnTypeName),
 		functionName(_functionName),
-		parameterTypeNames(_parameterTypeNames)
+		parameterTypeNames(_parameterTypeNames),
+		p_function(_p_function)
 	{}
 
 	FunctionHandle::FunctionHandle(const FunctionHandle& rhs) :
-		p_function(rhs.p_function),
 		returnTypeName(rhs.returnTypeName),
 		functionName(rhs.functionName),
-		parameterTypeNames(rhs.parameterTypeNames)
+		parameterTypeNames(rhs.parameterTypeNames),
+		p_function(rhs.p_function)
 	{}
 
 	FunctionHandle& FunctionHandle::operator=(const FunctionHandle& rhs)
 	{
-		p_function = rhs.p_function;
 		returnTypeName = rhs.returnTypeName;
 		functionName = rhs.functionName;
 		parameterTypeNames = rhs.parameterTypeNames;
+		p_function = rhs.p_function;
 		return *this;
 	}
 
@@ -57,15 +57,28 @@ namespace Tolo
 	}
 
 
-	ProgramHandle::ProgramHandle(const std::string& _codePath, Int _stackSize, Int _constStringCapacity, const std::string& _mainFunctionName) :
+	ProgramHandle::ProgramHandle(
+		const std::string& _codePath,
+		Int _stackSize,
+		Int _constStringCapacity,
+		const std::string& mainFunctionReturnTypeName,
+		const std::string mainFunctionName,
+		const std::vector<std::string>& mainFunctionParameterTypeNames
+	) :
 		codePath(_codePath),
 		stackSize(_stackSize),
 		constStringCapacity(_constStringCapacity),
-		mainFunctionName(_mainFunctionName),
 		codeStart(0),
 		codeEnd(0),
-		mainReturnValueSize(0)
+		mainReturnValueSize(0),
+		mainParameterCount(mainFunctionParameterTypeNames.size())
 	{
+		mainFunctionHash = GetFunctionHash(
+			mainFunctionReturnTypeName, 
+			mainFunctionName, 
+			mainFunctionParameterTypeNames
+		);
+
 		p_stack = static_cast<Char*>(std::malloc(stackSize));
 
 		typeNameToSize["char"] = sizeof(Char);
@@ -87,13 +100,15 @@ namespace Tolo
 
 	void ProgramHandle::AddNativeFunction(const FunctionHandle& function)
 	{
+		std::string hash = GetFunctionHash(function.returnTypeName, function.functionName, function.parameterTypeNames);
+
 		Affirm(
-			nativeFunctions.count(function.functionName) == 0, 
+			hashToNativeFunctions.count(hash) == 0, 
 			"native function '%s' is already defined", 
-			function.functionName.c_str()
+			hash.c_str()
 		);
 
-		NativeFunctionInfo& info = nativeFunctions[function.functionName];
+		NativeFunctionInfo& info = hashToNativeFunctions[hash];
 		info.p_functionPtr = reinterpret_cast<Ptr>(function.p_function);
 		info.returnTypeName = function.returnTypeName;
 		info.parameterTypeNames = function.parameterTypeNames;
@@ -255,7 +270,7 @@ namespace Tolo
 		lexer.Lex(tokens, lexNodes);
 
 		Parser parser;
-		parser.nativeFunctions = nativeFunctions;
+		parser.hashToNativeFunctions = hashToNativeFunctions;
 		parser.typeNameToStructInfo = typeNameToStructInfo;
 		parser.typeNameToNativeOpFuncs = typeNameToNativeOpFuncs;
 
@@ -272,12 +287,12 @@ namespace Tolo
 		parser.Parse(lexNodes, expressions);
 
 		Affirm(
-			parser.userFunctions.count(mainFunctionName) != 0,
-			"failed to get main function, no function called '%s' found",
-			mainFunctionName.c_str()
+			parser.hashToUserFunctions.count(mainFunctionHash) != 0,
+			"failed to get main function, no function with signature '%s' found",
+			mainFunctionHash.c_str()
 		);
 
-		FunctionInfo& mainInfo = parser.userFunctions[mainFunctionName];
+		FunctionInfo& mainInfo = parser.hashToUserFunctions.at(mainFunctionHash);
 		Int mainParamsSize = 0;
 
 		for (size_t i = 0; i < mainInfo.parameterNames.size(); i++)
@@ -288,16 +303,16 @@ namespace Tolo
 
 		CodeBuilder cb(p_stack, stackSize, constStringCapacity);
 
-		// allocate space for main arguments in bottom of stack
+		// allocate space for main arguments
 		cb.codeLength += mainParamsSize;
 
 		codeStart = cb.codeLength;
 		mainReturnValueSize = parser.typeNameToSize[mainInfo.returnTypeName];
 
 		ECallFunction mainCall(mainParamsSize, mainInfo.localsSize);
-		// tell the main function to load arguments from the beginning of the stack, where the user will write them
-		mainCall.argumentLoads = { std::make_shared<ELoadConstBytes>(mainParamsSize, p_stack) };
-		mainCall.functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(mainFunctionName);
+		// tell the main function to load arguments
+		mainCall.argumentLoads = { std::make_shared<ELoadConstBytes>(mainParamsSize, p_stack + constStringCapacity) };
+		mainCall.functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(mainFunctionHash);
 		mainCall.Evaluate(cb);
 		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel("0program_end");
 		cb.Op(OpCode::Write_IP);

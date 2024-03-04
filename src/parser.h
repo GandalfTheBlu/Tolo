@@ -49,6 +49,12 @@ namespace Tolo
 		StructInfo();
 	};
 
+	std::string GetFunctionHash(
+		const std::string& returnTypeName,
+		const std::string& funcName,
+		const std::vector<std::string>& parameterTypeNames
+	);
+
 	struct Parser
 	{
 		typedef std::vector<OpCode> DataTypeOperators;
@@ -56,8 +62,8 @@ namespace Tolo
 		typedef std::map<std::string, NativeFunctionInfo> DataTypeNativeFunctions;
 
 		std::map<std::string, Int> typeNameToSize;
-		std::map<std::string, FunctionInfo> userFunctions;
-		std::map<std::string, NativeFunctionInfo> nativeFunctions;
+		std::map<std::string, FunctionInfo> hashToUserFunctions;
+		std::map<std::string, NativeFunctionInfo> hashToNativeFunctions;
 		FunctionInfo* p_currentFunction;
 		std::string currentExpectedReturnType;
 		std::map<std::string, DataTypeOperators> typeNameOperators;
@@ -71,6 +77,8 @@ namespace Tolo
 		using SharedNode = std::shared_ptr<LexNode>;
 
 		Parser();
+
+		bool IsFunctionDefined(const std::string& hash);
 
 		void AffirmCurrentType(const std::string& typeName, int line, bool canBeAnyValueType = true);
 
@@ -153,9 +161,7 @@ namespace Tolo
 
 		SharedExp PFunctionCall(const SharedNode& lexNode, std::string& outReadDataType);
 
-		SharedExp PUserFunctionCall(const SharedNode& lexNode, std::string& outReadDataType);
-
-		SharedExp PNativeFunctionCall(const SharedNode& lexNode, std::string& outReadDataType);
+		SharedExp PUserOrNativeFunctionCall(const SharedNode& lexNode, std::string& outReadDataType);
 
 		SharedExp PStructInitialization(const SharedNode& lexNode, std::string& outReadDataType);
 

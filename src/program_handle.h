@@ -8,13 +8,15 @@
 namespace Tolo
 {
 	template<typename T>
-	bool WriteValue(Ptr p_data, Int& inoutOffset, const T& value)
+	bool WriteValue(Ptr p_data, Int& inoutOffset, size_t inoutCount, const T& value)
 	{
 		if (inoutOffset < sizeof(T))
 			return false;
 
 		inoutOffset -= sizeof(T);
 		*reinterpret_cast<T*>(p_data + inoutOffset) = value;
+
+		inoutCount++;
 
 		return true;
 	}
@@ -50,12 +52,13 @@ namespace Tolo
 		Ptr p_stack;
 		Int stackSize;
 		Int constStringCapacity;
-		std::string mainFunctionName;
+		std::string mainFunctionHash;
 		Int codeStart;
 		Int codeEnd;
 		Int mainReturnValueSize;
+		size_t mainParameterCount;
 		std::map<std::string, Int> typeNameToSize;
-		std::map<std::string, NativeFunctionInfo> nativeFunctions;
+		std::map<std::string, NativeFunctionInfo> hashToNativeFunctions;
 		std::map<std::string, StructInfo> typeNameToStructInfo;
 		std::map<std::string, std::map<std::string, NativeFunctionInfo>> typeNameToNativeOpFuncs;
 		std::map<std::string, void(*)(ProgramHandle&)> standardTookitAdders;
@@ -69,7 +72,14 @@ namespace Tolo
 		void AddNativeOperator(const FunctionHandle& function);
 
 	public:
-		ProgramHandle(const std::string& _codePath, Int _stackSize, Int _constStringCapacity, const std::string& _mainFunctionName = "main");
+		ProgramHandle(
+			const std::string& _codePath, 
+			Int _stackSize, 
+			Int _constStringCapacity, 
+			const std::string& mainFunctionReturnTypeName,
+			const std::string mainFunctionName,
+			const std::vector<std::string>& mainFunctionParameterTypeNames
+		);
 
 		~ProgramHandle();
 
@@ -97,10 +107,13 @@ namespace Tolo
 			);
 
 			Int argByteOffset = codeStart;
-			bool writeSuccess = (WriteValue(p_stack, argByteOffset, arguments) && ...);
+			size_t argCount = 0;
+			bool writeSuccess = (WriteValue(p_stack, argByteOffset, argCount, arguments) && ...);
 
 			Affirm(
-				writeSuccess && argByteOffset == 0,
+				writeSuccess &&
+				argByteOffset == constStringCapacity &&
+				argCount == mainParameterCount,
 				"argument list provided to 'main'-function does not match the size of parameter list"
 			);
 
@@ -118,11 +131,14 @@ namespace Tolo
 				"requested return type does not match size of 'main'-function's return type"
 			);
 
-			Int argByteOffset = constStringCapacity;
-			bool writeSuccess = (WriteValue(p_stack, argByteOffset, arguments) && ...);
+			Int argByteOffset = codeStart;
+			size_t argCount = 0;
+			bool writeSuccess = (WriteValue(p_stack, argByteOffset, argCount, arguments) && ...);
 
 			Affirm(
-				writeSuccess && argByteOffset == codeStart,
+				writeSuccess &&
+				argByteOffset == constStringCapacity &&
+				argCount == mainParameterCount,
 				"argument list provided to 'main'-function does not match the size of parameter list"
 			);
 

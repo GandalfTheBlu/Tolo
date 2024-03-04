@@ -38,6 +38,32 @@ namespace Tolo
 	StructInfo::StructInfo()
 	{}
 
+
+	std::string GetFunctionHash(
+		const std::string& returnTypeName,
+		const std::string& funcName,
+		const std::vector<std::string>& parameterTypeNames
+	)
+	{
+		std::string hash = returnTypeName + " " + funcName + "(";
+
+		bool first = true;
+		for (const std::string& paramTypeName : parameterTypeNames)
+		{
+			if (!first)
+				hash += ", ";
+
+			hash += paramTypeName;
+
+			first = false;
+		}
+
+		hash += ")";
+
+		return hash;
+	}
+
+
 	Parser::Parser() :
 		p_currentFunction(nullptr)
 	{
@@ -140,6 +166,11 @@ namespace Tolo
 		};
 
 		currentExpectedReturnType = "void";
+	}
+
+	bool Parser::IsFunctionDefined(const std::string& hash)
+	{
+		return hashToUserFunctions.count(hash) != 0 || hashToNativeFunctions.count(hash) != 0;
 	}
 
 	void Parser::AffirmCurrentType(const std::string& typeName, int line, bool canBeAnyValueType)
@@ -279,15 +310,8 @@ namespace Tolo
 		);
 
 		const std::string& funcName = lexNode->children[0]->token.text;
-
-		Affirm(
-			userFunctions.count(funcName) == 0 && nativeFunctions.count(funcName) == 0,
-			"name '%s' at line %i is already a defined function",
-			funcName.c_str(), lexNode->children[0]->token.line
-		);
-
-		auto defFuncExp = std::make_shared<EDefineFunction>(funcName);
-		FunctionInfo& funcInfo = userFunctions[funcName];
+		
+		FunctionInfo funcInfo;
 		funcInfo.returnTypeName = returnTypeName;
 		Int nextVarOffset = 0;
 
@@ -328,33 +352,47 @@ namespace Tolo
 		}
 
 		// find all parameters
+		std::vector<std::string> paramTypeNames;
 		for (size_t i = 1; i + 2 < lexNode->children.size(); i += 2)
 		{
-			const std::string& varTypeName = lexNode->children[i]->token.text;
-			const std::string& varName = lexNode->children[i + 1]->token.text;
+			const std::string& paramTypeName = lexNode->children[i]->token.text;
+			const std::string& paramName = lexNode->children[i + 1]->token.text;
 
 			Affirm(
-				typeNameToSize.count(varTypeName) != 0,
+				typeNameToSize.count(paramTypeName) != 0,
 				"undefined type '%s' at line %i",
-				varTypeName.c_str(), lexNode->children[i]->token.line
+				paramTypeName.c_str(), lexNode->children[i]->token.line
 			);
 
 			Affirm(
-				funcInfo.varNameToVarInfo.count(varName) == 0,
+				funcInfo.varNameToVarInfo.count(paramName) == 0,
 				"variable '%s' at line %i is already defined",
-				varName.c_str(), lexNode->children[i + 1]->token.line
+				paramName.c_str(), lexNode->children[i + 1]->token.line
 			);
 
-			Int varSize = typeNameToSize[varTypeName];
+			paramTypeNames.push_back(paramTypeName);
+
+			Int varSize = typeNameToSize[paramTypeName];
 			nextVarOffset -= varSize;
 			funcInfo.parametersSize += varSize;
-			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
-			funcInfo.parameterNames.push_back(varName);
+			funcInfo.varNameToVarInfo[paramName] = { paramTypeName, nextVarOffset };
+			funcInfo.parameterNames.push_back(paramName);
 		}
+
+		std::string funcHash = GetFunctionHash(funcInfo.returnTypeName, funcName, paramTypeNames);
+
+		Affirm(
+			!IsFunctionDefined(funcHash),
+			"function '%s' at line %i is already defined",
+			funcName, lexNode->token.line
+		);
+
+		hashToUserFunctions[funcHash] = funcInfo;
 
 		p_currentFunction = &funcInfo;
 
 		// parse body content
+		auto defFuncExp = std::make_shared<EDefineFunction>(funcHash);
 		defFuncExp->body.push_back(PStatement(lexNode->children.back()));
 
 		p_currentFunction = nullptr;
@@ -1388,14 +1426,10 @@ namespace Tolo
 				typeName.c_str(), lexNode->children[0]->token.line
 			);
 
+			outReadDataType = "int";
+
 			return std::make_shared<ELoadConstInt>(typeNameToSize.at(typeName));
 		}
-
-		if (userFunctions.count(funcName) != 0)
-			return PUserFunctionCall(lexNode, outReadDataType);
-
-		if (nativeFunctions.count(funcName) != 0)
-			return PNativeFunctionCall(lexNode, outReadDataType);
 
 		if (typeNameToStructInfo.count(funcName) != 0)
 			return PStructInitialization(lexNode, outReadDataType);
@@ -1403,75 +1437,57 @@ namespace Tolo
 		if (ptrTypeNameToStructTypeName.count(funcName) != 0)
 			return PStructPtrInitialization(lexNode, outReadDataType);
 
+		return PUserOrNativeFunctionCall(lexNode, outReadDataType);
+	}
+
+	Parser::SharedExp Parser::PUserOrNativeFunctionCall(const SharedNode& lexNode, std::string& outReadDataType)
+	{
+		std::vector<std::string> argTypeNames;
+		std::vector<SharedExp> argumentLoads;
+
+		std::string oldRetType = currentExpectedReturnType;
+		currentExpectedReturnType = ANY_VALUE_TYPE;
+
+		for (size_t i = 0; i < lexNode->children.size(); i++)
+		{
+			std::string argTypeName;
+			argumentLoads.push_back(PReadableValue(lexNode->children[i], argTypeName));
+
+			argTypeNames.push_back(argTypeName);
+		}
+
+		currentExpectedReturnType = oldRetType;
+		outReadDataType = currentExpectedReturnType;
+
+		const std::string& funcName = lexNode->token.text;
+		std::string funcHash = GetFunctionHash(currentExpectedReturnType, funcName, argTypeNames);
+
+		if (hashToUserFunctions.count(funcHash) != 0)
+		{
+			const FunctionInfo& funcInfo = hashToUserFunctions.at(funcHash);
+			auto callUserFuncExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize);
+			callUserFuncExp->argumentLoads = argumentLoads;
+			callUserFuncExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(funcHash);
+
+			return callUserFuncExp;
+		}
+		if (hashToNativeFunctions.count(funcHash) != 0)
+		{
+			const NativeFunctionInfo& funcInfo = hashToNativeFunctions.at(funcHash);
+			auto callNativeFuncExp = std::make_shared<ECallNativeFunction>();
+			callNativeFuncExp->argumentLoads = argumentLoads;
+			callNativeFuncExp->functionPtrLoad = std::make_shared<ELoadConstPtr>(funcInfo.p_functionPtr);
+
+			return callNativeFuncExp;
+		}
+
 		Affirm(
 			false,
-			"undefined function '%s' at line %i",
-			funcName.c_str(), lexNode->token.line
+			"function signature '%s' at line %i does not match any existing functions",
+			funcHash.c_str(), lexNode->token.line
 		);
 
 		return nullptr;
-	}
-
-	Parser::SharedExp Parser::PUserFunctionCall(const SharedNode& lexNode, std::string& outReadDataType)
-	{
-		const std::string& funcName = lexNode->token.text;
-		const FunctionInfo& info = userFunctions[funcName];
-		
-		AffirmCurrentType(info.returnTypeName, lexNode->token.line);
-		outReadDataType = info.returnTypeName;
-
-		auto callExp = std::make_shared<ECallFunction>(info.parametersSize, info.localsSize);
-		callExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(funcName);
-
-		Affirm(
-			info.parameterNames.size() == lexNode->children.size(),
-			"argument count in function call att line %i does not match parameter count",
-			lexNode->token.line
-		);
-
-		std::string oldRetType = currentExpectedReturnType;
-
-		for (size_t i = 0; i < info.parameterNames.size(); i++)
-		{
-			const VariableInfo& varInfo = info.varNameToVarInfo.at(info.parameterNames[i]);
-			currentExpectedReturnType = varInfo.typeName;
-
-			callExp->argumentLoads.push_back(PReadableValue(lexNode->children[i]));
-		}
-
-		currentExpectedReturnType = oldRetType;
-
-		return callExp;
-	}
-
-	Parser::SharedExp Parser::PNativeFunctionCall(const SharedNode& lexNode, std::string& outReadDataType)
-	{
-		const std::string& funcName = lexNode->token.text;
-		const NativeFunctionInfo& info = nativeFunctions[funcName];
-
-		AffirmCurrentType(info.returnTypeName, lexNode->token.line);
-		outReadDataType = info.returnTypeName;
-
-		auto callExp = std::make_shared<ECallNativeFunction>();
-		callExp->functionPtrLoad = std::make_shared<ELoadConstPtr>(info.p_functionPtr);
-
-		Affirm(
-			info.parameterTypeNames.size() == lexNode->children.size(),
-			"argument count in function call att line %i does not match parameter count",
-			lexNode->token.line
-		);
-
-		std::string oldRetType = currentExpectedReturnType;
-
-		for (size_t i = 0; i < info.parameterTypeNames.size(); i++)
-		{
-			currentExpectedReturnType = info.parameterTypeNames[i];
-			callExp->argumentLoads.push_back(PReadableValue(lexNode->children[i]));
-		}
-
-		currentExpectedReturnType = oldRetType;
-
-		return callExp;
 	}
 
 	Parser::SharedExp Parser::PStructInitialization(const SharedNode& lexNode, std::string& outReadDataType)

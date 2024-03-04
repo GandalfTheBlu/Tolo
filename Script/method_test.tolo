@@ -23,6 +23,16 @@ void print_memb(test_struct::ptr p)
     print_int(p.memb);
 }
 
+void print(ptr str)
+{
+    print_str(str);
+}
+
+void print(int num)
+{
+    print_int(num);
+}
+
 void main()
 {
     thing t = thing(33);
@@ -30,10 +40,10 @@ void main()
 
     int a = o.p.func(11);
 
-    print_int(a);
-    print_str("\n");
-    print_int(sizeof(Obj));
-    print_str("\n");
+    print(a);
+    print("\n");
+    print(sizeof(Obj));
+    print("\n");
 
     test_struct ts = test_struct(1337);
 
