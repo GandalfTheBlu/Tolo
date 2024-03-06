@@ -1,65 +1,44 @@
 #include <memory>
 #include <io>
 
-struct Obj
+struct vec3
 {
-    int a;
+    float x;
+    float y;
+    float z;
 };
 
-void Obj::print()
+vec3 operator*(vec3 lhs, vec3 rhs)
 {
-    print("\n");
-    print(this.a);
+    return vec3(lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z);
 }
 
-void Obj::print(int times)
+vec3 operator*(vec3 lhs, float rhs)
 {
-    int i=0;
-    while(i<times)
-    {
-        this.print();
-        i = i + 1;
-    }
+    return vec3(lhs.x * rhs, lhs.y * rhs, lhs.z * rhs);
 }
 
-char operator==(Obj lhs, Obj rhs)
+void vec3::print()
 {
-    return lhs.a == rhs.a;
-}
-
-char operator==(Obj lhs, int rhs)
-{
-    return lhs.a == rhs;
+    print('(');
+    print(this.x);
+    print(',');
+    print(this.y);
+    print(',');
+    print(this.z);
+    print(')');
 }
 
 void main()
 {
-    print('x');
-    print(1337);
-    print(3.1415);
-    print("hello");
+    vec3 v1 = vec3(1., 2., 3.);
+    vec3 v2 = vec3(2., 2., 2.);
+    float f1 = 3.;
 
-    char c = cast(12);
-    print(c);
+    vec3 p1 = v1 * v2;
+    vec3 p2 = v1 * f1;
 
-    int i = cast(3.14);
-    print(i);
-
-    Obj o = Obj(420);
-    o.print();
-    o.print(3);
-
+    p1.print();
     print("\n");
-
-    int cmp1 = cast(Obj(1) == Obj(2));
-    print(cmp1);
-    print("\n");
-
-    int cmp2 = cast(Obj(1) == Obj(1));
-    print(cmp2);
-    print("\n");
-
-    int cmp3 = cast(Obj(2) == 2);
-    print(cmp3);
-    print("\n");
+    p2.print();
 }
