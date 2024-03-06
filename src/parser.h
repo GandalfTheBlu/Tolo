@@ -58,13 +58,12 @@ namespace Tolo
 	struct Parser
 	{
 		typedef std::vector<OpCode> DataTypeOperators;
-		typedef std::vector<std::string> FunctionHashes;
 		typedef std::map<std::string, FunctionInfo> HashToFunction;
 		typedef std::map<std::string, NativeFunctionInfo> HashToNativeFunction;
 
 		std::map<std::string, Int> typeNameToSize;
-		std::map<std::string, FunctionInfo> hashToUserFunctions;
-		std::map<std::string, NativeFunctionInfo> hashToNativeFunctions;
+		HashToFunction hashToUserFunctions;
+		HashToNativeFunction hashToNativeFunctions;
 		FunctionInfo* p_currentFunction;
 		std::string currentExpectedReturnType;
 		std::map<std::string, DataTypeOperators> typeNameOperators;
