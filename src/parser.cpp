@@ -495,7 +495,7 @@ namespace Tolo
 		if (opName == "-" && funcInfo.parameterNames.size() == 1)
 			opName = "negate";
 
-		DataTypeFunctions& opFunctions = typeNameToOpFuncs[operandTypeName];
+		HashToFunction& opFunctions = typeNameToOpFuncs[operandTypeName];
 		Affirm(
 			opFunctions.count(opName) == 0 &&
 			(typeNameToNativeOpFuncs.count(operandTypeName) == 0 || 
@@ -528,7 +528,7 @@ namespace Tolo
 	{
 		const std::string& returnTypeName = lexNode->token.text;
 		const std::string& structTypeName = lexNode->children[0]->token.text;
-		const std::string& funcName = lexNode->children[1]->token.text;
+		std::string funcName = structTypeName + "::" + lexNode->children[1]->token.text;
 
 		Affirm(
 			typeNameToSize.count(returnTypeName) != 0,
@@ -542,16 +542,7 @@ namespace Tolo
 			structTypeName.c_str(), lexNode->token.line
 		);
 
-		DataTypeFunctions& structFuncs = typeNameToMemberFunctions[structTypeName];
-
-		Affirm(
-			structFuncs.count(funcName) == 0,
-			"name '%s' at line %i is already a defined member function",
-			funcName.c_str(), lexNode->children[1]->token.line
-		);
-
-		auto defFuncExp = std::make_shared<EDefineFunction>(structTypeName + "::" + funcName);
-		FunctionInfo& funcInfo = structFuncs[funcName];
+		FunctionInfo funcInfo;
 		funcInfo.returnTypeName = returnTypeName;
 		Int nextVarOffset = 0;
 
@@ -591,38 +582,55 @@ namespace Tolo
 			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
 		}
 
+		std::vector<std::string> paramTypeNames;
 		// add this ptr
 		{
+			std::string structPtrTypeName = structTypeName + "::ptr";
+			paramTypeNames.push_back(structPtrTypeName);
+
 			Int varSize = sizeof(Ptr);
 			nextVarOffset -= varSize;
 			funcInfo.parametersSize += varSize;
-			funcInfo.varNameToVarInfo["this"] = VariableInfo(structTypeName + "::ptr", nextVarOffset);
+			funcInfo.varNameToVarInfo["this"] = VariableInfo(structPtrTypeName, nextVarOffset);
 		}
 
 		// find all parameters
 		for (size_t i = 2; i + 2 < lexNode->children.size(); i += 2)
 		{
-			const std::string& varTypeName = lexNode->children[i]->token.text;
-			const std::string& varName = lexNode->children[i + 1]->token.text;
+			const std::string& paramTypeName = lexNode->children[i]->token.text;
+			const std::string& paramName = lexNode->children[i + 1]->token.text;
 
 			Affirm(
-				typeNameToSize.count(varTypeName) != 0,
+				typeNameToSize.count(paramTypeName) != 0,
 				"undefined type '%s' at line %i",
-				varTypeName.c_str(), lexNode->children[i]->token.line
+				paramTypeName.c_str(), lexNode->children[i]->token.line
 			);
 
 			Affirm(
-				funcInfo.varNameToVarInfo.count(varName) == 0,
+				funcInfo.varNameToVarInfo.count(paramName) == 0,
 				"variable '%s' at line %i is already defined",
-				varName.c_str(), lexNode->children[i + 1]->token.line
+				paramName.c_str(), lexNode->children[i + 1]->token.line
 			);
 
-			Int varSize = typeNameToSize[varTypeName];
+			paramTypeNames.push_back(paramTypeName);
+
+			Int varSize = typeNameToSize[paramTypeName];
 			nextVarOffset -= varSize;
 			funcInfo.parametersSize += varSize;
-			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
-			funcInfo.parameterNames.push_back(varName);
+			funcInfo.varNameToVarInfo[paramName] = { paramTypeName, nextVarOffset };
+			funcInfo.parameterNames.push_back(paramName);
 		}
+
+		std::string funcHash = GetFunctionHash(funcInfo.returnTypeName, funcName, paramTypeNames);
+
+		Affirm(
+			!IsFunctionDefined(funcHash),
+			"function '%s' at line %i is already defined",
+			funcHash, lexNode->token.line
+		);
+
+		auto defFuncExp = std::make_shared<EDefineFunction>(funcHash);
+		hashToUserFunctions[funcHash] = funcInfo;
 
 		p_currentFunction = &funcInfo;
 
@@ -644,7 +652,7 @@ namespace Tolo
 			Affirm(
 				defFuncExp->body.size() > 0 && bodyContent.back()->type == LexNode::Type::Return,
 				"missing 'return' in function '%s' at line %i",
-				funcName.c_str(), lexNode->token.line
+				funcHash.c_str(), lexNode->token.line
 			);
 		}
 
@@ -1095,7 +1103,7 @@ namespace Tolo
 		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 &&
 			typeNameToOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
 		{
-			const DataTypeFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
+			const HashToFunction& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
 			const std::string& opName = lexNode->token.text;
 
 			const FunctionInfo& funcInfo = opFunctions.at(opName);
@@ -1115,7 +1123,7 @@ namespace Tolo
 		if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 &&
 			typeNameToNativeOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
 		{
-			const DataTypeNativeFunctions& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
+			const HashToNativeFunction& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
 			const std::string& opName = lexNode->token.text;
 
 			const NativeFunctionInfo& funcInfo = opFunctions.at(opName);
@@ -1193,7 +1201,7 @@ namespace Tolo
 		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 &&
 			typeNameToOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
 		{
-			const DataTypeFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
+			const HashToFunction& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
 			const std::string& opName = lexNode->token.text;
 
 			const FunctionInfo& funcInfo = opFunctions.at(opName);
@@ -1210,7 +1218,7 @@ namespace Tolo
 		if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 &&
 			typeNameToNativeOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
 		{
-			const DataTypeNativeFunctions& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
+			const HashToNativeFunction& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
 			const std::string& opName = lexNode->token.text;
 
 			const NativeFunctionInfo& funcInfo = opFunctions.at(opName);
@@ -1328,7 +1336,7 @@ namespace Tolo
 		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 &&
 			typeNameToOpFuncs[currentExpectedReturnType].count(opName) != 0)
 		{
-			const DataTypeFunctions& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
+			const HashToFunction& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
 
 			const FunctionInfo& funcInfo = opFunctions.at(opName);
 
@@ -1341,7 +1349,7 @@ namespace Tolo
 		if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 &&
 			typeNameToNativeOpFuncs[currentExpectedReturnType].count(opName) != 0)
 		{
-			const DataTypeNativeFunctions& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
+			const HashToNativeFunction& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
 
 			const NativeFunctionInfo& funcInfo = opFunctions.at(opName);
 
@@ -1623,45 +1631,55 @@ namespace Tolo
 		}
 
 		const SharedNode& funcNode = lexNode->children.back();
-		const std::string& funcName = funcNode->token.text;
+		std::vector<std::string> argTypeNames;
+		std::vector<SharedExp> argumentLoads;
 
-		Affirm(
-			typeNameToMemberFunctions.count(parentStructType) != 0 &&
-			typeNameToMemberFunctions.at(parentStructType).count(funcName) != 0,
-			"type '%s' at line %i does not have member function '%s'",
-			parentStructType.c_str(), funcNode->token.line, funcNode->token.text.c_str()
-		);
-
-		const FunctionInfo& funcInfo = typeNameToMemberFunctions.at(parentStructType).at(funcName);
-
-		AffirmCurrentType(funcInfo.returnTypeName, funcNode->token.line);
-		outReadDataType = funcInfo.returnTypeName;
-
-		auto callMembFuncExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize);
-		std::string funcLabel = parentStructType + "::" + funcName;
-		callMembFuncExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(funcLabel);
-
-		Affirm(
-			funcInfo.parameterNames.size() == funcNode->children.size(),
-			"argument count in member function call att line %i does not match parameter count",
-			funcNode->token.line
-		);
-
-		// add "this" struct pointer
-		callMembFuncExp->argumentLoads.push_back(loadCallerPtrExp);
+		// add "this"-ptr
+		argumentLoads.push_back(loadCallerPtrExp);
+		argTypeNames.push_back(parentStructType + "::ptr");
 
 		std::string oldRetType = currentExpectedReturnType;
+		currentExpectedReturnType = ANY_VALUE_TYPE;
 
-		for (size_t i = 0; i < funcInfo.parameterNames.size(); i++)
+		for (size_t i = 0; i < funcNode->children.size(); i++)
 		{
-			const VariableInfo& varInfo = funcInfo.varNameToVarInfo.at(funcInfo.parameterNames[i]);
-			currentExpectedReturnType = varInfo.typeName;
+			std::string argTypeName;
+			argumentLoads.push_back(PReadableValue(funcNode->children[i], argTypeName));
 
-			callMembFuncExp->argumentLoads.push_back(PReadableValue(funcNode->children[i]));
+			argTypeNames.push_back(argTypeName);
 		}
 
 		currentExpectedReturnType = oldRetType;
+		outReadDataType = currentExpectedReturnType;
 
-		return callMembFuncExp;
+		std::string funcName = parentStructType + "::" + funcNode->token.text;
+		std::string funcHash = GetFunctionHash(currentExpectedReturnType, funcName, argTypeNames);
+
+		if (hashToUserFunctions.count(funcHash) != 0)
+		{
+			const FunctionInfo& funcInfo = hashToUserFunctions.at(funcHash);
+			auto callUserFuncExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize);
+			callUserFuncExp->argumentLoads = argumentLoads;
+			callUserFuncExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(funcHash);
+
+			return callUserFuncExp;
+		}
+		if (hashToNativeFunctions.count(funcHash) != 0)
+		{
+			const NativeFunctionInfo& funcInfo = hashToNativeFunctions.at(funcHash);
+			auto callNativeFuncExp = std::make_shared<ECallNativeFunction>();
+			callNativeFuncExp->argumentLoads = argumentLoads;
+			callNativeFuncExp->functionPtrLoad = std::make_shared<ELoadConstPtr>(funcInfo.p_functionPtr);
+
+			return callNativeFuncExp;
+		}
+
+		Affirm(
+			false,
+			"function signature '%s' at line %i does not match any existing functions",
+			funcHash.c_str(), lexNode->token.line
+		);
+
+		return nullptr;
 	}
 }

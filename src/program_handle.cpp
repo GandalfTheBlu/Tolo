@@ -323,6 +323,11 @@ namespace Tolo
 		cb.DefineLabel("0program_end");
 		cb.RemoveLabel("0program_end");
 
+		Affirm(
+			!cb.HasUnresolvedLabels(),
+			"unresolved labels after building code"
+		);
+
 		codeEnd = cb.codeLength;
 	}
 

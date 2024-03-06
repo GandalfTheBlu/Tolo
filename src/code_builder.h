@@ -38,5 +38,7 @@ namespace Tolo
 		void DefineLabel(const std::string& labelName);
 
 		void RemoveLabel(const std::string& labelName);
+
+		bool HasUnresolvedLabels();
 	};
 }

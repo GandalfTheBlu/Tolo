@@ -1,6 +1,27 @@
 #include <memory>
 #include <io>
 
+struct Obj
+{
+    int a;
+};
+
+void Obj::print()
+{
+    print("\n");
+    print(this.a);
+}
+
+void Obj::print(int times)
+{
+    int i=0;
+    while(i<times)
+    {
+        this.print();
+        i = i + 1;
+    }
+}
+
 void main()
 {
     print('x');
@@ -13,4 +34,8 @@ void main()
 
     int i = cast(3.14);
     print(i);
+
+    Obj o = Obj(420);
+    o.print();
+    o.print(3);
 }

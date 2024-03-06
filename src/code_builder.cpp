@@ -97,11 +97,17 @@ namespace Tolo
 
 		for (Int offset : stackOffsets)
 			*reinterpret_cast<Ptr*>(p_stack + offset) = p_stack + codeLength;
+
+		labelNameToStackOffsets.erase(labelName);
 	}
 
 	void CodeBuilder::RemoveLabel(const std::string& labelName)
 	{
 		labelNameToLabelIp.erase(labelName);
-		labelNameToStackOffsets.erase(labelName);
+	}
+
+	bool CodeBuilder::HasUnresolvedLabels()
+	{
+		return labelNameToStackOffsets.size() > 0;
 	}
 }

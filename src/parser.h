@@ -58,8 +58,9 @@ namespace Tolo
 	struct Parser
 	{
 		typedef std::vector<OpCode> DataTypeOperators;
-		typedef std::map<std::string, FunctionInfo> DataTypeFunctions;
-		typedef std::map<std::string, NativeFunctionInfo> DataTypeNativeFunctions;
+		typedef std::vector<std::string> FunctionHashes;
+		typedef std::map<std::string, FunctionInfo> HashToFunction;
+		typedef std::map<std::string, NativeFunctionInfo> HashToNativeFunction;
 
 		std::map<std::string, Int> typeNameToSize;
 		std::map<std::string, FunctionInfo> hashToUserFunctions;
@@ -67,10 +68,9 @@ namespace Tolo
 		FunctionInfo* p_currentFunction;
 		std::string currentExpectedReturnType;
 		std::map<std::string, DataTypeOperators> typeNameOperators;
-		std::map<std::string, DataTypeFunctions> typeNameToOpFuncs;
-		std::map<std::string, DataTypeNativeFunctions> typeNameToNativeOpFuncs;
+		std::map<std::string, HashToFunction> typeNameToOpFuncs;
+		std::map<std::string, HashToNativeFunction> typeNameToNativeOpFuncs;
 		std::map<std::string, StructInfo> typeNameToStructInfo;
-		std::map<std::string, DataTypeFunctions> typeNameToMemberFunctions;
 		std::map<std::string, std::string> ptrTypeNameToStructTypeName;
 
 		using SharedExp = std::shared_ptr<Expression>;
