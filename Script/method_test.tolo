@@ -1,51 +1,9 @@
 #include <io>
 
-struct thing
-{
-    int a;
-};
-
-int thing::func(int val)
-{
-    this.a = this.a + val;
-    return this.a;
-}
-
-struct Obj
-{
-    int a;
-    int b;
-    thing::ptr p;
-};
-
-void print_memb(test_struct::ptr p)
-{
-    print_int(p.memb);
-}
-
-void print(ptr str)
-{
-    print_str(str);
-}
-
-void print(int num)
-{
-    print_int(num);
-}
-
 void main()
 {
-    thing t = thing(33);
-    Obj o = Obj(11, 22, thing::ptr(&t));
-
-    int a = o.p.func(11);
-
-    print(a);
-    print("\n");
-    print(sizeof(Obj));
-    print("\n");
-
-    test_struct ts = test_struct(1337);
-
-    print_memb(test_struct::ptr(&ts));
+    print('x');
+    print(1337);
+    print(3.1415);
+    print("hello");
 }

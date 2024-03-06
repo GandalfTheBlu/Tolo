@@ -66,17 +66,17 @@ namespace Tolo
 
 	void AddIOToolkit(ProgramHandle& program)
 	{
-		program.AddFunction("void", "print_str", {"ptr"}, [](VirtualMachine& vm)
+		program.AddFunction("void", "print", {"ptr"}, [](VirtualMachine& vm)
 			{
 				Ptr p_str = Pop<Ptr>(vm);
 				std::cout << static_cast<const char*>(p_str);
 			}
 		);
-		program.AddFunction("void", "print_char", {"char"}, Print<Char>);
-		program.AddFunction("void", "print_int", {"int"}, Print<Int>);
-		program.AddFunction("void", "print_float", {"float"}, Print<Float>);
+		program.AddFunction("void", "print", {"char"}, Print<Char>);
+		program.AddFunction("void", "print", {"int"}, Print<Int>);
+		program.AddFunction("void", "print", {"float"}, Print<Float>);
 
-		program.AddFunction("void", "input_str", {"ptr", "int"}, [](VirtualMachine& vm)
+		program.AddFunction("void", "input", {"ptr", "int"}, [](VirtualMachine& vm)
 			{
 				Ptr p_str = Pop<Ptr>(vm);
 				size_t capacity = static_cast<size_t>(Pop<Int>(vm));
@@ -89,9 +89,9 @@ namespace Tolo
 			}
 		);
 
-		program.AddFunction("char", "input_char", {},  Input<Char>);
-		program.AddFunction("int", "input_int", {},  Input<Int>);
-		program.AddFunction("float", "input_float", {},  Input<Float>);
+		program.AddFunction("char", "input", {},  Input<Char>);
+		program.AddFunction("int", "input", {},  Input<Int>);
+		program.AddFunction("float", "input", {},  Input<Float>);
 
 		program.AddFunction("void", "get_file_txt", {"ptr", "ptr", "int"}, [](VirtualMachine& vm)
 			{
