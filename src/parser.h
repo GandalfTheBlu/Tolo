@@ -69,6 +69,7 @@ namespace Tolo
 		std::map<std::string, DataTypeOperators> typeNameOperators;
 		std::map<std::string, StructInfo> typeNameToStructInfo;
 		std::map<std::string, std::string> ptrTypeNameToStructTypeName;
+		std::map<std::string, Int> nameToEnumValue;
 
 		using SharedExp = std::shared_ptr<Expression>;
 		using SharedNode = std::shared_ptr<LexNode>;
@@ -95,6 +96,8 @@ namespace Tolo
 		SharedExp POperatorDefinition(const SharedNode& lexNode);
 
 		SharedExp PMemberFunctionDefinition(const SharedNode& lexNode);
+
+		SharedExp PEnumDefinition(const SharedNode& lexNode);
 
 		// statements
 		SharedExp PStatement(const SharedNode& lexNode);

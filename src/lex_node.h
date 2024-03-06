@@ -38,7 +38,8 @@ namespace Tolo
 			VariableDefinition,
 			FunctionDefinition,
 			OperatorDefinition,
-			MemberFunctionDefinition
+			MemberFunctionDefinition,
+			EnumDefinition
 		};
 
 		Type type;

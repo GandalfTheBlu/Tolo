@@ -148,6 +148,9 @@ namespace Tolo
 		if (idToken.text == "struct")
 			return LStructDefinition();
 
+		if (idToken.text == "enum")
+			return LEnumDefinition();
+
 		Affirm(
 			TryCompareNextToken(Token::Type::Name),
 			"unexpected token at line %i",
@@ -330,6 +333,35 @@ namespace Tolo
 		membFuncDefNode->children.push_back(LStatement());
 
 		return membFuncDefNode;
+	}
+
+	Lexer::SharedNode Lexer::LEnumDefinition()
+	{
+		const Token& enumToken = CurrentToken(Token::Type::Name);
+		ConsumeNextToken(Token::Type::StartCurly);
+
+		auto enumDefNode = std::make_shared<LexNode>(LexNode::Type::EnumDefinition, enumToken);
+
+		bool first = true;
+
+		while (true)
+		{
+			if (CurrentToken().type == Token::Type::EndCurly)
+			{
+				ConsumeNextToken(Token::Type::Semicolon);
+				break;
+			}
+
+			if (!first)
+				ConsumeCurrentToken(Token::Type::Comma);
+
+			const Token& nameToken = CurrentToken(Token::Type::Name);
+			enumDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, nameToken));
+			tokenIndex++;
+			first = false;
+		}
+
+		return enumDefNode;
 	}
 
 

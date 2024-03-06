@@ -245,6 +245,23 @@ namespace Tolo
 		typeNameToSize[structName] = propertyOffset;
 	}
 
+	void ProgramHandle::AddEnum(
+		const std::vector<std::string>& enumNames
+	)
+	{
+		Int enumValue = 0;
+		for (const std::string& enumName : enumNames)
+		{
+			Affirm(
+				nameToEnumValue.count(enumName) == 0,
+				"enum '%s' is already defined",
+				enumName.c_str()
+			);
+
+			nameToEnumValue[enumName] = enumValue++;
+		}
+	}
+
 	void ProgramHandle::Compile()
 	{
 		std::string rawCode;
@@ -273,6 +290,7 @@ namespace Tolo
 		Parser parser;
 		parser.hashToNativeFunctions = hashToNativeFunctions;
 		parser.typeNameToStructInfo = typeNameToStructInfo;
+		parser.nameToEnumValue = nameToEnumValue;
 
 		// transfer struct type sizes and struct pointers
 		for (auto& e : typeNameToStructInfo)

@@ -29,6 +29,13 @@ void vec3::print()
     print(')');
 }
 
+enum
+{
+    E_ZERO,
+    E_ONE,
+    E_TWO
+};
+
 void main()
 {
     vec3 v1 = vec3(1., 2., 3.);
@@ -41,4 +48,9 @@ void main()
     p1.print();
     print("\n");
     p2.print();
+
+    print("\n");
+    print(E_ZERO);
+    print(E_ONE);
+    print(E_TWO);
 }

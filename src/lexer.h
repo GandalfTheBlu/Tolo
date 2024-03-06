@@ -48,6 +48,8 @@ namespace Tolo
 
 		SharedNode LMemberFunctionDefinition();
 
+		SharedNode LEnumDefinition();
+
 		// statements
 		SharedNode LStatement();
 

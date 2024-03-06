@@ -245,9 +245,11 @@ namespace Tolo
 			return PFunctionDefinition(lexNode);
 		case LexNode::Type::OperatorDefinition:
 			return POperatorDefinition(lexNode);
+		case LexNode::Type::MemberFunctionDefinition:
+			return PMemberFunctionDefinition(lexNode);
 		}
 
-		return PMemberFunctionDefinition(lexNode);
+		return PEnumDefinition(lexNode);
 	}
 
 	Parser::SharedExp Parser::PStructDefinition(const SharedNode& lexNode) 
@@ -685,6 +687,26 @@ namespace Tolo
 		return defFuncExp;
 	}
 
+	Parser::SharedExp Parser::PEnumDefinition(const SharedNode& lexNode)
+	{
+		Int enumValue = 0;
+
+		for (const SharedNode& enumNameNode : lexNode->children)
+		{
+			const std::string& enumName = enumNameNode->token.text;
+			
+			Affirm(
+				nameToEnumValue.count(enumName) == 0,
+				"enum '%s' at line %i is already defined",
+				enumName.c_str(), enumNameNode->token.line
+			);
+
+			nameToEnumValue[enumName] = enumValue++;
+		}
+
+		return std::make_shared<EEmpty>();
+	}
+
 	// statements
 	Parser::SharedExp Parser::PStatement(const SharedNode& lexNode) 
 	{
@@ -1079,6 +1101,13 @@ namespace Tolo
 	Parser::SharedExp Parser::PVariableValue(const SharedNode& lexNode, std::string& outReadDataType) 
 	{
 		const std::string& varName = lexNode->token.text;
+
+		if (nameToEnumValue.count(varName) != 0)
+		{
+			AffirmCurrentType("int", lexNode->token.line);
+			outReadDataType = "int";
+			return std::make_shared<ELoadConstInt>(nameToEnumValue.at(varName));
+		}
 
 		Affirm(
 			p_currentFunction->varNameToVarInfo.count(varName) != 0,

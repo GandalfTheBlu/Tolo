@@ -59,6 +59,7 @@ namespace Tolo
 		size_t mainParameterCount;
 		std::map<std::string, Int> typeNameToSize;
 		std::map<std::string, NativeFunctionInfo> hashToNativeFunctions;
+		std::map<std::string, Int> nameToEnumValue;
 		std::map<std::string, StructInfo> typeNameToStructInfo;
 		std::map<std::string, void(*)(ProgramHandle&)> standardTookitAdders;
 
@@ -92,6 +93,10 @@ namespace Tolo
 		void AddStruct(
 			const std::string& structName, 
 			const std::vector<std::pair<std::string, std::string>>& members
+		);
+
+		void AddEnum(
+			const std::vector<std::string>& enumNames
 		);
 
 		void Compile();
