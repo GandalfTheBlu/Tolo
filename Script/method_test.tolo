@@ -1,3 +1,4 @@
+#include <memory>
 #include <io>
 
 void main()
@@ -6,4 +7,10 @@ void main()
     print(1337);
     print(3.1415);
     print("hello");
+
+    char c = cast(12);
+    print(c);
+
+    int i = cast(3.14);
+    print(i);
 }

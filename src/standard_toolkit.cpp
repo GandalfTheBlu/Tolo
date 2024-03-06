@@ -33,20 +33,20 @@ namespace Tolo
 				Push<Ptr>(vm, p_data);
 			}
 		);
-		program.AddFunction( "void", "free", {"ptr"}, [](VirtualMachine& vm)
+		program.AddFunction("void", "free", {"ptr"}, [](VirtualMachine& vm)
 			{
 				Ptr p_data = Pop<Ptr>(vm);
 				std::free(p_data);
 			}
 		);
-		program.AddFunction( "int", "strlen", {"ptr"}, [](VirtualMachine& vm)
+		program.AddFunction("int", "strlen", {"ptr"}, [](VirtualMachine& vm)
 			{
 				Ptr p_str = Pop<Ptr>(vm);
 				size_t len = std::strlen(static_cast<const char*>(p_str));
 				Push<Int>(vm, static_cast<Int>(len));
 			}
 		);
-		program.AddFunction( "void", "memcpy", {"ptr", "ptr", "int"}, [](VirtualMachine& vm)
+		program.AddFunction("void", "memcpy", {"ptr", "ptr", "int"}, [](VirtualMachine& vm)
 			{
 				Ptr p_dst = Pop<Ptr>(vm);
 				Ptr p_src = Pop<Ptr>(vm);
@@ -54,12 +54,48 @@ namespace Tolo
 				std::memcpy(p_dst, p_src, static_cast<size_t>(size));
 			}
 		);
-		program.AddFunction( "void", "memset", {"ptr", "char", "int"}, [](VirtualMachine& vm)
+		program.AddFunction("void", "memset", {"ptr", "char", "int"}, [](VirtualMachine& vm)
 			{
 				Ptr p_data = Pop<Ptr>(vm);
 				Char val = Pop<Char>(vm);
 				Int count = Pop<Int>(vm);
 				std::memset(p_data, val, static_cast<size_t>(count));
+			}
+		);
+		program.AddFunction("char", "cast", { "int" }, [](VirtualMachine& vm) 
+			{
+				Int val = Pop<Int>(vm);
+				Push<Char>(vm, static_cast<Char>(val));
+			}
+		);
+		program.AddFunction("char", "cast", { "float" }, [](VirtualMachine& vm)
+			{
+				Float val = Pop<Float>(vm);
+				Push<Char>(vm, static_cast<Char>(val));
+			}
+		);
+		program.AddFunction("int", "cast", { "char" }, [](VirtualMachine& vm)
+			{
+				Char val = Pop<Char>(vm);
+				Push<Int>(vm, static_cast<Int>(val));
+			}
+		);
+		program.AddFunction("int", "cast", { "float" }, [](VirtualMachine& vm)
+			{
+				Float val = Pop<Float>(vm);
+				Push<Int>(vm, static_cast<Int>(val));
+			}
+		);
+		program.AddFunction("float", "cast", { "char" }, [](VirtualMachine& vm)
+			{
+				Char val = Pop<Char>(vm);
+				Push<Float>(vm, static_cast<Float>(val));
+			}
+		);
+		program.AddFunction("float", "cast", { "int" }, [](VirtualMachine& vm)
+			{
+				Int val = Pop<Int>(vm);
+				Push<Float>(vm, static_cast<Float>(val));
 			}
 		);
 	}
@@ -88,7 +124,6 @@ namespace Tolo
 					p_str[i] = input[i];
 			}
 		);
-
 		program.AddFunction("char", "input", {},  Input<Char>);
 		program.AddFunction("int", "input", {},  Input<Int>);
 		program.AddFunction("float", "input", {},  Input<Float>);

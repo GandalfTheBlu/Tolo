@@ -1411,11 +1411,13 @@ namespace Tolo
 
 		if (funcName == "sizeof")
 		{
+			AffirmCurrentType("int", lexNode->token.line);
+
 			Affirm(
 				lexNode->children.size() == 1 &&
 				lexNode->children[0]->type == LexNode::Type::Identifier,
 				"'sizeof' at line %i expects 1 typename as argument",
-				lexNode->children[0]->token.line
+				lexNode->token.line
 			);
 
 			const std::string& typeName = lexNode->children[0]->token.text;
