@@ -68,8 +68,6 @@ namespace Tolo
 		FunctionInfo* p_currentFunction;
 		std::string currentExpectedReturnType;
 		std::map<std::string, DataTypeOperators> typeNameOperators;
-		std::map<std::string, HashToFunction> typeNameToOpFuncs;
-		std::map<std::string, HashToNativeFunction> typeNameToNativeOpFuncs;
 		std::map<std::string, StructInfo> typeNameToStructInfo;
 		std::map<std::string, std::string> ptrTypeNameToStructTypeName;
 

@@ -135,16 +135,16 @@ namespace Tolo
 			opName = "negate";
 		}
 		
-		const std::string operandTypeName = function.parameterTypeNames.front();
-		std::map<std::string, NativeFunctionInfo>& opFunctions = typeNameToNativeOpFuncs[operandTypeName];
+		const std::string& operandTypeName = function.parameterTypeNames.front();
+		std::string funcHash = GetFunctionHash(function.returnTypeName, "operator::" + opName, { operandTypeName });
 
 		Affirm(
-			opFunctions.count(opName) == 0,
-			"operator '%s' for type '%s' is already defined",
-			opName.c_str(), operandTypeName.c_str()
+			hashToNativeFunctions.count(funcHash) == 0,
+			"function '%s' is already defined",
+			funcHash.c_str()
 		);
 
-		NativeFunctionInfo& info = opFunctions[opName];
+		NativeFunctionInfo& info = hashToNativeFunctions[funcHash];
 		info.p_functionPtr = reinterpret_cast<Ptr>(function.p_function);
 		info.returnTypeName = function.returnTypeName;
 		info.parameterTypeNames = function.parameterTypeNames;
@@ -157,7 +157,7 @@ namespace Tolo
 		native_func_t functionPtr
 	)
 	{
-		static std::set<std::string> operators
+		static const std::set<std::string> operators
 		{
 			"+",
 			"-",
@@ -181,18 +181,19 @@ namespace Tolo
 			functionName.substr(0, 8) == "operator" && 
 			operators.count(functionName.substr(8)) != 0)
 		{
-			FunctionHandle opHandle = FunctionHandle(returnTypeName, functionName, parameterTypeNames, functionPtr);
-			opHandle.functionName = functionName.substr(8);
-			AddNativeOperator(opHandle);
+			AddNativeOperator(FunctionHandle(returnTypeName, functionName.substr(8), parameterTypeNames, functionPtr));
 		}
 		else
 		{
+			size_t i = 0;
 			for (char c : functionName)
 			{
-				if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')
+				if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (i > 0 && c >= '0' && c <= '9') || c == '_')
 					continue;
 
 				Affirm(false, "invalid character '%c' in function name '%s'", c, functionName.c_str());
+
+				i++;
 			}
 
 			AddNativeFunction(FunctionHandle(returnTypeName, functionName, parameterTypeNames, functionPtr));
@@ -272,7 +273,6 @@ namespace Tolo
 		Parser parser;
 		parser.hashToNativeFunctions = hashToNativeFunctions;
 		parser.typeNameToStructInfo = typeNameToStructInfo;
-		parser.typeNameToNativeOpFuncs = typeNameToNativeOpFuncs;
 
 		// transfer struct type sizes and struct pointers
 		for (auto& e : typeNameToStructInfo)

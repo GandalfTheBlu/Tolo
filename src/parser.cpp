@@ -1,5 +1,6 @@
 #include "parser.h"
 #include <utility>
+#include <set>
 
 #define ANY_VALUE_TYPE "0any"
 
@@ -428,6 +429,31 @@ namespace Tolo
 
 		std::string opName = lexNode->children[0]->token.text;
 
+		static const std::set<std::string> operators
+		{
+			"+",
+			"-",
+			"*",
+			"/",
+			"<",
+			">",
+			"<=",
+			">=",
+			"==",
+			"!=",
+			"<<",
+			">>",
+			"&",
+			"|",
+			"^"
+		};
+
+		Affirm(
+			operators.count(opName) != 0,
+			"operator '%s' at line %i is not overloadable",
+			opName.c_str(), lexNode->token.line
+		);
+
 		FunctionInfo funcInfo;
 		funcInfo.returnTypeName = returnTypeName;
 		Int nextVarOffset = 0;
@@ -468,44 +494,44 @@ namespace Tolo
 			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
 		}
 
-		// find all parameters and determine operand type from first parameter
-		std::string operandTypeName;
+		// find all parameters
+		std::vector<std::string> paramTypeNames;
 
 		for (size_t i = 1; i + 2 < lexNode->children.size(); i += 2)
 		{
-			const std::string& varTypeName = lexNode->children[i]->token.text;
-			const std::string& varName = lexNode->children[i + 1]->token.text;
-
-			if (i == 1)
-				operandTypeName = varTypeName;
+			const std::string& paramTypeName = lexNode->children[i]->token.text;
+			const std::string& paramName = lexNode->children[i + 1]->token.text;
 
 			Affirm(
-				funcInfo.varNameToVarInfo.count(varName) == 0,
+				funcInfo.varNameToVarInfo.count(paramName) == 0,
 				"variable '%s' at line %i is already defined",
-				varName.c_str(), lexNode->children[i + 1]->token.line
+				paramName.c_str(), lexNode->children[i + 1]->token.line
 			);
 
-			Int varSize = typeNameToSize[varTypeName];
+			paramTypeNames.push_back(paramTypeName);
+
+			Int varSize = typeNameToSize[paramTypeName];
 			nextVarOffset -= varSize;
 			funcInfo.parametersSize += varSize;
-			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
-			funcInfo.parameterNames.push_back(varName);
+			funcInfo.varNameToVarInfo[paramName] = { paramTypeName, nextVarOffset };
+			funcInfo.parameterNames.push_back(paramName);
 		}
 
 		if (opName == "-" && funcInfo.parameterNames.size() == 1)
 			opName = "negate";
 
-		HashToFunction& opFunctions = typeNameToOpFuncs[operandTypeName];
-		Affirm(
-			opFunctions.count(opName) == 0 &&
-			(typeNameToNativeOpFuncs.count(operandTypeName) == 0 || 
-			typeNameToNativeOpFuncs[operandTypeName].count(opName) == 0),
-			"operator '%s' for type '%s' at line %i is already defined",
-			opName.c_str(), operandTypeName.c_str(), lexNode->token.line
-		);
-		opFunctions[opName] = funcInfo;
+		std::string funcName = "operator::" + opName;
+		std::string funcHash = GetFunctionHash(returnTypeName, funcName, paramTypeNames);
 
-		auto defFuncExp = std::make_shared<EDefineFunction>(operandTypeName + opName);
+		Affirm(
+			!IsFunctionDefined(funcHash),
+			"function '%s' at line %i is already defined",
+			funcName, lexNode->token.line
+		);
+
+		hashToUserFunctions[funcHash] = funcInfo;
+
+		auto defFuncExp = std::make_shared<EDefineFunction>(funcHash);
 
 		p_currentFunction = &funcInfo;
 
@@ -1071,6 +1097,8 @@ namespace Tolo
 	Parser::SharedExp Parser::PMemberAccessValue(const SharedNode& lexNode, std::string& outReadDataType)
 	{
 		auto membPtrLoadExp = PMemberAccessPtr(lexNode, outReadDataType);
+		AffirmCurrentType(outReadDataType, lexNode->token.line);
+
 		auto membValLoadExp = std::make_shared<ELoadBytesFromPtr>(typeNameToSize.at(outReadDataType));
 		membValLoadExp->ptrLoad = membPtrLoadExp;
 
@@ -1079,6 +1107,46 @@ namespace Tolo
 
 	Parser::SharedExp Parser::PBinaryMathOp(const SharedNode& lexNode, std::string& outReadDataType)
 	{
+		std::string lhsTypeName;
+		auto lhsExp = PReadableValue(lexNode->children[0], lhsTypeName);
+
+		AffirmCurrentType(lhsTypeName, lexNode->token.line);
+		outReadDataType = lhsTypeName;
+
+		std::string oldRetType = currentExpectedReturnType;
+		currentExpectedReturnType = ANY_VALUE_TYPE;
+
+		std::string rhsTypeName;
+		auto rhsExp = PReadableValue(lexNode->children[1], rhsTypeName);
+
+		currentExpectedReturnType = oldRetType;
+
+		const std::string& opName = lexNode->token.text;
+		std::string funcHash = GetFunctionHash(lhsTypeName, "operator::" + opName, { lhsTypeName, rhsTypeName });
+
+		if (hashToUserFunctions.count(funcHash) != 0)
+		{
+			const FunctionInfo& funcInfo = hashToUserFunctions.at(funcHash);
+
+			auto callOpExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize);
+			callOpExp->argumentLoads.push_back(lhsExp);
+			callOpExp->argumentLoads.push_back(rhsExp);
+			callOpExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(funcHash);
+
+			return callOpExp;
+		}
+		if (hashToNativeFunctions.count(funcHash) != 0)
+		{
+			const NativeFunctionInfo& funcInfo = hashToNativeFunctions.at(funcHash);
+
+			auto callNativeOpExp = std::make_shared<ECallNativeFunction>();
+			callNativeOpExp->argumentLoads.push_back(lhsExp);
+			callNativeOpExp->argumentLoads.push_back(rhsExp);
+			callNativeOpExp->functionPtrLoad = std::make_shared<ELoadConstPtr>(funcInfo.p_functionPtr);
+
+			return callNativeOpExp;
+		}
+
 		static std::map<Token::Type, size_t> opTypeToOpIndex
 		{
 			{Token::Type::Plus, 0},
@@ -1091,55 +1159,6 @@ namespace Tolo
 			{Token::Type::DoubleLeftArrow, 7},
 			{Token::Type::DoubleRightArrow, 8}
 		};
-
-		std::string readType;
-		auto lhsExp = PReadableValue(lexNode->children[0], readType);
-
-		if (currentExpectedReturnType == ANY_VALUE_TYPE)
-			currentExpectedReturnType = readType;
-
-		outReadDataType = currentExpectedReturnType;
-
-		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 &&
-			typeNameToOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
-		{
-			const HashToFunction& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
-			const std::string& opName = lexNode->token.text;
-
-			const FunctionInfo& funcInfo = opFunctions.at(opName);
-
-			auto callOpExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize);
-			callOpExp->argumentLoads.push_back(lhsExp);
-
-			std::string oldRetType = currentExpectedReturnType;
-			currentExpectedReturnType = ANY_VALUE_TYPE;
-			callOpExp->argumentLoads.push_back(PReadableValue(lexNode->children[1]));
-			currentExpectedReturnType = oldRetType;
-
-			callOpExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(currentExpectedReturnType + opName);
-
-			return callOpExp;
-		}
-		if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 &&
-			typeNameToNativeOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
-		{
-			const HashToNativeFunction& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
-			const std::string& opName = lexNode->token.text;
-
-			const NativeFunctionInfo& funcInfo = opFunctions.at(opName);
-
-			auto callNativeOpExp = std::make_shared<ECallNativeFunction>();
-			callNativeOpExp->argumentLoads.push_back(lhsExp);
-
-			std::string oldRetType = currentExpectedReturnType;
-			currentExpectedReturnType = ANY_VALUE_TYPE;
-			callNativeOpExp->argumentLoads.push_back(PReadableValue(lexNode->children[1]));
-			currentExpectedReturnType = oldRetType;
-
-			callNativeOpExp->functionPtrLoad = std::make_shared<ELoadConstPtr>(funcInfo.p_functionPtr);
-
-			return callNativeOpExp;
-		}
 
 		Affirm(
 			typeNameOperators.count(currentExpectedReturnType) != 0,
@@ -1158,17 +1177,18 @@ namespace Tolo
 		auto binMathOpExp = std::make_shared<EBinaryOp>(opCode);
 		binMathOpExp->lhsLoad = lhsExp;
 
-		std::string oldRetType = currentExpectedReturnType;
 		if (currentExpectedReturnType == "ptr" ||
 			lexNode->token.type == Token::Type::DoubleLeftArrow ||
 			lexNode->token.type == Token::Type::DoubleRightArrow)
 		{
-			currentExpectedReturnType = "int";
+			Affirm(
+				rhsTypeName == "int",
+				"expected int expression at line %i",
+				lexNode->token.line
+			);
 		}
 
-		binMathOpExp->rhsLoad = PReadableValue(lexNode->children[1]);
-
-		currentExpectedReturnType = oldRetType;
+		binMathOpExp->rhsLoad = rhsExp;
 
 		return binMathOpExp;
 	}
@@ -1193,35 +1213,31 @@ namespace Tolo
 		// determine operand data type
 		currentExpectedReturnType = ANY_VALUE_TYPE;
 
-		std::string readType;
-		auto lhsExp = PReadableValue(lexNode->children[0], readType);
+		std::string lhsTypeName;
+		auto lhsExp = PReadableValue(lexNode->children[0], lhsTypeName);
 
-		currentExpectedReturnType = readType;
+		std::string rhsTypeName;
+		auto rhsExp = PReadableValue(lexNode->children[1], rhsTypeName);
 
-		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 &&
-			typeNameToOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
+		const std::string& opName = lexNode->token.text;
+		std::string funcHash = GetFunctionHash("char", "operator::" + opName, { lhsTypeName, rhsTypeName });
+
+		if (hashToUserFunctions.count(funcHash) != 0)
 		{
-			const HashToFunction& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
-			const std::string& opName = lexNode->token.text;
-
-			const FunctionInfo& funcInfo = opFunctions.at(opName);
+			const FunctionInfo& funcInfo = hashToUserFunctions.at(funcHash);
 
 			auto callOpExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize);
 			callOpExp->argumentLoads.push_back(lhsExp);
-			callOpExp->argumentLoads.push_back(PReadableValue(lexNode->children[1]));
-			callOpExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(currentExpectedReturnType + opName);
+			callOpExp->argumentLoads.push_back(rhsExp);
+			callOpExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(funcHash);
 
 			currentExpectedReturnType = "char";
 
 			return callOpExp;
 		}
-		if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 &&
-			typeNameToNativeOpFuncs[currentExpectedReturnType].count(lexNode->token.text) != 0)
+		if (hashToNativeFunctions.count(funcHash) != 0)
 		{
-			const HashToNativeFunction& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
-			const std::string& opName = lexNode->token.text;
-
-			const NativeFunctionInfo& funcInfo = opFunctions.at(opName);
+			const NativeFunctionInfo& funcInfo = hashToNativeFunctions.at(funcHash);
 
 			auto callNativeOpExp = std::make_shared<ECallNativeFunction>();
 			callNativeOpExp->argumentLoads.push_back(lhsExp);
@@ -1234,23 +1250,28 @@ namespace Tolo
 		}
 
 		Affirm(
-			typeNameOperators.count(currentExpectedReturnType) != 0,
-			"cannot perform binary compare operation '%s' on operand of type '%s' at line %i",
-			lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), lexNode->token.line
+			lhsTypeName == rhsTypeName,
+			"cannot perform binary compare operation '%s' on operands of types '%s' and '%s' at line %i",
+			opName.c_str(), lhsTypeName.c_str(), rhsTypeName.c_str(), lexNode->token.line
 		);
 
-		OpCode opCode = typeNameOperators[currentExpectedReturnType][opTypeToOpIndex[lexNode->token.type]];
+		Affirm(
+			typeNameOperators.count(lhsTypeName) != 0,
+			"cannot perform binary compare operation '%s' on operand of type '%s' at line %i",
+			opName.c_str(), lhsTypeName.c_str(), lexNode->token.line
+		);
+
+		OpCode opCode = typeNameOperators.at(lhsTypeName)[opTypeToOpIndex[lexNode->token.type]];
 
 		Affirm(
 			opCode != OpCode::INVALID,
 			"cannot perform binary compare operation '%s' on operand of type '%s' at line %i",
-			lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), lexNode->token.line
+			lexNode->token.text.c_str(), lhsTypeName.c_str(), lexNode->token.line
 		);
 
 		auto binCompOpExp = std::make_shared<EBinaryOp>(opCode);
 		binCompOpExp->lhsLoad = lhsExp;
-
-		binCompOpExp->rhsLoad = PReadableValue(lexNode->children[1]);
+		binCompOpExp->rhsLoad = rhsExp;
 
 		currentExpectedReturnType = "char";
 
@@ -1278,6 +1299,7 @@ namespace Tolo
 
 	Parser::SharedExp Parser::PReferenceValue(const SharedNode& lexNode, std::string& outReadDataType)
 	{
+		AffirmCurrentType("ptr", lexNode->token.line);
 		outReadDataType = "ptr";
 
 		if (lexNode->children[0]->type == LexNode::Type::Identifier)
@@ -1325,33 +1347,30 @@ namespace Tolo
 		const size_t opIndex = 17;
 		const std::string opName = "negate";
 
-		std::string readType;
-		auto valExp = PReadableValue(lexNode->children[0], readType);
+		std::string oldRetType = currentExpectedReturnType;
+		currentExpectedReturnType = ANY_VALUE_TYPE;
 
-		if (currentExpectedReturnType == ANY_VALUE_TYPE)
-			currentExpectedReturnType = readType;
+		std::string paramTypeName;
+		auto valExp = PReadableValue(lexNode->children[0], paramTypeName);
 
+		currentExpectedReturnType = oldRetType;
 		outReadDataType = currentExpectedReturnType;
 
-		if (typeNameToOpFuncs.count(currentExpectedReturnType) != 0 &&
-			typeNameToOpFuncs[currentExpectedReturnType].count(opName) != 0)
-		{
-			const HashToFunction& opFunctions = typeNameToOpFuncs[currentExpectedReturnType];
+		std::string funcHash = GetFunctionHash(currentExpectedReturnType, "operator::" + opName, { paramTypeName });
 
-			const FunctionInfo& funcInfo = opFunctions.at(opName);
+		if (hashToUserFunctions.count(funcHash) != 0)
+		{
+			const FunctionInfo& funcInfo = hashToUserFunctions.at(funcHash);
 
 			auto callOpExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize);
 			callOpExp->argumentLoads.push_back(valExp);
-			callOpExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(currentExpectedReturnType + opName);
+			callOpExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(funcHash);
 
 			return callOpExp;
 		}
-		if (typeNameToNativeOpFuncs.count(currentExpectedReturnType) != 0 &&
-			typeNameToNativeOpFuncs[currentExpectedReturnType].count(opName) != 0)
+		if (hashToNativeFunctions.count(funcHash) != 0)
 		{
-			const HashToNativeFunction& opFunctions = typeNameToNativeOpFuncs[currentExpectedReturnType];
-
-			const NativeFunctionInfo& funcInfo = opFunctions.at(opName);
+			const NativeFunctionInfo& funcInfo = hashToNativeFunctions.at(funcHash);
 
 			auto callNativeOpExp = std::make_shared<ECallNativeFunction>();
 			callNativeOpExp->argumentLoads.push_back(valExp);

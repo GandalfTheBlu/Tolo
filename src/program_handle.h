@@ -60,7 +60,6 @@ namespace Tolo
 		std::map<std::string, Int> typeNameToSize;
 		std::map<std::string, NativeFunctionInfo> hashToNativeFunctions;
 		std::map<std::string, StructInfo> typeNameToStructInfo;
-		std::map<std::string, std::map<std::string, NativeFunctionInfo>> typeNameToNativeOpFuncs;
 		std::map<std::string, void(*)(ProgramHandle&)> standardTookitAdders;
 
 		ProgramHandle() = delete;
