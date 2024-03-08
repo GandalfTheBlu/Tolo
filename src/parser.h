@@ -3,6 +3,7 @@
 #include "lex_node.h"
 #include "expression.h"
 #include <map>
+#include <set>
 
 namespace Tolo
 {
@@ -70,6 +71,7 @@ namespace Tolo
 		std::map<std::string, StructInfo> typeNameToStructInfo;
 		std::map<std::string, std::string> ptrTypeNameToStructTypeName;
 		std::map<std::string, Int> nameToEnumValue;
+		std::set<std::string> enumNamespaces;
 
 		using SharedExp = std::shared_ptr<Expression>;
 		using SharedNode = std::shared_ptr<LexNode>;
@@ -101,6 +103,10 @@ namespace Tolo
 
 		// statements
 		SharedExp PStatement(const SharedNode& lexNode);
+
+		SharedExp PBreak(const SharedNode& lexNode);
+
+		SharedExp PContinue(const SharedNode& lexNode);
 
 		SharedExp PScope(const SharedNode& lexNode);
 

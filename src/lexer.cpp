@@ -337,10 +337,12 @@ namespace Tolo
 
 	Lexer::SharedNode Lexer::LEnumDefinition()
 	{
-		const Token& enumToken = CurrentToken(Token::Type::Name);
+		ConsumeCurrentToken(Token::Type::Name);
+		const Token& enumNamespaceToken = CurrentToken(Token::Type::Name);
+
 		ConsumeNextToken(Token::Type::StartCurly);
 
-		auto enumDefNode = std::make_shared<LexNode>(LexNode::Type::EnumDefinition, enumToken);
+		auto enumDefNode = std::make_shared<LexNode>(LexNode::Type::EnumDefinition, enumNamespaceToken);
 
 		bool first = true;
 
@@ -490,6 +492,12 @@ namespace Tolo
 
 		auto breakNode = std::make_shared<LexNode>(LexNode::Type::Break, CurrentToken());
 		
+		if (TryCompareNextToken(Token::Type::ConstInt))
+		{
+			const Token& numToken = NextToken(Token::Type::ConstInt);
+			breakNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::LiteralConstant, numToken));
+		}
+
 		ConsumeNextToken(Token::Type::Semicolon);
 
 		return breakNode;
@@ -501,6 +509,12 @@ namespace Tolo
 
 		auto continueNode = std::make_shared<LexNode>(LexNode::Type::Continue, CurrentToken());
 	
+		if (TryCompareNextToken(Token::Type::ConstInt))
+		{
+			const Token& numToken = NextToken(Token::Type::ConstInt);
+			continueNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::LiteralConstant, numToken));
+		}
+
 		ConsumeNextToken(Token::Type::Semicolon);
 
 		return continueNode;
@@ -593,9 +607,8 @@ namespace Tolo
 		{
 			idNode->type = LexNode::Type::VariableDefinition;
 			idNode->children.push_back(LIdentifier());
-			return idNode;
 		}
-		if (token.type == Token::Type::StartPar)
+		else if (token.type == Token::Type::StartPar)
 		{
 			idNode->type = LexNode::Type::FunctionCall;
 			tokenIndex++;
@@ -619,17 +632,9 @@ namespace Tolo
 					ConsumeCurrentToken(Token::Type::Comma);
 				}
 			}
-
-			return idNode;
 		}
 
-		Affirm(
-			false,
-			"unexpected token '%s' at line %i",
-			token.text.c_str(), token.line
-		);
-
-		return nullptr;
+		return idNode;
 	}
 
 	Lexer::SharedNode Lexer::LVariableDefinition()

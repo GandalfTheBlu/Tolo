@@ -1,56 +1,31 @@
 #include <memory>
 #include <io>
 
-struct vec3
-{
-    float x;
-    float y;
-    float z;
-};
-
-vec3 operator*(vec3 lhs, vec3 rhs)
-{
-    return vec3(lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z);
-}
-
-vec3 operator*(vec3 lhs, float rhs)
-{
-    return vec3(lhs.x * rhs, lhs.y * rhs, lhs.z * rhs);
-}
-
-void vec3::print()
-{
-    print('(');
-    print(this.x);
-    print(',');
-    print(this.y);
-    print(',');
-    print(this.z);
-    print(')');
-}
-
-enum
-{
-    E_ZERO,
-    E_ONE,
-    E_TWO
-};
-
 void main()
 {
-    vec3 v1 = vec3(1., 2., 3.);
-    vec3 v2 = vec3(2., 2., 2.);
-    float f1 = 3.;
+    int i=0;
+    while(i<3)
+    {
+        print("i: ");
+        print(i);
+        print("\n");
 
-    vec3 p1 = v1 * v2;
-    vec3 p2 = v1 * f1;
+        int j=0;
+        while(j<3)
+        {
+            if(i == 1 && j == 2)
+            {
+                i = i + 1;
+                continue 2;
+            }
 
-    p1.print();
-    print("\n");
-    p2.print();
+            print("j: ");
+            print(j);
+            print("\n");
 
-    print("\n");
-    print(E_ZERO);
-    print(E_ONE);
-    print(E_TWO);
+            j = j + 1;
+        }
+
+        i = i + 1;
+    }
 }

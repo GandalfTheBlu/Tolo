@@ -409,23 +409,55 @@ namespace Tolo
 	}
 
 	
-	EBreak::EBreak()
+	EBreak::EBreak(Int _depth, int _line) :
+		depth(_depth),
+		line(_line)
 	{}
 
 	void EBreak::Evaluate(CodeBuilder& cb)
 	{
-		std::string depthId = std::to_string(cb.currentWhileDepth);
+		Int destinationDepth = cb.currentWhileDepth - (depth - 1);
+
+		Affirm(
+			destinationDepth <= cb.currentWhileDepth,
+			"break depth at line %i must be 1 or greater",
+			line
+		);
+
+		Affirm(
+			destinationDepth > 0,
+			"break depth at line %i is greater than current loop depth",
+			line
+		);
+
+		std::string depthId = std::to_string(destinationDepth);
 		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "while_end");
 		cb.Op(OpCode::Write_IP);
 	}
 
 
-	EContinue::EContinue()
+	EContinue::EContinue(Int _depth, int _line) :
+		depth(_depth),
+		line(_line)
 	{}
 
 	void EContinue::Evaluate(CodeBuilder& cb)
 	{
-		std::string depthId = std::to_string(cb.currentWhileDepth);
+		Int destinationDepth = cb.currentWhileDepth - (depth - 1);
+
+		Affirm(
+			destinationDepth <= cb.currentWhileDepth,
+			"continue depth at line %i must be 1 or greater",
+			line
+		);
+
+		Affirm(
+			destinationDepth > 0,
+			"continue depth at line %i is greater than current loop depth",
+			line
+		);
+
+		std::string depthId = std::to_string(destinationDepth);
 		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel(depthId + "while_condition");
 		cb.Op(OpCode::Write_IP);
 	}

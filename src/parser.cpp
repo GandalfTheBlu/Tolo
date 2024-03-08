@@ -689,19 +689,28 @@ namespace Tolo
 
 	Parser::SharedExp Parser::PEnumDefinition(const SharedNode& lexNode)
 	{
+		const std::string& enumNamespace = lexNode->token.text;
+
+		Affirm(
+			enumNamespaces.count(enumNamespace) == 0,
+			"enum namespace '%s' at line %i is already defined",
+			enumNamespace.c_str(), lexNode->token.line
+		);
+
 		Int enumValue = 0;
 
 		for (const SharedNode& enumNameNode : lexNode->children)
 		{
 			const std::string& enumName = enumNameNode->token.text;
-			
+			std::string enumId = enumNamespace + "::" + enumName;
+
 			Affirm(
-				nameToEnumValue.count(enumName) == 0,
+				nameToEnumValue.count(enumId) == 0,
 				"enum '%s' at line %i is already defined",
-				enumName.c_str(), enumNameNode->token.line
+				enumId.c_str(), enumNameNode->token.line
 			);
 
-			nameToEnumValue[enumName] = enumValue++;
+			nameToEnumValue[enumId] = enumValue++;
 		}
 
 		return std::make_shared<EEmpty>();
@@ -713,9 +722,9 @@ namespace Tolo
 		switch (lexNode->type)
 		{
 		case LexNode::Type::Break:
-			return std::make_shared<EBreak>();
+			return PBreak(lexNode);
 		case LexNode::Type::Continue:
-			return std::make_shared<EContinue>();
+			return PContinue(lexNode);
 		case LexNode::Type::Scope:
 			return PScope(lexNode);
 		case LexNode::Type::Return:
@@ -735,6 +744,26 @@ namespace Tolo
 		}
 
 		return PExpression(lexNode);
+	}
+
+	Parser::SharedExp Parser::PBreak(const SharedNode& lexNode)
+	{
+		Int depth = 1;
+		
+		if(lexNode->children.size() == 1)
+			depth = std::stoi(lexNode->children[0]->token.text);
+		
+		return std::make_shared<EBreak>(depth, lexNode->token.line);
+	}
+
+	Parser::SharedExp Parser::PContinue(const SharedNode& lexNode)
+	{
+		Int depth = 1;
+
+		if (lexNode->children.size() == 1)
+			depth = std::stoi(lexNode->children[0]->token.text);
+
+		return std::make_shared<EContinue>(depth, lexNode->token.line);
 	}
 
 	Parser::SharedExp Parser::PScope(const SharedNode& lexNode)

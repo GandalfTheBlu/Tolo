@@ -269,14 +269,20 @@ namespace Tolo
 
 	struct EBreak : public Expression
 	{
-		EBreak();
+		Int depth;
+		int line;
+
+		EBreak(Int _depth, int _line);
 		
 		virtual void Evaluate(CodeBuilder& cb) override;
 	};
 
 	struct EContinue : public Expression
 	{
-		EContinue();
+		Int depth;
+		int line;
+
+		EContinue(Int _depth, int _line);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 	};
