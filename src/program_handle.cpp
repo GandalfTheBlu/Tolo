@@ -245,6 +245,63 @@ namespace Tolo
 		typeNameToSize[structName] = propertyOffset;
 	}
 
+	void ProgramHandle::AddStructInherit(
+		const std::string& structName,
+		const std::string& parentStructName,
+		const std::vector<std::pair<std::string, std::string>>& members
+	)
+	{
+		Affirm(
+			typeNameToStructInfo.count(structName) == 0,
+			"struct '%s' is already defined",
+			structName.c_str()
+		);
+
+		StructInfo& info = typeNameToStructInfo[structName];
+
+		const std::string structPtrName = structName + "::ptr";
+		typeNameToSize[structPtrName] = static_cast<Int>(sizeof(Ptr));
+
+		Affirm(
+			parentStructName != structName &&
+			typeNameToStructInfo.count(parentStructName) != 0,
+			"struct type name '%s' is not defined",
+			parentStructName.c_str()
+		);
+
+		structNameToParentStructName[structName] = parentStructName;
+
+		info = typeNameToStructInfo.at(parentStructName);
+		Int propertyOffset = typeNameToSize.at(parentStructName);
+
+		for (auto& prop : members)
+		{
+			Affirm(
+				prop.first != structName,
+				"struct '%s' cannot contain itself",
+				structName.c_str()
+			);
+
+			Affirm(
+				typeNameToSize.count(prop.first) != 0,
+				"type name '%s' in struct '%s' is not defined",
+				prop.first.c_str(), structName.c_str()
+			);
+
+			Affirm(
+				info.memberNameToVarInfo.count(prop.second) == 0,
+				"property '%s' is already defined in struct '%s'",
+				prop.second.c_str(), structName.c_str()
+			);
+
+			info.memberNameToVarInfo[prop.second] = VariableInfo(prop.first, propertyOffset);
+			info.memberNames.push_back(prop.second);
+			propertyOffset += typeNameToSize[prop.first];
+		}
+
+		typeNameToSize[structName] = propertyOffset;
+	}
+
 	void ProgramHandle::AddEnum(
 		const std::vector<std::string>& enumNames
 	)
@@ -290,6 +347,7 @@ namespace Tolo
 		Parser parser;
 		parser.hashToNativeFunctions = hashToNativeFunctions;
 		parser.typeNameToStructInfo = typeNameToStructInfo;
+		parser.structNameToParentStructName = structNameToParentStructName;
 		parser.nameToEnumValue = nameToEnumValue;
 
 		// transfer struct type sizes and struct pointers

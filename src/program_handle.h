@@ -61,6 +61,7 @@ namespace Tolo
 		std::map<std::string, NativeFunctionInfo> hashToNativeFunctions;
 		std::map<std::string, Int> nameToEnumValue;
 		std::map<std::string, StructInfo> typeNameToStructInfo;
+		std::map<std::string, std::string> structNameToParentStructName;
 		std::map<std::string, void(*)(ProgramHandle&)> standardTookitAdders;
 
 		ProgramHandle() = delete;
@@ -92,6 +93,12 @@ namespace Tolo
 
 		void AddStruct(
 			const std::string& structName, 
+			const std::vector<std::pair<std::string, std::string>>& members
+		);
+
+		void AddStructInherit(
+			const std::string& structName,
+			const std::string& parentStructName,
 			const std::vector<std::pair<std::string, std::string>>& members
 		);
 
