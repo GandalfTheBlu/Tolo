@@ -35,6 +35,7 @@ namespace Tolo
 
 			// definitions
 			StructDefinition,
+			StructDefinitionInheritance,
 			VariableDefinition,
 			FunctionDefinition,
 			OperatorDefinition,

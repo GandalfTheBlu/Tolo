@@ -240,6 +240,7 @@ namespace Tolo
 		switch (lexNode->type)
 		{
 		case LexNode::Type::StructDefinition:
+		case LexNode::Type::StructDefinitionInheritance:
 			return PStructDefinition(lexNode);
 		case LexNode::Type::FunctionDefinition:
 			return PFunctionDefinition(lexNode);
@@ -267,9 +268,27 @@ namespace Tolo
 		typeNameToSize[structPtrName] = sizeof(Ptr);
 
 		StructInfo& structInfo = typeNameToStructInfo[structName];
-
 		Int propertyOffset = 0;
-		for (size_t i = 0; i + 1 < lexNode->children.size(); i += 2)
+		size_t startChildIndex = 0;
+
+		// handle inheritance
+		if (lexNode->type == LexNode::Type::StructDefinitionInheritance)
+		{
+			const std::string& parentStructName = lexNode->children[0]->token.text;
+
+			Affirm(
+				parentStructName != structName &&
+				typeNameToStructInfo.count(parentStructName) != 0,
+				"struct type name '%s' at line %i is not defined",
+				parentStructName.c_str(), lexNode->token.line
+			);
+
+			structInfo = typeNameToStructInfo.at(parentStructName);
+			propertyOffset = typeNameToSize.at(parentStructName);
+			startChildIndex = 1;
+		}
+		
+		for (size_t i = startChildIndex; i + 1 < lexNode->children.size(); i += 2)
 		{
 			const std::string& membTypeName = lexNode->children[i]->token.text;
 			const std::string& membName = lexNode->children[i + 1]->token.text;

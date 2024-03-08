@@ -176,25 +176,36 @@ namespace Tolo
 		ConsumeCurrentToken(Token::Type::Name);
 
 		const Token& nameToken = CurrentToken(Token::Type::Name);
+		auto structDefNode = std::make_shared<LexNode>(LexNode::Type::StructDefinition, nameToken);
+
+		// handle inheritance
+		if (TryCompareNextToken(Token::Type::Colon))
+		{
+			ConsumeNextToken(Token::Type::Colon);
+			structDefNode->type = LexNode::Type::StructDefinitionInheritance;
+			structDefNode->children.push_back(std::make_shared<LexNode>(
+				LexNode::Type::Identifier, 
+				CurrentToken(Token::Type::Name
+			)));
+		}
 
 		ConsumeNextToken(Token::Type::StartCurly);
 		
-		auto structDefNode = std::make_shared<LexNode>(LexNode::Type::StructDefinition, nameToken);
 
 		while (true)
 		{
+			if (CurrentToken().type == Token::Type::EndCurly)
+			{
+				ConsumeNextToken(Token::Type::Semicolon);
+				break;
+			}
+
 			structDefNode->children.push_back(LIdentifier());
 			const Token& membNameToken = CurrentToken(Token::Type::Name);
 
 			ConsumeNextToken(Token::Type::Semicolon);
 
 			structDefNode->children.push_back(std::make_shared<LexNode>(LexNode::Type::Identifier, membNameToken));
-
-			if (CurrentToken().type == Token::Type::EndCurly)
-			{
-				ConsumeNextToken(Token::Type::Semicolon);
-				break;
-			}
 		}
 
 		return structDefNode;

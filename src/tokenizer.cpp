@@ -13,6 +13,7 @@ namespace Tolo
 			{'{', Token::Type::StartCurly},
 			{'}', Token::Type::EndCurly},
 			{';', Token::Type::Semicolon},
+			{':', Token::Type::Colon},
 			{',', Token::Type::Comma},
 			{'.', Token::Type::Dot},
 			{'+', Token::Type::Plus},
