@@ -1,40 +1,51 @@
 #include <memory>
 #include <io>
 
-struct Animal
+struct Parent
 {
-    int age;
+    //ptr virtual;
 };
 
-int Animal::GetAge()
+int Parent::Foo()
 {
-    return this.age;
+    return 11;
 }
 
-struct Dog : Animal
+int Parent::Bar()
+{
+    return 0;
+}
+
+struct Child : Parent
 {};
 
-struct Cat : Animal
+int Child::Bar()
 {
-    int lives;
-};
+    return 1;
+}
+
+int Child::Foo()
+{
+    Parent::ptr base = Parent::ptr(this);
+    return base.Foo() + 22;
+}
+
+
+void nl()
+{
+    print("\n");
+}
+
 
 void main()
 {
-    Dog dog = Dog(12);
-    int age1 = dog.GetAge();
-    print(age1);
-    print("\n");
+    Child c = Child();
+    
+    int i = c.Bar();
+    print(i);
 
-    Animal::ptr pDog = Animal::ptr(&dog);
-    int age2 = pDog.GetAge();
-    print(age2);
-    print("\n");
+    nl();
 
-    Cat cat = Cat(2, 9);
-    print(cat.lives);
-    print("\n");
-
-    child c = child(1, 2);
-    print(c.memb1);
+    int j = c.Foo();
+    print(j);
 }

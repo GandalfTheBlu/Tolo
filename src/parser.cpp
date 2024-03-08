@@ -423,7 +423,7 @@ namespace Tolo
 
 		// check for final return expression
 		if (funcInfo.returnTypeName == "void" &&
-			(defFuncExp->body.size() == 0 || bodyContent.back()->type != LexNode::Type::Return))
+			(bodyContent.size() == 0 || bodyContent.back()->type != LexNode::Type::Return))
 		{
 			// add a return statement if function has void return type and no return statement exists at end
 			// of function
@@ -690,7 +690,7 @@ namespace Tolo
 
 		// check for final return expression
 		if (funcInfo.returnTypeName == "void" &&
-			(defFuncExp->body.size() == 0 || bodyContent.back()->type != LexNode::Type::Return))
+			(bodyContent.size() == 0 || bodyContent.back()->type != LexNode::Type::Return))
 		{
 			// add a return statement if function has void return type and no return statement exists at end
 			// of function
@@ -1644,9 +1644,17 @@ namespace Tolo
 		auto loadMultiExp = std::make_shared<ELoadMulti>();
 
 		std::string oldRetType = currentExpectedReturnType;
-		currentExpectedReturnType = "ptr";
+		currentExpectedReturnType = ANY_VALUE_TYPE;
 
-		loadMultiExp->loaders.push_back(PReadableValue(lexNode->children[0]));
+		std::string ptrType;
+		loadMultiExp->loaders.push_back(PReadableValue(lexNode->children[0], ptrType));
+
+		Affirm(
+			ptrType == "ptr" ||
+			ptrTypeNameToStructTypeName.count(ptrType) != 0,
+			"expected pointer type in struct pointer initializer at line %i",
+			lexNode->children[0]->token.line
+		);
 
 		currentExpectedReturnType = oldRetType;
 
