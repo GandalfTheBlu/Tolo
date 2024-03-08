@@ -22,9 +22,13 @@ struct Cat : Animal
 void main()
 {
     Dog dog = Dog(12);
+    int age1 = dog.GetAge();
+    print(age1);
+    print("\n");
+
     Animal::ptr pDog = Animal::ptr(&dog);
-    int age = pDog.GetAge();
-    print(age);
+    int age2 = pDog.GetAge();
+    print(age2);
     print("\n");
 
     Cat cat = Cat(2, 9);

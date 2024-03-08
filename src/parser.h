@@ -70,6 +70,7 @@ namespace Tolo
 		std::map<std::string, DataTypeOperators> typeNameOperators;
 		std::map<std::string, StructInfo> typeNameToStructInfo;
 		std::map<std::string, std::string> ptrTypeNameToStructTypeName;
+		std::map<std::string, std::string> structNameToParentStructName;
 		std::map<std::string, Int> nameToEnumValue;
 		std::set<std::string> enumNamespaces;
 

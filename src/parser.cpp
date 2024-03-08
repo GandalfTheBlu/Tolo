@@ -283,6 +283,8 @@ namespace Tolo
 				parentStructName.c_str(), lexNode->token.line
 			);
 
+			structNameToParentStructName[structName] = parentStructName;
+
 			structInfo = typeNameToStructInfo.at(parentStructName);
 			propertyOffset = typeNameToSize.at(parentStructName);
 			startChildIndex = 1;
@@ -1662,13 +1664,13 @@ namespace Tolo
 		const VariableInfo& varInfo = p_currentFunction->varNameToVarInfo.at(lexNode->token.text);
 
 		auto loadCallerPtrExp = std::make_shared<ELoadMulti>();
-		std::string parentStructType = varInfo.typeName;
+		std::string structType = varInfo.typeName;
 
 		// load variable pointer
 		if (ptrTypeNameToStructTypeName.count(varInfo.typeName) != 0)
 		{
 			// variable is struct pointer
-			parentStructType = ptrTypeNameToStructTypeName.at(varInfo.typeName);
+			structType = ptrTypeNameToStructTypeName.at(varInfo.typeName);
 			loadCallerPtrExp->loaders.push_back(std::make_shared<ELoadVariable>(varInfo.offset, static_cast<Int>(sizeof(Ptr))));
 		}
 		else
@@ -1689,17 +1691,17 @@ namespace Tolo
 			const SharedNode& membNode = lexNode->children[i];
 
 			Affirm(
-				typeNameToStructInfo.count(parentStructType),
+				typeNameToStructInfo.count(structType),
 				"type '%s' at line %i is not a struct",
-				parentStructType.c_str(), membNode->token.line
+				structType.c_str(), membNode->token.line
 			);
 
-			const StructInfo& parentStructInfo = typeNameToStructInfo.at(parentStructType);
+			const StructInfo& parentStructInfo = typeNameToStructInfo.at(structType);
 
 			Affirm(
 				parentStructInfo.memberNameToVarInfo.count(membNode->token.text) != 0,
 				"'%s' at line %i is not a member of struct '%s'",
-				membNode->token.text.c_str(), membNode->token.line, parentStructType.c_str()
+				membNode->token.text.c_str(), membNode->token.line, structType.c_str()
 			);
 
 			const VariableInfo& membInfo = parentStructInfo.memberNameToVarInfo.at(membNode->token.text);
@@ -1707,7 +1709,7 @@ namespace Tolo
 			if (ptrTypeNameToStructTypeName.count(membInfo.typeName) != 0)
 			{
 				// member is struct pointer
-				parentStructType = ptrTypeNameToStructTypeName.at(membInfo.typeName);
+				structType = ptrTypeNameToStructTypeName.at(membInfo.typeName);
 
 				// push member variable address
 				loadCallerPtrExp->loaders.push_back(std::make_shared<ELoadConstInt>(membInfo.offset));
@@ -1718,7 +1720,7 @@ namespace Tolo
 			else
 			{
 				// member is struct value
-				parentStructType = membInfo.typeName;
+				structType = membInfo.typeName;
 
 				// push member variable address
 				loadCallerPtrExp->loaders.push_back(std::make_shared<ELoadConstInt>(membInfo.offset));
@@ -1731,8 +1733,8 @@ namespace Tolo
 		std::vector<SharedExp> argumentLoads;
 
 		// add "this"-ptr
+		argTypeNames.push_back(structType + "::ptr");
 		argumentLoads.push_back(loadCallerPtrExp);
-		argTypeNames.push_back(parentStructType + "::ptr");
 
 		std::string oldRetType = currentExpectedReturnType;
 		currentExpectedReturnType = ANY_VALUE_TYPE;
@@ -1748,33 +1750,41 @@ namespace Tolo
 		currentExpectedReturnType = oldRetType;
 		outReadDataType = currentExpectedReturnType;
 
-		std::string funcName = parentStructType + "::" + funcNode->token.text;
-		std::string funcHash = GetFunctionHash(currentExpectedReturnType, funcName, argTypeNames);
-
-		if (hashToUserFunctions.count(funcHash) != 0)
+		while (true)
 		{
-			const FunctionInfo& funcInfo = hashToUserFunctions.at(funcHash);
-			auto callUserFuncExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize);
-			callUserFuncExp->argumentLoads = argumentLoads;
-			callUserFuncExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(funcHash);
+			std::string funcName = structType + "::" + funcNode->token.text;
+			std::string funcHash = GetFunctionHash(currentExpectedReturnType, funcName, argTypeNames);
 
-			return callUserFuncExp;
+			if (hashToUserFunctions.count(funcHash) != 0)
+			{
+				const FunctionInfo& funcInfo = hashToUserFunctions.at(funcHash);
+				auto callUserFuncExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize);
+				callUserFuncExp->argumentLoads = argumentLoads;
+				callUserFuncExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(funcHash);
+
+				return callUserFuncExp;
+			}
+			if (hashToNativeFunctions.count(funcHash) != 0)
+			{
+				const NativeFunctionInfo& funcInfo = hashToNativeFunctions.at(funcHash);
+				auto callNativeFuncExp = std::make_shared<ECallNativeFunction>();
+				callNativeFuncExp->argumentLoads = argumentLoads;
+				callNativeFuncExp->functionPtrLoad = std::make_shared<ELoadConstPtr>(funcInfo.p_functionPtr);
+
+				return callNativeFuncExp;
+			}
+
+			Affirm(
+				structNameToParentStructName.count(structType) != 0,
+				"function signature '%s' at line %i does not match any existing functions",
+				funcHash.c_str(), lexNode->token.line
+			);
+
+			// try parent type
+			structType = structNameToParentStructName.at(structType);
+			// change "this"-ptr type name
+			argTypeNames[0] = structType + "::ptr";
 		}
-		if (hashToNativeFunctions.count(funcHash) != 0)
-		{
-			const NativeFunctionInfo& funcInfo = hashToNativeFunctions.at(funcHash);
-			auto callNativeFuncExp = std::make_shared<ECallNativeFunction>();
-			callNativeFuncExp->argumentLoads = argumentLoads;
-			callNativeFuncExp->functionPtrLoad = std::make_shared<ELoadConstPtr>(funcInfo.p_functionPtr);
-
-			return callNativeFuncExp;
-		}
-
-		Affirm(
-			false,
-			"function signature '%s' at line %i does not match any existing functions",
-			funcHash.c_str(), lexNode->token.line
-		);
 
 		return nullptr;
 	}
