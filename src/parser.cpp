@@ -43,6 +43,8 @@ namespace Tolo
 		vTableOffset(0)
 	{}
 
+	ScopeInfo::ScopeInfo()
+	{}
 
 	std::string GetFunctionHash(
 		const std::string& returnTypeName,
@@ -176,6 +178,38 @@ namespace Tolo
 	bool Parser::IsFunctionDefined(const std::string& hash)
 	{
 		return hashToUserFunctions.count(hash) != 0 || hashToNativeFunctions.count(hash) != 0;
+	}
+
+	bool Parser::IsVariableDefined(const std::string& name)
+	{
+		for (auto scope = scopeStack.rbegin(); scope != scopeStack.rend(); scope++)
+		{
+			if (scope->localVariables.count(name) != 0)
+				return true;
+		}
+
+		return false;
+	}
+
+	void Parser::PushScope()
+	{
+		scopeStack.emplace_back();
+	}
+
+	void Parser::PopScope()
+	{
+		scopeStack.pop_back();
+	}
+
+	void Parser::DeclareVariableInCurrentScope(const std::string& name, int line)
+	{
+		Affirm(
+			!IsVariableDefined(name),
+			"variable '%s' at line %i is already defined",
+			name.c_str(), line
+		);
+
+		scopeStack.back().localVariables.insert(name);
 	}
 
 	void Parser::AffirmCurrentType(const std::string& typeName, int line, bool canBeAnyValueType)
@@ -468,7 +502,9 @@ namespace Tolo
 
 		// parse body content
 		auto defFuncExp = std::make_shared<EDefineFunction>(funcHash);
+		PushScope();
 		defFuncExp->body.push_back(PStatement(lexNode->children.back()));
+		PopScope();
 
 		p_currentFunction = nullptr;
 
@@ -610,7 +646,9 @@ namespace Tolo
 		p_currentFunction = &funcInfo;
 
 		// parse body content
+		PushScope();
 		defFuncExp->body.push_back(PStatement(lexNode->children.back()));
+		PopScope();
 
 		p_currentFunction = nullptr;
 
@@ -801,7 +839,10 @@ namespace Tolo
 		p_currentFunction = &funcInfo;
 
 		// parse body content
+		PushScope();
+		DeclareVariableInCurrentScope("this", lexNode->token.line);
 		defFuncExp->body.push_back(PStatement(lexNode->children.back()));
+		PopScope();
 
 		p_currentFunction = nullptr;
 
@@ -916,8 +957,11 @@ namespace Tolo
 	{
 		auto scopeExp = std::make_shared<EScope>();
 		
+		PushScope();
 		for (const SharedNode& statNode : lexNode->children)
 			scopeExp->statements.push_back(PStatement(statNode));
+
+		PopScope();
 
 		return scopeExp;
 	}
@@ -952,7 +996,9 @@ namespace Tolo
 		ifExp->conditionLoad = PReadableValue(lexNode->children[0]);
 		currentExpectedReturnType = "void";
 
+		PushScope();
 		ifExp->body.push_back(PStatement(lexNode->children[1]));
+		PopScope();
 
 		return ifExp;
 	}
@@ -965,7 +1011,9 @@ namespace Tolo
 		ifChainExp->conditionLoad = PReadableValue(lexNode->children[0]);
 		currentExpectedReturnType = "void";
 
+		PushScope();
 		ifChainExp->body.push_back(PStatement(lexNode->children[1]));
+		PopScope();
 		ifChainExp->chain = PStatement(lexNode->children[2]);
 
 		return ifChainExp;
@@ -979,7 +1027,9 @@ namespace Tolo
 		elifExp->conditionLoad = PReadableValue(lexNode->children[0]);
 		currentExpectedReturnType = "void";
 
+		PushScope();
 		elifExp->body.push_back(PStatement(lexNode->children[1]));
+		PopScope();
 
 		return elifExp;
 	}
@@ -992,7 +1042,9 @@ namespace Tolo
 		elifExp->conditionLoad = PReadableValue(lexNode->children[0]);
 		currentExpectedReturnType = "void";
 
+		PushScope();
 		elifExp->body.push_back(PStatement(lexNode->children[1]));
+		PopScope();
 		elifExp->chain = PStatement(lexNode->children[2]);
 
 		return elifExp;
@@ -1002,7 +1054,9 @@ namespace Tolo
 	{
 		auto elseExp = std::make_shared<EElse>();
 
+		PushScope();
 		elseExp->body.push_back(PStatement(lexNode->children[0]));
+		PopScope();
 
 		return elseExp;
 	}
@@ -1015,7 +1069,9 @@ namespace Tolo
 		whileExp->conditionLoad = PReadableValue(lexNode->children[0]);
 		currentExpectedReturnType = "void";
 
+		PushScope();
 		whileExp->body.push_back(PStatement(lexNode->children[1]));
+		PopScope();
 
 		return whileExp;
 	}
@@ -1075,6 +1131,10 @@ namespace Tolo
 		switch (lexNode->type)
 		{
 		case LexNode::Type::VariableDefinition:
+			DeclareVariableInCurrentScope(
+				lexNode->children[0]->token.text, 
+				lexNode->children[0]->token.line
+			);
 			return PVariablePtr(lexNode->children[0], outWriteDataType);
 		case LexNode::Type::Identifier:
 			return PVariablePtr(lexNode, outWriteDataType);
@@ -1102,7 +1162,7 @@ namespace Tolo
 		const std::string& varName = lexNode->token.text;
 
 		Affirm(
-			p_currentFunction->varNameToVarInfo.count(varName) != 0,
+			IsVariableDefined(varName),
 			"undefined variable '%s' at line %i",
 			varName.c_str(), lexNode->token.line
 		);
@@ -1115,13 +1175,15 @@ namespace Tolo
 
 	Parser::SharedExp Parser::PMemberAccessPtr(const SharedNode& lexNode, std::string& outWriteDataType)
 	{
+		const std::string& varName = lexNode->token.text;
+
 		Affirm(
-			p_currentFunction->varNameToVarInfo.count(lexNode->token.text) != 0,
+			IsVariableDefined(varName),
 			"undefined variable '%s' at line %i",
-			lexNode->token.text.c_str(), lexNode->token.line
+			varName.c_str(), lexNode->token.line
 		);
 
-		const VariableInfo& varInfo = p_currentFunction->varNameToVarInfo.at(lexNode->token.text);
+		const VariableInfo& varInfo = p_currentFunction->varNameToVarInfo.at(varName);
 
 		auto loadMembPtrExp = std::make_shared<ELoadMulti>();
 		std::string parentStructType = varInfo.typeName;
@@ -1277,6 +1339,13 @@ namespace Tolo
 	{
 		const std::string& varName = lexNode->token.text;
 
+		if (varName == "nullptr")
+		{
+			AffirmCurrentType("ptr", lexNode->token.line);
+			outReadDataType = "ptr";
+			return std::make_shared<ELoadConstPtr>(nullptr);
+		}
+
 		if (nameToEnumValue.count(varName) != 0)
 		{
 			AffirmCurrentType("int", lexNode->token.line);
@@ -1285,12 +1354,12 @@ namespace Tolo
 		}
 
 		Affirm(
-			p_currentFunction->varNameToVarInfo.count(varName) != 0,
+			IsVariableDefined(varName),
 			"undefined variable '%s' at line %i",
 			varName.c_str(), lexNode->token.line
 		);
 
-		const VariableInfo& info = p_currentFunction->varNameToVarInfo[varName];
+		const VariableInfo& info = p_currentFunction->varNameToVarInfo.at(varName);
 
 		AffirmCurrentType(info.typeName, lexNode->token.line);
 		outReadDataType = info.typeName;

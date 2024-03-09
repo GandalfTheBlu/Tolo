@@ -58,6 +58,13 @@ namespace Tolo
 		VirtualFunctionInfo();
 	};
 
+	struct ScopeInfo
+	{
+		std::set<std::string> localVariables;
+
+		ScopeInfo();
+	};
+
 	std::string GetFunctionHash(
 		const std::string& returnTypeName,
 		const std::string& funcName,
@@ -76,6 +83,7 @@ namespace Tolo
 		HashToNativeFunction hashToNativeFunctions;
 		FunctionInfo* p_currentFunction;
 		std::string currentExpectedReturnType;
+		std::vector<ScopeInfo> scopeStack;
 		std::map<std::string, DataTypeOperators> typeNameOperators;
 		std::map<std::string, StructInfo> typeNameToStructInfo;
 		std::map<std::string, std::string> ptrTypeNameToStructTypeName;
@@ -90,6 +98,14 @@ namespace Tolo
 		Parser();
 
 		bool IsFunctionDefined(const std::string& hash);
+
+		bool IsVariableDefined(const std::string& name);
+
+		void PushScope();
+
+		void PopScope();
+
+		void DeclareVariableInCurrentScope(const std::string& name, int line);
 
 		void AffirmCurrentType(const std::string& typeName, int line, bool canBeAnyValueType = true);
 
