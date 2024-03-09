@@ -312,12 +312,12 @@ namespace Tolo
 		virtual void Evaluate(CodeBuilder& cb) override;
 	};
 
-	struct EVTable : public Expression
+	struct EDefineVTable : public Expression
 	{
 		std::string vTableName;
 		std::vector<std::string> functionLabels;
 
-		EVTable(const std::string& _vTableName);
+		EDefineVTable(const std::string& _vTableName);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 	};

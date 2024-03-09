@@ -41,8 +41,8 @@ namespace Tolo
 			FunctionDefinition,
 			OperatorDefinition,
 			MemberFunctionDefinition,
-			EnumDefinition,
-			VTableDefinition
+			MemberFunctionDefinitionVirtual,
+			EnumDefinition
 		};
 
 		Type type;

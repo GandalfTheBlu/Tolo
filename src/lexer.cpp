@@ -151,9 +151,6 @@ namespace Tolo
 		if (idToken.text == "enum")
 			return LEnumDefinition();
 
-		if (idToken.text == "virtual")
-			return LVTableDefinition();
-
 		Affirm(
 			TryCompareNextToken(Token::Type::Name),
 			"unexpected token at line %i",
@@ -344,6 +341,21 @@ namespace Tolo
 			}
 		}
 
+		// handle virtual member function
+		if (CurrentToken().type == Token::Type::Colon)
+		{
+			const Token& specToken = NextToken(Token::Type::Name);
+			tokenIndex++;
+
+			Affirm(
+				specToken.text == "virtual",
+				"unexpected token '%s' at line %i",
+				specToken.text.c_str(), specToken.line
+			);
+
+			membFuncDefNode->type = LexNode::Type::MemberFunctionDefinitionVirtual;
+		}
+
 		membFuncDefNode->children.push_back(LStatement());
 
 		return membFuncDefNode;
@@ -380,54 +392,6 @@ namespace Tolo
 		return enumDefNode;
 	}
 
-	Lexer::SharedNode Lexer::LVTableDefinition()
-	{
-		ConsumeCurrentToken(Token::Type::Name);
-		const Token& structNameToken = CurrentToken();
-		auto vTableNode = std::make_shared<LexNode>(LexNode::Type::VTableDefinition, structNameToken);
-		
-		ConsumeNextToken(Token::Type::StartCurly);
-
-		while (true)
-		{
-			if (CurrentToken().type == Token::Type::EndCurly)
-			{
-				ConsumeNextToken(Token::Type::Semicolon);
-				break;
-			}
-
-			const Token& retTypeToken = CurrentToken(Token::Type::Name);
-			auto vFuncSignatureNode = std::make_shared<LexNode>(LexNode::Type::Identifier, retTypeToken);
-			tokenIndex++;
-
-			vFuncSignatureNode->children.push_back(LIdentifier());
-
-			ConsumeCurrentToken(Token::Type::StartPar);
-
-			bool first = true;
-			while (true)
-			{
-				if (CurrentToken().type == Token::Type::EndPar)
-				{
-					ConsumeNextToken(Token::Type::Semicolon);
-					break;
-				}
-
-				if (!first)
-					ConsumeCurrentToken(Token::Type::Comma);
-
-				first = false;
-
-				vFuncSignatureNode->children.push_back(LIdentifier());
-			}
-
-			vTableNode->children.push_back(vFuncSignatureNode);
-		}
-
-		return vTableNode;
-	}
-
-
 	Lexer::SharedNode Lexer::LStatement() 
 	{
 		const Token& token = CurrentToken();
@@ -447,8 +411,6 @@ namespace Tolo
 				return LContinueStatement();
 			if (token.text == "return")
 				return LReturnStatement();
-			if (token.text == "goto")
-				return LGotoStatement();
 		}
 
 		auto statNode = LExpression(0);
@@ -593,18 +555,6 @@ namespace Tolo
 
 		return returnNode;
 	}
-
-	Lexer::SharedNode Lexer::LGotoStatement()
-	{
-		auto gotoNode = std::make_shared<LexNode>(LexNode::Type::Goto, CurrentToken());
-		tokenIndex++;
-
-		gotoNode->children.push_back(LExpression(0));
-		ConsumeCurrentToken(Token::Type::Semicolon);
-
-		return gotoNode;
-	}
-
 
 	Lexer::SharedNode Lexer::LExpression(int precedence)
 	{

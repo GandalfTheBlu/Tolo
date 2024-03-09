@@ -490,11 +490,11 @@ namespace Tolo
 	}
 
 
-	EVTable::EVTable(const std::string& _vTableName) :
+	EDefineVTable::EDefineVTable(const std::string& _vTableName) :
 		vTableName(_vTableName)
 	{}
 
-	void EVTable::Evaluate(CodeBuilder& cb)
+	void EDefineVTable::Evaluate(CodeBuilder& cb)
 	{
 		cb.DefineLabel("0virtual_table_" + vTableName);
 		
@@ -509,6 +509,7 @@ namespace Tolo
 
 	void ELoadVTablePtr::Evaluate(CodeBuilder& cb)
 	{
-		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel("0virtual_table_" + vTableName);
+		cb.Op(OpCode::Load_Const_Ptr); 
+		cb.ConstPtrToLabel("0virtual_table_" + vTableName);
 	}
 }

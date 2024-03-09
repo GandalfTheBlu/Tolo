@@ -39,6 +39,10 @@ namespace Tolo
 	StructInfo::StructInfo()
 	{}
 
+	VirtualFunctionInfo::VirtualFunctionInfo() :
+		vTableOffset(0)
+	{}
+
 
 	std::string GetFunctionHash(
 		const std::string& returnTypeName,
@@ -232,6 +236,27 @@ namespace Tolo
 	{
 		for (const SharedNode& node : lexNodes)
 			expressions.push_back(PGlobalStructure(node));
+
+		for (const auto& vTablePair : structNameToVTable)
+		{
+			const std::string& vTableName = vTablePair.first;
+			const VirtualTable& vTable = vTablePair.second;
+			auto defVTableExp = std::make_shared<EDefineVTable>(vTableName);
+
+			// sort the virtual functions
+			std::map<Int, std::string> vTableOffsetToGlobalHash;
+			for (const auto& vFuncInfoPair : vTable)
+			{
+				const VirtualFunctionInfo& vFuncInfo = vFuncInfoPair.second;
+				vTableOffsetToGlobalHash[vFuncInfo.vTableOffset] = vFuncInfo.globalHash;
+			}
+
+			// add virtual function labels in sorted order
+			for (const auto& sortedVTablePair : vTableOffsetToGlobalHash)
+				defVTableExp->functionLabels.push_back(sortedVTablePair.second);
+
+			expressions.push_back(defVTableExp);
+		}
 	}
 
 	// global structures
@@ -247,12 +272,11 @@ namespace Tolo
 		case LexNode::Type::OperatorDefinition:
 			return POperatorDefinition(lexNode);
 		case LexNode::Type::MemberFunctionDefinition:
+		case LexNode::Type::MemberFunctionDefinitionVirtual:
 			return PMemberFunctionDefinition(lexNode);
-		case LexNode::Type::EnumDefinition:
-			return PEnumDefinition(lexNode);
 		}
 
-		return PVTableDefinition(lexNode);
+		return PEnumDefinition(lexNode);
 	}
 
 	Parser::SharedExp Parser::PStructDefinition(const SharedNode& lexNode) 
@@ -287,6 +311,13 @@ namespace Tolo
 
 			structNameToParentStructName[structName] = parentStructName;
 
+			// handle virtual parent struct
+			if (structNameToVTable.count(parentStructName) != 0)
+			{
+				structNameToVTable[structName] =
+					structNameToVTable.at(parentStructName);
+			}
+
 			structInfo = typeNameToStructInfo.at(parentStructName);
 			propertyOffset = typeNameToSize.at(parentStructName);
 			startChildIndex = 1;
@@ -314,6 +345,24 @@ namespace Tolo
 				"member '%s' at line %i is already defined in struct '%s'",
 				membName.c_str(), lexNode->children[i + 1]->token.line, structName.c_str()
 			);
+
+			// handle virtual declaration
+			if (membName == "virtual")
+			{
+				Affirm(
+					membTypeName == "ptr",
+					"virtual specifier at line %i must be of type 'ptr'",
+					lexNode->children[i]->token.line
+				);
+
+				Affirm(
+					structNameToVTable.count(structName) == 0,
+					"struct '%s' at line %i is already declared as virtual",
+					structName.c_str(), lexNode->token.line
+				);
+
+				structNameToVTable[structName] = {};
+			}
 
 			structInfo.memberNameToVarInfo[membName] = VariableInfo(membTypeName, propertyOffset);
 			structInfo.memberNames.push_back(membName);
@@ -579,7 +628,7 @@ namespace Tolo
 	{
 		const std::string& returnTypeName = lexNode->token.text;
 		const std::string& structTypeName = lexNode->children[0]->token.text;
-		std::string funcName = structTypeName + "::" + lexNode->children[1]->token.text;
+		const std::string& funcName = lexNode->children[1]->token.text;
 
 		Affirm(
 			typeNameToSize.count(returnTypeName) != 0,
@@ -672,13 +721,79 @@ namespace Tolo
 			funcInfo.parameterNames.push_back(paramName);
 		}
 
-		std::string funcHash = GetFunctionHash(funcInfo.returnTypeName, funcName, paramTypeNames);
+		std::string funcHash = GetFunctionHash(funcInfo.returnTypeName, structTypeName + "::" + funcName, paramTypeNames);
 
 		Affirm(
 			!IsFunctionDefined(funcHash),
 			"function '%s' at line %i is already defined",
 			funcHash, lexNode->token.line
 		);
+
+		// handle virtual member function
+		std::shared_ptr<EDefineFunction> virtualRedirectorFuncExp;
+
+		if (lexNode->type == LexNode::Type::MemberFunctionDefinitionVirtual)
+		{
+			Affirm(
+				structNameToVTable.count(structTypeName) != 0,
+				"struct of type '%s' at line %i is not declared as virtual",
+				structTypeName.c_str(), lexNode->token.line
+			);
+
+			VirtualTable& vTable = structNameToVTable.at(structTypeName);
+			std::vector<std::string> virtParamTypeNames(paramTypeNames.begin() + 1, paramTypeNames.end());
+			std::string virtualHash = GetFunctionHash(returnTypeName, funcName, virtParamTypeNames);
+
+			// override existing v-table hash
+			if (vTable.count(virtualHash) != 0)
+			{
+				funcHash = GetFunctionHash(returnTypeName, structTypeName + "::0virtual_" + funcName, paramTypeNames);
+
+				Affirm(
+					vTable.at(virtualHash).globalHash != funcHash,
+					"virtual member function '%s' at line %i has already been defined",
+					funcHash.c_str(), lexNode->token.line
+				);
+				
+				vTable.at(virtualHash).globalHash = funcHash;
+			}
+			// implement new redirect function and add v-table hash
+			else
+			{
+				// create a function that redirects to the function in the v-table
+				virtualRedirectorFuncExp = std::make_shared<EDefineFunction>(funcHash);
+				hashToUserFunctions[funcHash] = funcInfo;
+
+				auto loadVirtFuncPtrExp = std::make_shared<ELoadMulti>();
+				VariableInfo& thisPtrInfo = funcInfo.varNameToVarInfo.at("this");
+				const StructInfo& structInfo = typeNameToStructInfo.at(structTypeName);
+				const VariableInfo& vTablePtrInfo = structInfo.memberNameToVarInfo.at("virtual");
+				Int vTableOffset = static_cast<Int>(vTable.size());
+
+				// load the "this"-ptr variable
+				loadVirtFuncPtrExp->loaders.push_back(std::make_shared<ELoadVariable>(thisPtrInfo.offset, static_cast<Int>(sizeof(Ptr))));
+				// load v-table pointer member offset
+				loadVirtFuncPtrExp->loaders.push_back(std::make_shared<ELoadConstInt>(vTablePtrInfo.offset));
+				loadVirtFuncPtrExp->loaders.push_back(std::make_shared<EPtrAdd>());
+				// load pointer stored in v-table pointer member
+				loadVirtFuncPtrExp->loaders.push_back(std::make_shared<ELoadPtrFromStackTopPtr>());
+				// add the offset of the function in the v-table to the v-table pointer
+				loadVirtFuncPtrExp->loaders.push_back(std::make_shared<ELoadConstInt>(vTableOffset));
+				loadVirtFuncPtrExp->loaders.push_back(std::make_shared<EPtrAdd>());
+				// load the function ip at the v-table pointer
+				loadVirtFuncPtrExp->loaders.push_back(std::make_shared<ELoadPtrFromStackTopPtr>());
+
+				auto gotoFuncExp = std::make_shared<EGoto>();
+				gotoFuncExp->instrPtrLoad = loadVirtFuncPtrExp;
+
+				virtualRedirectorFuncExp->body.push_back(gotoFuncExp);
+
+				funcHash = GetFunctionHash(returnTypeName, structTypeName + "::0virtual_" + funcName, paramTypeNames);
+				VirtualFunctionInfo& virtFuncInfo = vTable[virtualHash];
+				virtFuncInfo.globalHash = funcHash;
+				virtFuncInfo.vTableOffset = vTableOffset;
+			}
+		}
 
 		auto defFuncExp = std::make_shared<EDefineFunction>(funcHash);
 		hashToUserFunctions[funcHash] = funcInfo;
@@ -705,6 +820,14 @@ namespace Tolo
 				"missing 'return' in function '%s' at line %i",
 				funcHash.c_str(), lexNode->token.line
 			);
+		}
+
+		if (virtualRedirectorFuncExp != nullptr)
+		{
+			auto multiDefExp = std::make_shared<ELoadMulti>();
+			multiDefExp->loaders.push_back(defFuncExp);
+			multiDefExp->loaders.push_back(virtualRedirectorFuncExp);
+			return multiDefExp;
 		}
 
 		return defFuncExp;
@@ -739,57 +862,6 @@ namespace Tolo
 		return std::make_shared<EEmpty>();
 	}
 
-	Parser::SharedExp Parser::PVTableDefinition(const SharedNode& lexNode)
-	{
-		const std::string& vTableName = lexNode->token.text;
-
-		std::string vTablePtrName = vTableName + "::vtp";
-
-		Affirm(
-			vTablePtrNameToVTableName.count(vTablePtrName) == 0,
-			"virtual table '%s' at line %i is already defined",
-			vTableName.c_str(), lexNode->token.line
-		);
-
-		vTablePtrNameToVTableName[vTablePtrName] = vTableName;
-
-		auto vTableExp = std::make_shared<EVTable>(vTableName);
-
-		for (const SharedNode& vFuncSignatureNode : lexNode->children)
-		{
-			const std::string& funcRetType = vFuncSignatureNode->token.text;
-			const std::string& funcName = vFuncSignatureNode->children[0]->token.text;
-			std::vector<std::string> paramTypeNames;
-
-			for (size_t i=1; i<vFuncSignatureNode->children.size(); i++)
-			{
-				const SharedNode& paramTypeNode = vFuncSignatureNode->children[i];
-
-				const std::string& paramTypeName = paramTypeNode->token.text;
-				Affirm(
-					typeNameToSize.count(paramTypeName) != 0,
-					"undefined type name '%s' at line %i",
-					paramTypeName.c_str(), paramTypeNode->token.line
-				);
-
-				paramTypeNames.push_back(paramTypeName);
-			}
-
-			std::string funcHash = GetFunctionHash(funcRetType, funcName, paramTypeNames);
-
-			Affirm(
-				IsFunctionDefined(funcHash),
-				"function '%s' at line %i is not defined",
-				funcHash.c_str(), vFuncSignatureNode->token.line
-			);
-
-			vTableExp->functionLabels.push_back(funcHash);
-		}
-
-		return vTableExp;
-	}
-
-
 	// statements
 	Parser::SharedExp Parser::PStatement(const SharedNode& lexNode) 
 	{
@@ -803,8 +875,6 @@ namespace Tolo
 			return PScope(lexNode);
 		case LexNode::Type::Return:
 			return PReturn(lexNode);
-		case LexNode::Type::Goto:
-			return PGoto(lexNode);
 		case LexNode::Type::IfSingle:
 			return PIfSingle(lexNode);
 		case LexNode::Type::IfChain:
@@ -872,17 +942,6 @@ namespace Tolo
 		}
 
 		return retExp;
-	}
-
-	Parser::SharedExp Parser::PGoto(const SharedNode& lexNode)
-	{
-		auto gotoExp = std::make_shared<EGoto>();
-
-		currentExpectedReturnType = "ptr";
-		gotoExp->instrPtrLoad = PReadableValue(lexNode->children[0]);
-		currentExpectedReturnType = "void";
-
-		return gotoExp;
 	}
 
 	Parser::SharedExp Parser::PIfSingle(const SharedNode& lexNode) 
@@ -1611,9 +1670,6 @@ namespace Tolo
 		if (ptrTypeNameToStructTypeName.count(funcName) != 0)
 			return PStructPtrInitialization(lexNode, outReadDataType);
 
-		if (vTablePtrNameToVTableName.count(funcName))
-			return PVTablePtr(lexNode, outReadDataType);
-
 		return PUserOrNativeFunctionCall(lexNode, outReadDataType);
 	}
 
@@ -1669,16 +1725,22 @@ namespace Tolo
 
 	Parser::SharedExp Parser::PStructInitialization(const SharedNode& lexNode, std::string& outReadDataType)
 	{
-		const std::string& funcName = lexNode->token.text;
-		AffirmCurrentType(funcName, lexNode->token.line);
-		outReadDataType = funcName;
+		const std::string& structName = lexNode->token.text;
+		AffirmCurrentType(structName, lexNode->token.line);
+		outReadDataType = structName;
 
-		const StructInfo& structInfo = typeNameToStructInfo[funcName];
+		const StructInfo& structInfo = typeNameToStructInfo[structName];
+
+		bool hasVTable = structNameToVTable.count(structName) != 0;
+
+		size_t requiredArgCount = structInfo.memberNameToVarInfo.size();
+		if (hasVTable)
+			requiredArgCount--;
 
 		Affirm(
-			structInfo.memberNameToVarInfo.size() == lexNode->children.size(),
+			requiredArgCount == lexNode->children.size(),
 			"number of arguments provided to struct initializer '%s' at line %i does not match number of properties",
-			funcName.c_str(), lexNode->token.line
+			structName.c_str(), lexNode->token.line
 		);
 
 		auto loadMultiExp = std::make_shared<ELoadMulti>();
@@ -1688,9 +1750,16 @@ namespace Tolo
 
 		for (const std::string& membName : structInfo.memberNames)
 		{
-			currentExpectedReturnType = structInfo.memberNameToVarInfo.at(membName).typeName;
-			loadMultiExp->loaders.push_back(PReadableValue(lexNode->children[argIndex]));
-			argIndex++;
+			if (hasVTable && membName == "virtual")
+			{
+				loadMultiExp->loaders.push_back(std::make_shared<ELoadVTablePtr>(structName));
+			}
+			else
+			{
+				currentExpectedReturnType = structInfo.memberNameToVarInfo.at(membName).typeName;
+				loadMultiExp->loaders.push_back(PReadableValue(lexNode->children[argIndex]));
+				argIndex++;
+			}
 		}
 
 		currentExpectedReturnType = oldRetType;
@@ -1728,23 +1797,6 @@ namespace Tolo
 		currentExpectedReturnType = oldRetType;
 
 		return loadMultiExp;
-	}
-
-	Parser::SharedExp Parser::PVTablePtr(const SharedNode& lexNode, std::string& outReadDataType)
-	{
-		AffirmCurrentType("ptr", lexNode->token.line);
-		outReadDataType = "ptr";
-
-		Affirm(
-			lexNode->children.size() == 0,
-			"unexpected token '%s' at line %i",
-			lexNode->token.text.c_str(), lexNode->token.line
-		);
-
-		const std::string& vTablePtrName = lexNode->token.text;
-		const std::string& vTableName = vTablePtrNameToVTableName.at(vTablePtrName);
-
-		return std::make_shared<ELoadVTablePtr>(vTableName);
 	}
 
 	Parser::SharedExp Parser::PMemberFunctionCall(const SharedNode& lexNode, std::string& outReadDataType)
