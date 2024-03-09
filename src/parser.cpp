@@ -682,6 +682,7 @@ namespace Tolo
 
 		FunctionInfo funcInfo;
 		funcInfo.returnTypeName = returnTypeName;
+		funcInfo.invokerStructTypeName = structTypeName;
 		Int nextVarOffset = 0;
 
 		// flatten content nodes into a single array to find all variable definitions
@@ -1712,6 +1713,7 @@ namespace Tolo
 		if (funcName == "sizeof")
 		{
 			AffirmCurrentType("int", lexNode->token.line);
+			outReadDataType = "int";
 
 			Affirm(
 				lexNode->children.size() == 1 &&
@@ -1727,8 +1729,6 @@ namespace Tolo
 				"'%s' at line %i is not a type name",
 				typeName.c_str(), lexNode->children[0]->token.line
 			);
-
-			outReadDataType = "int";
 
 			return std::make_shared<ELoadConstInt>(typeNameToSize.at(typeName));
 		}
@@ -1870,13 +1870,44 @@ namespace Tolo
 
 	Parser::SharedExp Parser::PMemberFunctionCall(const SharedNode& lexNode, std::string& outReadDataType)
 	{
-		Affirm(
-			p_currentFunction->varNameToVarInfo.count(lexNode->token.text) != 0,
-			"undefined variable '%s' at line %i",
-			lexNode->token.text.c_str(), lexNode->token.line
-		);
+		const std::string& varName = lexNode->token.text;
+		VariableInfo varInfo;
+		bool callerIsBasePointer = false;
 
-		const VariableInfo& varInfo = p_currentFunction->varNameToVarInfo.at(lexNode->token.text);
+		// handle member function call using "base" variable
+		if (p_currentFunction->invokerStructTypeName.size() > 0 && varName == "base")
+		{
+			Affirm(
+				structNameToParentStructName.count(p_currentFunction->invokerStructTypeName) != 0,
+				"cannot use 'base'-pointer, struct of type '%s' at line %i does not derive from a base struct",
+				p_currentFunction->invokerStructTypeName.c_str(), lexNode->token.line
+			);
+
+			const std::string& baseStructTypeName = 
+				structNameToParentStructName.at(p_currentFunction->invokerStructTypeName);
+
+			Affirm(
+				lexNode->children.size() == 1 &&
+				structNameToVTable.count(baseStructTypeName) != 0,
+				"'base'-pointer at line %i can only be used to call the base struct's version of a virtual member function",
+				lexNode->token.line
+			);
+
+			callerIsBasePointer = true;
+			varInfo = p_currentFunction->varNameToVarInfo.at("this");
+			varInfo.typeName = baseStructTypeName + "::ptr";
+		}
+		// default
+		else
+		{
+			Affirm(
+				IsVariableDefined(varName) != 0,
+				"undefined variable '%s' at line %i",
+				varName.c_str(), lexNode->token.line
+			);
+
+			varInfo = p_currentFunction->varNameToVarInfo.at(varName);
+		}
 
 		auto loadCallerPtrExp = std::make_shared<ELoadMulti>();
 		std::string structType = varInfo.typeName;
@@ -1967,8 +1998,19 @@ namespace Tolo
 
 		while (true)
 		{
-			std::string funcName = structType + "::" + funcNode->token.text;
-			std::string funcHash = GetFunctionHash(currentExpectedReturnType, funcName, argTypeNames);
+			std::string funcName;
+			std::string funcHash;
+
+			if (callerIsBasePointer)
+			{
+				funcName = structType + "::0virtual_" + funcNode->token.text;
+				funcHash = GetFunctionHash(currentExpectedReturnType, funcName, argTypeNames);
+			}
+			else
+			{
+				funcName = structType + "::" + funcNode->token.text;
+				funcHash = GetFunctionHash(currentExpectedReturnType, funcName, argTypeNames);
+			}
 
 			if (hashToUserFunctions.count(funcHash) != 0)
 			{
@@ -1990,7 +2032,7 @@ namespace Tolo
 			}
 
 			Affirm(
-				structNameToParentStructName.count(structType) != 0,
+				callerIsBasePointer || structNameToParentStructName.count(structType) != 0,
 				"function signature '%s' at line %i does not match any existing functions",
 				funcHash.c_str(), lexNode->token.line
 			);

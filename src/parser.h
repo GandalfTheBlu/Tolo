@@ -29,6 +29,7 @@ namespace Tolo
 
 		std::map<std::string, VariableInfo> varNameToVarInfo;
 		std::vector<std::string> parameterNames;
+		std::string invokerStructTypeName;
 
 		FunctionInfo();
 	};
