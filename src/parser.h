@@ -73,6 +73,7 @@ namespace Tolo
 		std::map<std::string, std::string> structNameToParentStructName;
 		std::map<std::string, Int> nameToEnumValue;
 		std::set<std::string> enumNamespaces;
+		std::map<std::string, std::string> vTablePtrNameToVTableName;
 
 		using SharedExp = std::shared_ptr<Expression>;
 		using SharedNode = std::shared_ptr<LexNode>;
@@ -102,6 +103,8 @@ namespace Tolo
 
 		SharedExp PEnumDefinition(const SharedNode& lexNode);
 
+		SharedExp PVTableDefinition(const SharedNode& lexNode);
+
 		// statements
 		SharedExp PStatement(const SharedNode& lexNode);
 
@@ -112,6 +115,8 @@ namespace Tolo
 		SharedExp PScope(const SharedNode& lexNode);
 
 		SharedExp PReturn(const SharedNode& lexNode);
+
+		SharedExp PGoto(const SharedNode& lexNode);
 
 		SharedExp PIfSingle(const SharedNode& lexNode);
 
@@ -173,6 +178,8 @@ namespace Tolo
 		SharedExp PStructInitialization(const SharedNode& lexNode, std::string& outReadDataType);
 
 		SharedExp PStructPtrInitialization(const SharedNode& lexNode, std::string& outReadDataType);
+
+		SharedExp PVTablePtr(const SharedNode& lexNode, std::string& outReadDataType);
 
 		SharedExp PMemberFunctionCall(const SharedNode& lexNode, std::string& outReadDataType);
 	};

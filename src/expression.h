@@ -205,6 +205,15 @@ namespace Tolo
 		virtual void Evaluate(CodeBuilder& cb) override;
 	};
 
+	struct EGoto : public Expression
+	{
+		SharedExp instrPtrLoad;
+
+		EGoto();
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+	};
+
 	struct EIfSingle : public Expression
 	{
 		SharedExp conditionLoad;
@@ -299,6 +308,25 @@ namespace Tolo
 		std::vector<SharedExp> loaders;
 
 		ELoadMulti();
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+	};
+
+	struct EVTable : public Expression
+	{
+		std::string vTableName;
+		std::vector<std::string> functionLabels;
+
+		EVTable(const std::string& _vTableName);
+
+		virtual void Evaluate(CodeBuilder& cb) override;
+	};
+
+	struct ELoadVTablePtr : public Expression
+	{
+		std::string vTableName;
+
+		ELoadVTablePtr(const std::string& _vTableName);
 
 		virtual void Evaluate(CodeBuilder& cb) override;
 	};

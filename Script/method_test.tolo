@@ -3,49 +3,41 @@
 
 struct Parent
 {
-    //ptr virtual;
+    ptr vtp;
 };
 
-int Parent::Foo()
+void Parent::pFoo()
 {
-    return 11;
+    print("Parent\n");
 }
 
-int Parent::Bar()
+void Parent::Foo()
 {
-    return 0;
+    goto *this.vtp;
 }
+
+virtual Parent
+{
+    void Parent::pFoo(Parent::ptr);
+};
+
 
 struct Child : Parent
 {};
 
-int Child::Bar()
+void Child::vFoo()
 {
-    return 1;
+    print("Child\n");
 }
 
-int Child::Foo()
+virtual Child
 {
-    Parent::ptr base = Parent::ptr(this);
-    return base.Foo() + 22;
-}
-
-
-void nl()
-{
-    print("\n");
-}
-
+    void Child::vFoo(Child::ptr);
+};
 
 void main()
 {
-    Child c = Child();
-    
-    int i = c.Bar();
-    print(i);
-
-    nl();
-
-    int j = c.Foo();
-    print(j);
+    Child c = Child(Child::vtp());
+    Parent::ptr p = Parent::ptr(&c);
+    p.Foo();
 }

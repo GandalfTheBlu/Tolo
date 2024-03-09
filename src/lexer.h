@@ -50,6 +50,8 @@ namespace Tolo
 
 		SharedNode LEnumDefinition();
 
+		SharedNode LVTableDefinition();
+
 		// statements
 		SharedNode LStatement();
 
@@ -66,6 +68,8 @@ namespace Tolo
 		SharedNode LContinueStatement();
 
 		SharedNode LReturnStatement();
+
+		SharedNode LGotoStatement();
 
 		// expressions
 		SharedNode LExpression(int precedence);

@@ -21,6 +21,7 @@ namespace Tolo
 			While,
 			Break,
 			Continue,
+			Goto,
 			Scope,
 
 			// values
@@ -40,7 +41,8 @@ namespace Tolo
 			FunctionDefinition,
 			OperatorDefinition,
 			MemberFunctionDefinition,
-			EnumDefinition
+			EnumDefinition,
+			VTableDefinition
 		};
 
 		Type type;

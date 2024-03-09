@@ -251,6 +251,16 @@ namespace Tolo
 	}
 
 
+	EGoto::EGoto()
+	{}
+
+	void EGoto::Evaluate(CodeBuilder& cb)
+	{
+		instrPtrLoad->Evaluate(cb);
+		cb.Op(OpCode::Write_IP);
+	}
+
+
 	EWhile::EWhile()
 	{}
 
@@ -477,5 +487,28 @@ namespace Tolo
 	{
 		for (auto e : loaders)
 			e->Evaluate(cb);
+	}
+
+
+	EVTable::EVTable(const std::string& _vTableName) :
+		vTableName(_vTableName)
+	{}
+
+	void EVTable::Evaluate(CodeBuilder& cb)
+	{
+		cb.DefineLabel("0virtual_table_" + vTableName);
+		
+		for (const std::string& funcLabel : functionLabels)
+			cb.ConstPtrToLabel(funcLabel);
+	}
+
+
+	ELoadVTablePtr::ELoadVTablePtr(const std::string& _vTableName) :
+		vTableName(_vTableName)
+	{}
+
+	void ELoadVTablePtr::Evaluate(CodeBuilder& cb)
+	{
+		cb.Op(OpCode::Load_Const_Ptr); cb.ConstPtrToLabel("0virtual_table_" + vTableName);
 	}
 }

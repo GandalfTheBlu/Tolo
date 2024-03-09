@@ -248,9 +248,11 @@ namespace Tolo
 			return POperatorDefinition(lexNode);
 		case LexNode::Type::MemberFunctionDefinition:
 			return PMemberFunctionDefinition(lexNode);
+		case LexNode::Type::EnumDefinition:
+			return PEnumDefinition(lexNode);
 		}
 
-		return PEnumDefinition(lexNode);
+		return PVTableDefinition(lexNode);
 	}
 
 	Parser::SharedExp Parser::PStructDefinition(const SharedNode& lexNode) 
@@ -737,6 +739,57 @@ namespace Tolo
 		return std::make_shared<EEmpty>();
 	}
 
+	Parser::SharedExp Parser::PVTableDefinition(const SharedNode& lexNode)
+	{
+		const std::string& vTableName = lexNode->token.text;
+
+		std::string vTablePtrName = vTableName + "::vtp";
+
+		Affirm(
+			vTablePtrNameToVTableName.count(vTablePtrName) == 0,
+			"virtual table '%s' at line %i is already defined",
+			vTableName.c_str(), lexNode->token.line
+		);
+
+		vTablePtrNameToVTableName[vTablePtrName] = vTableName;
+
+		auto vTableExp = std::make_shared<EVTable>(vTableName);
+
+		for (const SharedNode& vFuncSignatureNode : lexNode->children)
+		{
+			const std::string& funcRetType = vFuncSignatureNode->token.text;
+			const std::string& funcName = vFuncSignatureNode->children[0]->token.text;
+			std::vector<std::string> paramTypeNames;
+
+			for (size_t i=1; i<vFuncSignatureNode->children.size(); i++)
+			{
+				const SharedNode& paramTypeNode = vFuncSignatureNode->children[i];
+
+				const std::string& paramTypeName = paramTypeNode->token.text;
+				Affirm(
+					typeNameToSize.count(paramTypeName) != 0,
+					"undefined type name '%s' at line %i",
+					paramTypeName.c_str(), paramTypeNode->token.line
+				);
+
+				paramTypeNames.push_back(paramTypeName);
+			}
+
+			std::string funcHash = GetFunctionHash(funcRetType, funcName, paramTypeNames);
+
+			Affirm(
+				IsFunctionDefined(funcHash),
+				"function '%s' at line %i is not defined",
+				funcHash.c_str(), vFuncSignatureNode->token.line
+			);
+
+			vTableExp->functionLabels.push_back(funcHash);
+		}
+
+		return vTableExp;
+	}
+
+
 	// statements
 	Parser::SharedExp Parser::PStatement(const SharedNode& lexNode) 
 	{
@@ -750,6 +803,8 @@ namespace Tolo
 			return PScope(lexNode);
 		case LexNode::Type::Return:
 			return PReturn(lexNode);
+		case LexNode::Type::Goto:
+			return PGoto(lexNode);
 		case LexNode::Type::IfSingle:
 			return PIfSingle(lexNode);
 		case LexNode::Type::IfChain:
@@ -817,6 +872,17 @@ namespace Tolo
 		}
 
 		return retExp;
+	}
+
+	Parser::SharedExp Parser::PGoto(const SharedNode& lexNode)
+	{
+		auto gotoExp = std::make_shared<EGoto>();
+
+		currentExpectedReturnType = "ptr";
+		gotoExp->instrPtrLoad = PReadableValue(lexNode->children[0]);
+		currentExpectedReturnType = "void";
+
+		return gotoExp;
 	}
 
 	Parser::SharedExp Parser::PIfSingle(const SharedNode& lexNode) 
@@ -1545,6 +1611,9 @@ namespace Tolo
 		if (ptrTypeNameToStructTypeName.count(funcName) != 0)
 			return PStructPtrInitialization(lexNode, outReadDataType);
 
+		if (vTablePtrNameToVTableName.count(funcName))
+			return PVTablePtr(lexNode, outReadDataType);
+
 		return PUserOrNativeFunctionCall(lexNode, outReadDataType);
 	}
 
@@ -1659,6 +1728,23 @@ namespace Tolo
 		currentExpectedReturnType = oldRetType;
 
 		return loadMultiExp;
+	}
+
+	Parser::SharedExp Parser::PVTablePtr(const SharedNode& lexNode, std::string& outReadDataType)
+	{
+		AffirmCurrentType("ptr", lexNode->token.line);
+		outReadDataType = "ptr";
+
+		Affirm(
+			lexNode->children.size() == 0,
+			"unexpected token '%s' at line %i",
+			lexNode->token.text.c_str(), lexNode->token.line
+		);
+
+		const std::string& vTablePtrName = lexNode->token.text;
+		const std::string& vTableName = vTablePtrNameToVTableName.at(vTablePtrName);
+
+		return std::make_shared<ELoadVTablePtr>(vTableName);
 	}
 
 	Parser::SharedExp Parser::PMemberFunctionCall(const SharedNode& lexNode, std::string& outReadDataType)
