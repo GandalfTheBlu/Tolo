@@ -461,22 +461,20 @@ namespace Tolo
 		}
 
 		// find all parameters
+		PushScope();
 		std::vector<std::string> paramTypeNames;
+
 		for (size_t i = 1; i + 2 < lexNode->children.size(); i += 2)
 		{
 			const std::string& paramTypeName = lexNode->children[i]->token.text;
 			const std::string& paramName = lexNode->children[i + 1]->token.text;
 
+			DeclareVariableInCurrentScope(paramName, lexNode->children[i + 1]->token.line);
+
 			Affirm(
 				typeNameToSize.count(paramTypeName) != 0,
 				"undefined type '%s' at line %i",
 				paramTypeName.c_str(), lexNode->children[i]->token.line
-			);
-
-			Affirm(
-				funcInfo.varNameToVarInfo.count(paramName) == 0,
-				"variable '%s' at line %i is already defined",
-				paramName.c_str(), lexNode->children[i + 1]->token.line
 			);
 
 			paramTypeNames.push_back(paramTypeName);
@@ -502,7 +500,7 @@ namespace Tolo
 
 		// parse body content
 		auto defFuncExp = std::make_shared<EDefineFunction>(funcHash);
-		PushScope();
+		
 		defFuncExp->body.push_back(PStatement(lexNode->children.back()));
 		PopScope();
 
@@ -605,6 +603,7 @@ namespace Tolo
 		}
 
 		// find all parameters
+		PushScope();
 		std::vector<std::string> paramTypeNames;
 
 		for (size_t i = 1; i + 2 < lexNode->children.size(); i += 2)
@@ -612,10 +611,12 @@ namespace Tolo
 			const std::string& paramTypeName = lexNode->children[i]->token.text;
 			const std::string& paramName = lexNode->children[i + 1]->token.text;
 
+			DeclareVariableInCurrentScope(paramName, lexNode->children[i + 1]->token.line);
+
 			Affirm(
-				funcInfo.varNameToVarInfo.count(paramName) == 0,
-				"variable '%s' at line %i is already defined",
-				paramName.c_str(), lexNode->children[i + 1]->token.line
+				typeNameToSize.count(paramTypeName) != 0,
+				"undefined type '%s' at line %i",
+				paramTypeName.c_str(), lexNode->children[i]->token.line
 			);
 
 			paramTypeNames.push_back(paramTypeName);
@@ -646,7 +647,6 @@ namespace Tolo
 		p_currentFunction = &funcInfo;
 
 		// parse body content
-		PushScope();
 		defFuncExp->body.push_back(PStatement(lexNode->children.back()));
 		PopScope();
 
@@ -721,9 +721,13 @@ namespace Tolo
 			funcInfo.varNameToVarInfo[varName] = { varTypeName, nextVarOffset };
 		}
 
+		PushScope();
 		std::vector<std::string> paramTypeNames;
+
 		// add this ptr
 		{
+			DeclareVariableInCurrentScope("this", lexNode->token.line);
+
 			std::string structPtrTypeName = structTypeName + "::ptr";
 			paramTypeNames.push_back(structPtrTypeName);
 
@@ -739,16 +743,12 @@ namespace Tolo
 			const std::string& paramTypeName = lexNode->children[i]->token.text;
 			const std::string& paramName = lexNode->children[i + 1]->token.text;
 
+			DeclareVariableInCurrentScope(paramName, lexNode->children[i + 1]->token.line);
+
 			Affirm(
 				typeNameToSize.count(paramTypeName) != 0,
 				"undefined type '%s' at line %i",
 				paramTypeName.c_str(), lexNode->children[i]->token.line
-			);
-
-			Affirm(
-				funcInfo.varNameToVarInfo.count(paramName) == 0,
-				"variable '%s' at line %i is already defined",
-				paramName.c_str(), lexNode->children[i + 1]->token.line
 			);
 
 			paramTypeNames.push_back(paramTypeName);
@@ -840,8 +840,6 @@ namespace Tolo
 		p_currentFunction = &funcInfo;
 
 		// parse body content
-		PushScope();
-		DeclareVariableInCurrentScope("this", lexNode->token.line);
 		defFuncExp->body.push_back(PStatement(lexNode->children.back()));
 		PopScope();
 
@@ -884,6 +882,8 @@ namespace Tolo
 			"enum namespace '%s' at line %i is already defined",
 			enumNamespace.c_str(), lexNode->token.line
 		);
+
+		enumNamespaces.insert(enumNamespace);
 
 		Int enumValue = 0;
 
@@ -1401,6 +1401,8 @@ namespace Tolo
 		if (hashToUserFunctions.count(funcHash) != 0)
 		{
 			const FunctionInfo& funcInfo = hashToUserFunctions.at(funcHash);
+			
+			AffirmCurrentType(funcInfo.returnTypeName, lexNode->token.line);
 
 			auto callOpExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize);
 			callOpExp->argumentLoads.push_back(lhsExp);
@@ -1412,6 +1414,8 @@ namespace Tolo
 		if (hashToNativeFunctions.count(funcHash) != 0)
 		{
 			const NativeFunctionInfo& funcInfo = hashToNativeFunctions.at(funcHash);
+
+			AffirmCurrentType(funcInfo.returnTypeName, lexNode->token.line);
 
 			auto callNativeOpExp = std::make_shared<ECallNativeFunction>();
 			callNativeOpExp->argumentLoads.push_back(lhsExp);
@@ -1434,24 +1438,23 @@ namespace Tolo
 			{Token::Type::DoubleRightArrow, 8}
 		};
 
+		AffirmCurrentType(lhsTypeName, lexNode->token.line);
+
 		Affirm(
-			typeNameOperators.count(currentExpectedReturnType) != 0,
+			typeNameOperators.count(lhsTypeName) != 0,
 			"cannot perform binary math operation '%s' on operand of type '%s' at line %i",
-			lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), lexNode->token.line
+			lexNode->token.text.c_str(), lhsTypeName.c_str(), lexNode->token.line
 		);
 
-		OpCode opCode = typeNameOperators[currentExpectedReturnType][opTypeToOpIndex[lexNode->token.type]];
+		OpCode opCode = typeNameOperators[lhsTypeName][opTypeToOpIndex[lexNode->token.type]];
 
 		Affirm(
 			opCode != OpCode::INVALID,
 			"cannot perform binary math operation '%s' on operand of type '%s' at line %i",
-			lexNode->token.text.c_str(), currentExpectedReturnType.c_str(), lexNode->token.line
+			lexNode->token.text.c_str(), lhsTypeName.c_str(), lexNode->token.line
 		);
 
-		auto binMathOpExp = std::make_shared<EBinaryOp>(opCode);
-		binMathOpExp->lhsLoad = lhsExp;
-
-		if (currentExpectedReturnType == "ptr" ||
+		if (lhsTypeName == "ptr" ||
 			lexNode->token.type == Token::Type::DoubleLeftArrow ||
 			lexNode->token.type == Token::Type::DoubleRightArrow)
 		{
@@ -1462,6 +1465,8 @@ namespace Tolo
 			);
 		}
 
+		auto binMathOpExp = std::make_shared<EBinaryOp>(opCode);
+		binMathOpExp->lhsLoad = lhsExp;
 		binMathOpExp->rhsLoad = rhsExp;
 
 		return binMathOpExp;
@@ -1493,6 +1498,8 @@ namespace Tolo
 		std::string rhsTypeName;
 		auto rhsExp = PReadableValue(lexNode->children[1], rhsTypeName);
 
+		currentExpectedReturnType = "char";
+
 		const std::string& opName = lexNode->token.text;
 		std::string funcHash = GetFunctionHash("char", "operator::" + opName, { lhsTypeName, rhsTypeName });
 
@@ -1500,12 +1507,12 @@ namespace Tolo
 		{
 			const FunctionInfo& funcInfo = hashToUserFunctions.at(funcHash);
 
+			AffirmCurrentType(funcInfo.returnTypeName, lexNode->token.line);
+
 			auto callOpExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize);
 			callOpExp->argumentLoads.push_back(lhsExp);
 			callOpExp->argumentLoads.push_back(rhsExp);
 			callOpExp->functionIpLoad = std::make_shared<ELoadConstPtrToLabel>(funcHash);
-
-			currentExpectedReturnType = "char";
 
 			return callOpExp;
 		}
@@ -1513,12 +1520,12 @@ namespace Tolo
 		{
 			const NativeFunctionInfo& funcInfo = hashToNativeFunctions.at(funcHash);
 
+			AffirmCurrentType(funcInfo.returnTypeName, lexNode->token.line);
+
 			auto callNativeOpExp = std::make_shared<ECallNativeFunction>();
 			callNativeOpExp->argumentLoads.push_back(lhsExp);
-			callNativeOpExp->argumentLoads.push_back(PReadableValue(lexNode->children[1]));
+			callNativeOpExp->argumentLoads.push_back(rhsExp);
 			callNativeOpExp->functionPtrLoad = std::make_shared<ELoadConstPtr>(funcInfo.p_functionPtr);
-
-			currentExpectedReturnType = "char";
 
 			return callNativeOpExp;
 		}
@@ -1546,8 +1553,6 @@ namespace Tolo
 		auto binCompOpExp = std::make_shared<EBinaryOp>(opCode);
 		binCompOpExp->lhsLoad = lhsExp;
 		binCompOpExp->rhsLoad = rhsExp;
-
-		currentExpectedReturnType = "char";
 
 		return binCompOpExp;
 	}

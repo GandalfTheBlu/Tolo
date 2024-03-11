@@ -59,9 +59,9 @@ namespace Tolo
 		size_t mainParameterCount;
 		std::map<std::string, Int> typeNameToSize;
 		std::map<std::string, NativeFunctionInfo> hashToNativeFunctions;
+		std::set<std::string> enumNamespaces;
 		std::map<std::string, Int> nameToEnumValue;
 		std::map<std::string, StructInfo> typeNameToStructInfo;
-		std::map<std::string, std::string> structNameToParentStructName;
 		std::map<std::string, void(*)(ProgramHandle&)> standardTookitAdders;
 
 		ProgramHandle() = delete;
@@ -96,13 +96,8 @@ namespace Tolo
 			const std::vector<std::pair<std::string, std::string>>& members
 		);
 
-		void AddStructInherit(
-			const std::string& structName,
-			const std::string& parentStructName,
-			const std::vector<std::pair<std::string, std::string>>& members
-		);
-
 		void AddEnum(
+			const std::string& enumNamespace,
 			const std::vector<std::string>& enumNames
 		);
 

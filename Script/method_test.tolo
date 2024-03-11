@@ -1,28 +1,51 @@
 #include <memory>
 #include <io>
 
-struct Parent
+
+struct vector
 {
-    ptr virtual;
+    int typeSize;
+    int count;
+    ptr data;
 };
 
-void Parent::Foo() : virtual
+void vector::malloc()
 {
-    print("Parent\n");
+    this.data = malloc(this.typeSize * this.count);
 }
 
-struct Child : Parent
-{};
-
-void Child::Foo() : virtual
+void vector::free()
 {
-    base.Foo();
-    print("Child\n");
+    free(this.data);
+}
+
+ptr vector::at(int index)
+{
+    return this.data + this.typeSize * index;
+}
+
+void log(int i)
+{
+    print(i);
+    print("\n");
 }
 
 void main()
 {
-    Child c = Child();
-    Parent::ptr p = Parent::ptr(&c);
-    p.Foo();// prints "Parent" "Child"
+    vector v = vector(sizeof(int), 3, nullptr);
+    v.malloc();
+
+    *v.at(0) = 11;
+    *v.at(1) = 22;
+    *v.at(2) = 33;
+
+    int a = *v.at(0);
+    int b = *v.at(1);
+    int c = *v.at(2);
+
+    log(a);
+    log(b);
+    log(c);
+
+    v.free();
 }

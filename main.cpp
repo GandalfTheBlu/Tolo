@@ -11,9 +11,6 @@ int main()
 		"void", "main", {}
 	);
 
-	program.AddStruct("parent", {{"int", "memb1"}});
-	program.AddStructInherit("child", "parent", { {"int", "memb2"} });
-
 	program.Compile();
 	program.Execute<void>();
 
