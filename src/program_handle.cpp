@@ -89,7 +89,8 @@ namespace Tolo
 		standardTookitAdders =
 		{
 			{"memory", AddMemoryToolkit},
-			{"io", AddIOToolkit}
+			{"io", AddIOToolkit},
+			{"assert", AddAssertToolkit}
 		};
 	}
 

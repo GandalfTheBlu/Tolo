@@ -1490,6 +1490,7 @@ namespace Tolo
 		outReadDataType = "char";
 
 		// determine operand data type
+		std::string oldRetType = currentExpectedReturnType;
 		currentExpectedReturnType = ANY_VALUE_TYPE;
 
 		std::string lhsTypeName;
@@ -1498,7 +1499,7 @@ namespace Tolo
 		std::string rhsTypeName;
 		auto rhsExp = PReadableValue(lexNode->children[1], rhsTypeName);
 
-		currentExpectedReturnType = "char";
+		currentExpectedReturnType = oldRetType;
 
 		const std::string& opName = lexNode->token.text;
 		std::string funcHash = GetFunctionHash("char", "operator::" + opName, { lhsTypeName, rhsTypeName });
@@ -1507,7 +1508,9 @@ namespace Tolo
 		{
 			const FunctionInfo& funcInfo = hashToUserFunctions.at(funcHash);
 
+			currentExpectedReturnType = "char";
 			AffirmCurrentType(funcInfo.returnTypeName, lexNode->token.line);
+			currentExpectedReturnType = oldRetType;
 
 			auto callOpExp = std::make_shared<ECallFunction>(funcInfo.parametersSize, funcInfo.localsSize);
 			callOpExp->argumentLoads.push_back(lhsExp);
@@ -1520,7 +1523,9 @@ namespace Tolo
 		{
 			const NativeFunctionInfo& funcInfo = hashToNativeFunctions.at(funcHash);
 
+			currentExpectedReturnType = "char";
 			AffirmCurrentType(funcInfo.returnTypeName, lexNode->token.line);
+			currentExpectedReturnType = oldRetType;
 
 			auto callNativeOpExp = std::make_shared<ECallNativeFunction>();
 			callNativeOpExp->argumentLoads.push_back(lhsExp);
@@ -1610,8 +1615,7 @@ namespace Tolo
 		);
 
 		outReadDataType = currentExpectedReturnType;
-
-		auto loadBytes = std::make_shared<ELoadBytesFromPtr>(typeNameToSize[currentExpectedReturnType]);
+		auto loadBytes = std::make_shared<ELoadBytesFromPtr>(typeNameToSize.at(currentExpectedReturnType));
 
 		std::string oldType = currentExpectedReturnType;
 		currentExpectedReturnType = "ptr";

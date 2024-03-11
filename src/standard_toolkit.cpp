@@ -158,4 +158,15 @@ namespace Tolo
 			}
 		);
 	}
+
+	void AddAssertToolkit(ProgramHandle& program)
+	{
+		program.AddFunction("void", "assert", { "char", "ptr"}, [](VirtualMachine& vm)
+			{
+				Char test = Pop<Char>(vm);
+				const char* p_str = static_cast<const char*>(Pop<Ptr>(vm));
+				Affirm(test > 0, p_str);
+			}
+		);
+	}
 }

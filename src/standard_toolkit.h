@@ -5,4 +5,5 @@ namespace Tolo
 {
 	void AddMemoryToolkit(ProgramHandle& program);
 	void AddIOToolkit(ProgramHandle& program);
+	void AddAssertToolkit(ProgramHandle& program);
 }

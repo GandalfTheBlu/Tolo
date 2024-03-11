@@ -1,5 +1,6 @@
 #include <memory>
 #include <io>
+#include <assert>
 
 
 struct vector
@@ -21,6 +22,7 @@ void vector::free()
 
 ptr vector::at(int index)
 {
+    assert(index >= 0 && index < this.count, "vector index out of range");
     return this.data + this.typeSize * index;
 }
 

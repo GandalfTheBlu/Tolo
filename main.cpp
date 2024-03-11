@@ -6,7 +6,7 @@ int main()
 {
 	ProgramHandle program(
 		"Script/method_test.tolo", 
-		1024, 
+		16 * 1024, 
 		128,
 		"void", "main", {}
 	);
